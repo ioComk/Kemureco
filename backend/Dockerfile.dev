@@ -1,0 +1,12 @@
+# 開発用Dockerfile
+FROM rust:1.82
+
+WORKDIR /app
+
+# cargo-watchをインストール
+RUN cargo install cargo-watch
+
+EXPOSE 8080
+
+# ホットリロード用コマンド
+CMD ["cargo", "watch", "-x", "run"]

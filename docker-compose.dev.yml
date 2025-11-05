@@ -1,0 +1,70 @@
+services:
+  # データベース
+  postgres:
+    image: postgres:17-alpine
+    container_name: kemureco-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kemureco}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # データベース管理GUI（オプション）
+  pgweb:
+    image: sosedoff/pgweb
+    container_name: kemureco-pgweb
+    ports:
+      - "8081:8081"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-kemureco}?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Rust APIサーバー（開発モード）
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: kemureco-api-dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - backend_cache:/usr/local/cargo/registry
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-kemureco}
+      RUST_LOG: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Next.js Webサーバー（開発モード）
+  frontend:
+    image: node:22-alpine
+    container_name: kemureco-web-dev
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  backend_cache:
