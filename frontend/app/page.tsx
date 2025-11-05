@@ -6,7 +6,8 @@ export default function Home() {
   const [apiStatus, setApiStatus] = useState<string>("Checking...");
 
   useEffect(() => {
-    fetch("http://localhost:8080/health")
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+    fetch(`${apiUrl}/health`)
       .then((res) => res.json())
       .then((data) => setApiStatus(data.status))
       .catch(() => setApiStatus("Error"));
