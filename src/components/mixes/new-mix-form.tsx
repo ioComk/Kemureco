@@ -32,6 +32,7 @@ type FlavorOption = Flavor & {
 };
 
 type ComponentState = {
+  id: string;
   flavorId: string;
   ratio: number;
 };
@@ -40,7 +41,7 @@ type NewMixFormProps = {
   flavors: FlavorOption[];
 };
 
-const DEFAULT_COMPONENTS: ComponentState[] = [
+const DEFAULT_COMPONENTS: Omit<ComponentState, "id">[] = [
   { flavorId: "", ratio: 40 },
   { flavorId: "", ratio: 30 },
   { flavorId: "", ratio: 30 },
@@ -51,7 +52,10 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [components, setComponents] = useState<ComponentState[]>(() =>
-    DEFAULT_COMPONENTS.map((component) => ({ ...component })),
+    DEFAULT_COMPONENTS.map((component) => ({
+      ...component,
+      id: crypto.randomUUID(),
+    })),
   );
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
@@ -91,7 +95,12 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
   const resetForm = () => {
     setTitle("");
     setDescription("");
-    setComponents(DEFAULT_COMPONENTS.map((component) => ({ ...component })));
+    setComponents(
+      DEFAULT_COMPONENTS.map((component) => ({
+        ...component,
+        id: crypto.randomUUID(),
+      })),
+    );
   };
 
   const handleSubmit = () => {
@@ -201,7 +210,10 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
               ? flavorMap.get(Number(component.flavorId))
               : undefined;
             return (
-              <div key={index} className="space-y-3 rounded-lg border p-4">
+              <div
+                key={component.id}
+                className="space-y-3 rounded-lg border p-4"
+              >
                 <div className="grid gap-4 md:grid-cols-[2fr,1fr] md:items-center">
                   <div className="space-y-2">
                     <Label>フレーバー {index + 1}</Label>
