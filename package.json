@@ -1,0 +1,38 @@
+{
+  "name": "kemureco",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "build:cf": "next build && npx @cloudflare/next-on-pages",
+    "preview:cf": "npx wrangler pages dev .vercel/output/static --compatibility-date=$(date +%Y-%m-%d)"
+  },
+  "dependencies": {
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-slider": "^1.0.2",
+    "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-toast": "^1.1.5",
+    "@supabase/supabase-js": "^2.42.6",
+    "class-variance-authority": "^0.7.0",
+    "lucide-react": "^0.360.0",
+    "next": "14.2.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tailwind-merge": "^2.3.0",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.12.0",
+    "@types/node": "20.14.2",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "autoprefixer": "10.4.19",
+    "postcss": "8.4.38",
+    "tailwindcss": "3.4.4",
+    "typescript": "5.4.5",
+    "wrangler": "3.55.1"
+  }
+}

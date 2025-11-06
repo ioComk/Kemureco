@@ -1,0 +1,11 @@
+project_id = "kemureco"
+
+[api]
+port = 54321
+
+[db]
+port = 54322
+shadow_port = 54323
+
+[functions]
+port = 54324
