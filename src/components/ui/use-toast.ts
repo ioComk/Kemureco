@@ -38,20 +38,23 @@ const addToRemoveQueue = (toastId: string) => {
   toastTimeouts.set(toastId, timeout);
 };
 
-const toastReducer = (state: ToastState, action: ToastActionType): ToastState => {
+const toastReducer = (
+  state: ToastState,
+  action: ToastActionType,
+): ToastState => {
   switch (action.type) {
     case "ADD_TOAST":
       return {
         ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT)
+        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
       };
 
     case "UPDATE_TOAST":
       return {
         ...state,
         toasts: state.toasts.map((toast) =>
-          toast.id === action.toast.id ? { ...toast, ...action.toast } : toast
-        )
+          toast.id === action.toast.id ? { ...toast, ...action.toast } : toast,
+        ),
       };
 
     case "DISMISS_TOAST": {
@@ -68,8 +71,8 @@ const toastReducer = (state: ToastState, action: ToastActionType): ToastState =>
         toasts: state.toasts.map((toast) =>
           toast.id === toastId || toastId === undefined
             ? { ...toast, open: false }
-            : toast
-        )
+            : toast,
+        ),
       };
     }
 
@@ -79,7 +82,7 @@ const toastReducer = (state: ToastState, action: ToastActionType): ToastState =>
       }
       return {
         ...state,
-        toasts: state.toasts.filter((toast) => toast.id !== action.toastId)
+        toasts: state.toasts.filter((toast) => toast.id !== action.toastId),
       };
     }
   }
@@ -106,7 +109,7 @@ function useToastState() {
         listeners.splice(index, 1);
       }
     };
-  }, [setState]);
+  }, []);
 
   return state;
 }
@@ -119,13 +122,13 @@ function toast({ ...props }: Omit<Toast, "id">) {
     toast: {
       ...props,
       id,
-      open: true
-    }
+      open: true,
+    },
   });
 
   return {
     id,
-    dismiss: () => dispatch({ type: "DISMISS_TOAST", toastId: id })
+    dismiss: () => dispatch({ type: "DISMISS_TOAST", toastId: id }),
   };
 }
 
@@ -135,7 +138,7 @@ function useToast() {
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId })
+    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
   };
 }
 

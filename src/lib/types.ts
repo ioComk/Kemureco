@@ -46,7 +46,10 @@ export type Database = {
       };
       flavors: {
         Row: Flavor;
-        Insert: Omit<Flavor, "id" | "created_at" | "brand"> & { id?: number; created_at?: string | null };
+        Insert: Omit<Flavor, "id" | "created_at" | "brand"> & {
+          id?: number;
+          created_at?: string | null;
+        };
         Update: Partial<Omit<Flavor, "id" | "brand">> & { id?: number };
         Relationships: [
           {
@@ -54,12 +57,15 @@ export type Database = {
             columns: ["brand_id"];
             referencedRelation: "brands";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       mixes: {
         Row: Mix;
-        Insert: Omit<Mix, "id" | "created_at"> & { id?: number; created_at?: string | null };
+        Insert: Omit<Mix, "id" | "created_at"> & {
+          id?: number;
+          created_at?: string | null;
+        };
         Update: Partial<Omit<Mix, "id">> & { id?: number };
         Relationships: [];
       };
@@ -79,15 +85,22 @@ export type Database = {
             columns: ["flavor_id"];
             referencedRelation: "flavors";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       sessions: {
         Row: Session;
-        Insert: Omit<Session, "id" | "started_at"> & { id?: number; started_at?: string | null };
+        Insert: Omit<Session, "id" | "started_at"> & {
+          id?: number;
+          started_at?: string | null;
+        };
         Update: Partial<Omit<Session, "id">> & { id?: number };
         Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 };

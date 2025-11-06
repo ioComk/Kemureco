@@ -5,14 +5,14 @@ serve(() => {
     mixes: [
       {
         title: "冬のチョコミント",
-        score: 0.82
-      }
-    ]
+        score: 0.82,
+      },
+    ],
   };
 
   return new Response(JSON.stringify(body), {
     headers: {
-      "content-type": "application/json; charset=utf-8"
-    }
+      "content-type": "application/json; charset=utf-8",
+    },
   });
 });

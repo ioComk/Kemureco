@@ -26,7 +26,7 @@ async function loadFlavors(): Promise<FlavorWithBrand[]> {
     tags: item.tags,
     brand_id: item.brand_id,
     created_at: item.created_at,
-    brand: item.brands ?? null
+    brand: item.brands ?? null,
   }));
 }
 
@@ -38,7 +38,8 @@ export default async function NewMixPage() {
       <div className="max-w-3xl space-y-4">
         <h1 className="text-2xl font-semibold">ミックスを作成</h1>
         <p className="text-sm text-muted-foreground">
-          フレーバーがまだ登録されていません。Supabase の管理画面からフレーバーデータを登録してください。
+          フレーバーがまだ登録されていません。Supabase
+          の管理画面からフレーバーデータを登録してください。
         </p>
       </div>
     );

@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "build:cf": "next build && npx @cloudflare/next-on-pages",
-    "preview:cf": "npx wrangler pages dev .vercel/output/static --compatibility-date=$(date +%Y-%m-%d)"
+    "preview:cf": "npx wrangler pages dev .vercel/output/static --compatibility-date=$(date +%Y-%m-%d)",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "check:write": "biome check --write ."
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.0.0",
@@ -25,6 +28,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.3.4",
     "@cloudflare/next-on-pages": "^1.12.0",
     "@types/node": "20.14.2",
     "@types/react": "18.3.3",
@@ -33,6 +37,6 @@
     "postcss": "8.4.38",
     "tailwindcss": "3.4.4",
     "typescript": "5.4.5",
-    "wrangler": "3.55.1"
+    "wrangler": "^3.0.0"
   }
 }

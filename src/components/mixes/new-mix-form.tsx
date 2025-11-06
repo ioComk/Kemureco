@@ -1,24 +1,38 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import type { Flavor } from "@/lib/types";
 import { createSupabaseClient } from "@/lib/supabase";
+import type { Flavor } from "@/lib/types";
 
 type FlavorOption = Flavor & {
   brand?: { id: number; name: string } | null;
 };
 
 type ComponentState = {
+  id: string;
   flavorId: string;
   ratio: number;
 };
@@ -27,10 +41,10 @@ type NewMixFormProps = {
   flavors: FlavorOption[];
 };
 
-const DEFAULT_COMPONENTS: ComponentState[] = [
+const DEFAULT_COMPONENTS: Omit<ComponentState, "id">[] = [
   { flavorId: "", ratio: 40 },
   { flavorId: "", ratio: 30 },
-  { flavorId: "", ratio: 30 }
+  { flavorId: "", ratio: 30 },
 ];
 
 export function NewMixForm({ flavors }: NewMixFormProps) {
@@ -38,7 +52,10 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [components, setComponents] = useState<ComponentState[]>(() =>
-    DEFAULT_COMPONENTS.map((component) => ({ ...component }))
+    DEFAULT_COMPONENTS.map((component) => ({
+      ...component,
+      id: crypto.randomUUID(),
+    })),
   );
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
@@ -52,11 +69,16 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
     return map;
   }, [flavors]);
 
-  const totalRatio = components.reduce((acc, component) => acc + component.ratio, 0);
+  const totalRatio = components.reduce(
+    (acc, component) => acc + component.ratio,
+    0,
+  );
   const canSubmit =
     totalRatio === 100 &&
     title.trim().length > 0 &&
-    components.every((component) => component.flavorId !== "" && component.ratio > 0);
+    components.every(
+      (component) => component.flavorId !== "" && component.ratio > 0,
+    );
 
   const handleRatioChange = (index: number, value: number[]) => {
     const next = [...components];
@@ -73,20 +95,27 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
   const resetForm = () => {
     setTitle("");
     setDescription("");
-    setComponents(DEFAULT_COMPONENTS.map((component) => ({ ...component })));
+    setComponents(
+      DEFAULT_COMPONENTS.map((component) => ({
+        ...component,
+        id: crypto.randomUUID(),
+      })),
+    );
   };
 
   const handleSubmit = () => {
     if (!canSubmit || isPending) return;
 
     startTransition(async () => {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
+      const { data: authData, error: authError } =
+        await supabase.auth.getUser();
 
       if (authError || !authData?.user) {
         toast({
           title: "サインインが必要です",
-          description: "ミックスを保存するには Supabase Auth でサインインしてください。",
-          variant: "destructive"
+          description:
+            "ミックスを保存するには Supabase Auth でサインインしてください。",
+          variant: "destructive",
         });
         return;
       }
@@ -96,7 +125,7 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
         .insert({
           title: title.trim(),
           description: description.trim() || null,
-          user_id: authData.user.id
+          user_id: authData.user.id,
         })
         .select("id")
         .single();
@@ -106,7 +135,7 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
         toast({
           title: "保存に失敗しました",
           description: "ミックスの作成中にエラーが発生しました。",
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
@@ -115,24 +144,26 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
         mix_id: mixData.id,
         flavor_id: Number(component.flavorId),
         ratio_percent: component.ratio,
-        layer_order: index + 1
+        layer_order: index + 1,
       }));
 
-      const { error: componentsError } = await supabase.from("mix_components").insert(payload);
+      const { error: componentsError } = await supabase
+        .from("mix_components")
+        .insert(payload);
 
       if (componentsError) {
         console.error(componentsError);
         toast({
           title: "構成の保存に失敗しました",
           description: "比率を保存できませんでした。もう一度お試しください。",
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
 
       toast({
         title: "ミックスを保存しました",
-        description: "マイミックス一覧に反映されます。"
+        description: "マイミックス一覧に反映されます。",
       });
 
       resetForm();
@@ -144,7 +175,9 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
     <Card className="max-w-3xl">
       <CardHeader>
         <CardTitle>ミックスを作成</CardTitle>
-        <CardDescription>タイトル、説明、フレーバーと比率を設定しましょう。</CardDescription>
+        <CardDescription>
+          タイトル、説明、フレーバーと比率を設定しましょう。
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
@@ -168,18 +201,27 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Label className="text-base">フレーバー構成</Label>
-            <span className="text-sm text-muted-foreground">合計: {totalRatio}%</span>
+            <span className="text-sm text-muted-foreground">
+              合計: {totalRatio}%
+            </span>
           </div>
           {components.map((component, index) => {
-            const flavor = component.flavorId ? flavorMap.get(Number(component.flavorId)) : undefined;
+            const flavor = component.flavorId
+              ? flavorMap.get(Number(component.flavorId))
+              : undefined;
             return (
-              <div key={index} className="space-y-3 rounded-lg border p-4">
+              <div
+                key={component.id}
+                className="space-y-3 rounded-lg border p-4"
+              >
                 <div className="grid gap-4 md:grid-cols-[2fr,1fr] md:items-center">
                   <div className="space-y-2">
                     <Label>フレーバー {index + 1}</Label>
                     <Select
                       value={component.flavorId}
-                      onValueChange={(value) => handleFlavorChange(index, value)}
+                      onValueChange={(value) =>
+                        handleFlavorChange(index, value)
+                      }
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="フレーバーを選択" />
@@ -187,7 +229,9 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
                       <SelectContent>
                         {flavors.map((item) => (
                           <SelectItem key={item.id} value={String(item.id)}>
-                            {item.brand?.name ? `${item.brand.name} / ${item.name}` : item.name}
+                            {item.brand?.name
+                              ? `${item.brand.name} / ${item.name}`
+                              : item.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
