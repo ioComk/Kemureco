@@ -11,12 +11,15 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import type { Flavor } from "@/lib/types";
+import type { Database, Flavor } from "@/lib/types";
 import { createSupabaseClient } from "@/lib/supabase";
 
 type FlavorOption = Flavor & {
   brand?: { id: number; name: string } | null;
 };
+
+type MixInsert = Database["public"]["Tables"]["mixes"]["Insert"];
+type MixComponentInsert = Database["public"]["Tables"]["mix_components"]["Insert"];
 
 type ComponentState = {
   flavorId: string;
@@ -91,13 +94,16 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
         return;
       }
 
+      const trimmedDescription = description.trim();
+      const mixPayload: MixInsert = {
+        title: title.trim(),
+        description: trimmedDescription ? trimmedDescription : null,
+        user_id: authData.user.id
+      };
+
       const { data: mixData, error: mixError } = await supabase
         .from("mixes")
-        .insert({
-          title: title.trim(),
-          description: description.trim() || null,
-          user_id: authData.user.id
-        })
+        .insert(mixPayload)
         .select("id")
         .single();
 
@@ -111,7 +117,7 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
         return;
       }
 
-      const payload = components.map((component, index) => ({
+      const payload: MixComponentInsert[] = components.map((component, index) => ({
         mix_id: mixData.id,
         flavor_id: Number(component.flavorId),
         ratio_percent: component.ratio,
