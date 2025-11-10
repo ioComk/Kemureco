@@ -13,6 +13,8 @@ export type Flavor = {
   brand?: Brand | null;
 };
 
+export type FlavorWithBrand = Flavor & { brand: Brand | null };
+
 export type Mix = {
   id: number;
   user_id: string;
