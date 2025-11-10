@@ -5,6 +5,7 @@ import type { Brand, Flavor } from "@/lib/types";
 type FlavorWithBrand = Flavor & { brand: Brand | null };
 
 export const revalidate = 0;
+export const runtime = "edge";
 
 async function loadFlavors(): Promise<FlavorWithBrand[]> {
   const supabase = createSupabaseClient();
