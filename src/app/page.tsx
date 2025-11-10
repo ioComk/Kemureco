@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 async function fetchRecommendations() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -39,10 +41,16 @@ export default async function Page() {
   ];
 
   return (
-    <div className="grid gap-8 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>在庫があればおすすめ</CardTitle>
+    <div className="space-y-8">
+      <div className="flex justify-end">
+        <Button asChild>
+          <Link href="/flavors">フレーバー一覧へ</Link>
+        </Button>
+      </div>
+      <div className="grid gap-8 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>在庫があればおすすめ</CardTitle>
           <CardDescription>Edge Function からのおすすめを表示します。</CardDescription>
         </CardHeader>
         <CardContent>
@@ -79,8 +87,9 @@ export default async function Page() {
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
