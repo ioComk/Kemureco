@@ -29,18 +29,19 @@ async function loadFlavors(): Promise<FlavorWithBrand[]> {
 }
 
 type PageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     q?: string;
     tag?: string;
     sort?: string;
-  };
+  }>;
 };
 
 export default async function FlavorsPage({ searchParams }: PageProps) {
+  const resolvedParams = (await searchParams) ?? {};
   const [query = "", tag = "", sort = "name"] = [
-    searchParams?.q ?? "",
-    searchParams?.tag ?? "",
-    searchParams?.sort ?? "name"
+    resolvedParams.q ?? "",
+    resolvedParams.tag ?? "",
+    resolvedParams.sort ?? "name"
   ];
 
   const flavors = await loadFlavors();
