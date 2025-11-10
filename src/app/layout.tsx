@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthStatus } from "@/components/auth/auth-status";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,9 +20,14 @@ export default function RootLayout({
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.className)}>
         <div className="flex min-h-screen flex-col">
           <header className="border-b bg-card">
-            <div className="container flex h-16 items-center justify-between">
-              <span className="text-lg font-semibold">Kemureco</span>
-              <nav className="text-sm text-muted-foreground">シーシャ記録 &amp; おすすめ</nav>
+            <div className="container flex h-16 items-center justify-between gap-4">
+              <div>
+                <span className="text-lg font-semibold">Kemureco</span>
+                <span className="ml-3 text-sm text-muted-foreground hidden sm:inline-block">
+                  シーシャ記録 &amp; おすすめ
+                </span>
+              </div>
+              <AuthStatus />
             </div>
           </header>
           <main className="container flex-1 py-10">{children}</main>
