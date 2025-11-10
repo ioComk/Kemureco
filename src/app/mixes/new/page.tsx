@@ -1,8 +1,8 @@
 import { NewMixForm } from "@/components/mixes/new-mix-form";
 import { createSupabaseClient } from "@/lib/supabase";
-import type { Flavor } from "@/lib/types";
+import type { Brand, Flavor } from "@/lib/types";
 
-type FlavorWithBrand = Flavor & { brand: { id: number; name: string } | null };
+type FlavorWithBrand = Flavor & { brand: Brand | null };
 
 export const revalidate = 0;
 
@@ -10,7 +10,7 @@ async function loadFlavors(): Promise<FlavorWithBrand[]> {
   const supabase = createSupabaseClient();
   const { data, error } = await supabase
     .from("flavors")
-    .select("id,name,tags,brand_id,created_at,brands(id,name)")
+    .select("id,name,tags,brand_id,created_at,brands(id,name,jp_available)")
     .limit(50);
 
   if (error) {
@@ -18,7 +18,7 @@ async function loadFlavors(): Promise<FlavorWithBrand[]> {
     return [];
   }
 
-  type FlavorQuery = Flavor & { brands?: { id: number; name: string } | null };
+  type FlavorQuery = Flavor & { brands?: Brand | null };
 
   return ((data as FlavorQuery[]) ?? []).map((item) => ({
     id: item.id,
