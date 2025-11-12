@@ -32,7 +32,10 @@ create table if not exists public.sessions (
   id serial primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   started_at timestamptz not null default timezone('utc'::text, now()),
-  location_text text
+  location_text text,
+  mix_id integer references public.mixes(id) on delete set null,
+  satisfaction integer check (satisfaction between 1 and 5) default 3,
+  notes text
 );
 
 alter table public.brands enable row level security;

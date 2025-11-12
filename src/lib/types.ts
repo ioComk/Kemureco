@@ -33,8 +33,11 @@ export type MixComponent = {
 export type Session = {
   id: number;
   user_id: string;
+  mix_id: number | null;
   started_at: string | null;
   location_text: string | null;
+  satisfaction: number | null;
+  notes: string | null;
 };
 
 export type Database = {
@@ -86,9 +89,19 @@ export type Database = {
       };
       sessions: {
         Row: Session;
-        Insert: Omit<Session, "id" | "started_at"> & { id?: number; started_at?: string | null };
+        Insert: Omit<Session, "id" | "started_at"> & {
+          id?: number;
+          started_at?: string | null;
+        };
         Update: Partial<Omit<Session, "id">> & { id?: number };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "sessions_mix_id_fkey";
+            columns: ["mix_id"];
+            referencedRelation: "mixes";
+            referencedColumns: ["id"];
+          }
+        ];
       };
     };
     Views: Record<string, never>;

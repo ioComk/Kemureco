@@ -51,6 +51,9 @@ export default async function Page() {
         <Button asChild variant="outline">
           <Link href={"/mixes" as Route}>マイミックスへ</Link>
         </Button>
+        <Button asChild variant="outline">
+          <Link href={"/sessions" as Route}>セッション記録へ</Link>
+        </Button>
         <Button asChild>
           <Link href={"/flavors" as Route}>フレーバー一覧へ</Link>
         </Button>
