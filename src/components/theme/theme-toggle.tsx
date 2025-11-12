@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type Theme = "light" | "dark";
 const THEME_STORAGE_KEY = "kemureco-theme";
@@ -34,8 +34,26 @@ export function ThemeToggle() {
   };
 
   return (
-    <Button type="button" size="sm" variant="ghost" onClick={handleToggle}>
-      {theme === "dark" ? "ライト" : "ダーク"}
-    </Button>
+    <button
+      type="button"
+      onClick={handleToggle}
+      className={cn(
+        "relative flex w-16 items-center rounded-full border border-border bg-muted/50 px-1 py-1 transition", 
+        theme === "dark" ? "bg-muted" : "bg-background"
+      )}
+      aria-pressed={theme === "dark"}
+      aria-label="テーマを切り替える"
+    >
+      <span className="pointer-events-none flex w-full items-center justify-between text-xs">
+        <span className={cn("transition-opacity", theme === "dark" ? "opacity-30" : "opacity-100")}>☀️</span>
+        <span className={cn("transition-opacity", theme === "dark" ? "opacity-100" : "opacity-30")}>🌙</span>
+      </span>
+      <span
+        className={cn(
+          "pointer-events-none absolute h-5 w-5 rounded-full bg-primary shadow transition-transform",
+          theme === "dark" ? "translate-x-7" : "translate-x-1"
+        )}
+      />
+    </button>
   );
 }
