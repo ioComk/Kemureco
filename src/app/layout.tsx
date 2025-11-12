@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -21,12 +22,12 @@ export default function RootLayout({
         <div className="flex min-h-screen flex-col">
           <header className="border-b bg-card">
             <div className="container flex h-16 items-center justify-between gap-4">
-              <div>
+              <Link href="/" className="flex items-center gap-3">
                 <span className="text-lg font-semibold">Kemureco</span>
-                <span className="ml-3 text-sm text-muted-foreground hidden sm:inline-block">
+                <span className="hidden text-sm text-muted-foreground sm:inline-block">
                   シーシャ記録 &amp; おすすめ
                 </span>
-              </div>
+              </Link>
               <AuthStatus />
             </div>
           </header>
