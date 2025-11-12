@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { Brand, FlavorWithBrand } from "@/lib/types";
 import { FlavorsExplorer } from "@/components/flavors/flavors-explorer";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export const revalidate = 0;
 export const runtime = "edge";
@@ -55,11 +57,19 @@ export default async function FlavorsPage({ searchParams }: PageProps) {
             ブランドやタグで絞り込んで、次のミックス候補を探しましょう。
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <Badge variant="secondary">{flavors.length}</Badge>
             <span>件のフレーバーが登録されています。</span>
             <span>検索状態はURLパラメータとして保存されます。</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm">
+              <Link href="/flavors/new">フレーバーを登録</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/mixes">マイミックスを見る</Link>
+            </Button>
           </div>
         </CardContent>
       </Card>

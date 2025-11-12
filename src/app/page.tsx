@@ -42,7 +42,10 @@ export default async function Page() {
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-3">
+        <Button asChild variant="outline">
+          <Link href="/mixes">マイミックスへ</Link>
+        </Button>
         <Button asChild>
           <Link href="/flavors">フレーバー一覧へ</Link>
         </Button>

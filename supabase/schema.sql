@@ -49,6 +49,16 @@ create policy "Flavors are readable by anyone"
   on public.flavors for select
   using (true);
 
+create policy "Authenticated users can insert brands"
+  on public.brands
+  for insert
+  with check (auth.role() = 'authenticated');
+
+create policy "Authenticated users can insert flavors"
+  on public.flavors
+  for insert
+  with check (auth.role() = 'authenticated');
+
 create policy "Users manage their mixes"
   on public.mixes
   for all
