@@ -5,6 +5,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthStatus } from "@/components/auth/auth-status";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -28,7 +29,10 @@ export default function RootLayout({
                   シーシャ記録 &amp; おすすめ
                 </span>
               </Link>
-              <AuthStatus />
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <AuthStatus />
+              </div>
             </div>
           </header>
           <main className="container flex-1 py-10">{children}</main>
