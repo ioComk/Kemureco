@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { Suspense } from "react";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { Brand, FlavorWithBrand } from "@/lib/types";
@@ -65,10 +66,10 @@ export default async function FlavorsPage({ searchParams }: PageProps) {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm">
-              <Link href="/flavors/new">フレーバーを登録</Link>
+              <Link href={"/flavors/new" as Route}>フレーバーを登録</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href="/mixes">マイミックスを見る</Link>
+              <Link href={"/mixes" as Route}>マイミックスを見る</Link>
             </Button>
           </div>
         </CardContent>

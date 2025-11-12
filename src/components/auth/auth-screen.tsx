@@ -81,7 +81,7 @@ export function AuthScreen() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleSigningIn(true);
-    const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/auth` : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

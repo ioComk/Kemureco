@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,10 +49,10 @@ export default async function Page() {
     <div className="space-y-8">
       <div className="flex flex-wrap justify-end gap-3">
         <Button asChild variant="outline">
-          <Link href="/mixes">マイミックスへ</Link>
+          <Link href={"/mixes" as Route}>マイミックスへ</Link>
         </Button>
         <Button asChild>
-          <Link href="/flavors">フレーバー一覧へ</Link>
+          <Link href={"/flavors" as Route}>フレーバー一覧へ</Link>
         </Button>
       </div>
       <div className="grid gap-8 md:grid-cols-2">
