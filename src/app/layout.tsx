@@ -4,14 +4,15 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
-import { AuthStatus } from "@/components/auth/auth-status";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { Button } from "@/components/ui/button";
+import FloatingRecordButton from "@/components/sessions/floating-record-button";
+import { UserMenu } from "@/components/header/user-menu";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Kemureco | シーシャのフレーバー記録",
-  description: "シーシャのフレーバーを記録し、おすすめのミックスを探す Web アプリ"
+  title: "Kemureco",
+  description: "Kemureco"
 };
 
 export default function RootLayout({
@@ -25,13 +26,17 @@ export default function RootLayout({
             <div className="container flex h-16 items-center justify-between gap-4">
               <Link href="/" className="flex items-center gap-3">
                 <span className="text-lg font-semibold">Kemureco</span>
-                <span className="hidden text-sm text-muted-foreground sm:inline-block">
-                  シーシャ記録 &amp; おすすめ
-                </span>
               </Link>
-              <div className="flex items-center gap-2">
-                <ThemeToggle />
-                <AuthStatus />
+              <div className="flex items-center gap-3">
+                <div className="hidden items-center gap-2 sm:flex">
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href="/flavors">Flavors</Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href="/sessions">My records</Link>
+                  </Button>
+                </div>
+                <UserMenu />
               </div>
             </div>
           </header>
@@ -42,6 +47,7 @@ export default function RootLayout({
             </div>
           </footer>
         </div>
+        <FloatingRecordButton />
         <Toaster />
       </body>
     </html>

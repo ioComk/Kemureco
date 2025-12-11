@@ -5,6 +5,7 @@ import type { Brand, Flavor } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MixesDashboard } from "@/components/mixes/mixes-dashboard";
+import { NewMixForm } from "@/components/mixes/new-mix-form";
 
 type FlavorOption = Flavor & { brand: Brand | null };
 
@@ -38,18 +39,34 @@ export default async function MixesPage() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>マイミックス</CardTitle>
-          <CardDescription>作成済みのミックスを一覧・編集・削除できます。</CardDescription>
+          <CardTitle>フレーバー登録</CardTitle>
+          <CardDescription>フレーバーを登録し、ミックスを作成・管理できます。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3">
-          <Button asChild size="sm">
-            <Link href="/mixes/new">新しくミックスを作成</Link>
-          </Button>
           <Button asChild size="sm" variant="outline">
-            <Link href="/flavors">フレーバー一覧を見る</Link>
+            <Link href="/flavors">登録済みフレーバーを見る</Link>
           </Button>
         </CardContent>
       </Card>
+
+      <div id="new-mix" className="scroll-m-20 space-y-3">
+        {flavors.length === 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>フレーバーを登録</CardTitle>
+              <CardDescription>フレーバーがまだ登録されていません。</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Supabase の管理画面からフレーバーデータを登録した後、再読み込みしてください。
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <NewMixForm flavors={flavors} />
+        )}
+      </div>
+
       <Suspense fallback={<p className="text-sm text-muted-foreground">読み込み中...</p>}>
         <MixesDashboard flavors={flavors} />
       </Suspense>

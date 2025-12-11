@@ -83,10 +83,16 @@ export function AuthStatus() {
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-sm text-muted-foreground">{state.email}</span>
-      <Button variant="outline" size="sm" onClick={handleSignOut} disabled={signingOut}>
-        サインアウト
+    <div className="flex flex-col items-end gap-2 text-right sm:flex-row sm:items-center sm:text-left">
+      <span className="text-sm font-medium text-muted-foreground">Signed in</span>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleSignOut}
+        disabled={signingOut}
+        className="w-full sm:w-auto"
+      >
+        {signingOut ? "処理中..." : "サインアウト"}
       </Button>
     </div>
   );

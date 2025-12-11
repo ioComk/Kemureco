@@ -11,6 +11,7 @@
     "preview:cf": "npx wrangler pages dev .vercel/output/static --compatibility-date=$(date +%Y-%m-%d)"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-slider": "^1.0.2",
     "@radix-ui/react-slot": "^1.0.2",

@@ -19,6 +19,10 @@ export function AuthScreen() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const siteUrl =
+    (typeof window === "undefined" ? process.env.NEXT_PUBLIC_SITE_URL : process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin) ??
+    undefined;
+
   const [session, setSession] = useState<SessionInfo>({ loading: true });
   const [email, setEmail] = useState("");
   const [isOtpSubmitting, setIsOtpSubmitting] = useState(false);
@@ -54,7 +58,7 @@ export function AuthScreen() {
     if (!email) return;
 
     setIsOtpSubmitting(true);
-    const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+    const redirectTo = siteUrl;
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -81,7 +85,7 @@ export function AuthScreen() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleSigningIn(true);
-    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/auth` : undefined;
+    const redirectTo = siteUrl ? `${siteUrl}/auth` : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
