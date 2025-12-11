@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
@@ -18,7 +17,6 @@ type AuthState = {
 
 export function AuthStatus() {
   const supabase = useMemo(() => createSupabaseClient(), []);
-  const router = useRouter();
   const { toast } = useToast();
 
   const [state, setState] = useState<AuthState>({ loading: true });
@@ -43,7 +41,6 @@ export function AuthStatus() {
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       const provider = session?.user?.app_metadata?.provider ?? session?.user?.identities?.[0]?.provider;
       setState({ loading: false, email: session?.user?.email ?? undefined, provider });
-      router.refresh();
     });
 
     return () => {
@@ -70,7 +67,6 @@ export function AuthStatus() {
     toast({
       title: "サインアウトしました"
     });
-    router.refresh();
   };
 
   if (state.loading) {
