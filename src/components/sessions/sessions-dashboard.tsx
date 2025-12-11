@@ -104,7 +104,7 @@ export function SessionsDashboard() {
         throw error;
       }
 
-      const rows = Array.isArray(data) ? data : [];
+      const rows: Session[] = Array.isArray(data) ? ((data as unknown) as Session[]) : [];
 
       const mixIds = rows
         .map((row) => (mixColumnAvailable ? row.mix_id : null))
@@ -218,7 +218,7 @@ export function SessionsDashboard() {
       : basePayload;
 
     startTransition(async () => {
-      const attemptUpdate = async (payload: Record<string, unknown>, allowRetry: boolean) => {
+      const attemptUpdate = async (payload: Record<string, unknown>, allowRetry: boolean): Promise<boolean> => {
         const { error } = await supabase.from("sessions").update(payload).eq("id", sessionId);
         if (error) {
           const errorDetail =
@@ -358,7 +358,7 @@ export function SessionsDashboard() {
     return cells;
   }, [currentMonth]);
 
-  const topMix = useMemo(() => {
+  const topMix = useMemo<{ title: string; count: number } | null>(() => {
     let mostUsed: { title: string; count: number } | null = null;
     mixFrequency.forEach((value) => {
       if (!mostUsed || value.count > mostUsed.count) {
@@ -368,7 +368,7 @@ export function SessionsDashboard() {
     return mostUsed;
   }, [mixFrequency]);
 
-  const topFlavor = useMemo(() => {
+  const topFlavor = useMemo<{ name: string; brand?: string | null; count: number } | null>(() => {
     let mostUsed: { name: string; brand?: string | null; count: number } | null = null;
     flavorFrequency.forEach((value) => {
       if (!mostUsed || value.count > mostUsed.count) {

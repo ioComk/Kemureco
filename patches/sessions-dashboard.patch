@@ -1,0 +1,193 @@
+--- src/components/sessions/sessions-dashboard.tsx
++++ src/components/sessions/sessions-dashboard.tsx
+@@ -15,8 +15,14 @@
+ 
+ type MixOption = Pick<Database["public"]["Tables"]["mixes"]["Row"], "id" | "title">;
+ 
++type MixComponentInfo = {
++  flavorId: number;
++  flavorName: string;
++  brandName?: string | null;
++};
++
+ type SessionItem = Session & {
+-  mix?: MixOption | null;
++  mix?: (MixOption & { components?: MixComponentInfo[] }) | null;
+ };
+ 
+ const DEFAULT_FORM_STATE = {
+@@ -82,7 +88,9 @@
+   const fetchSessions = async (userId: string) => {
+     const { data, error } = await supabase
+       .from("sessions")
+-      .select("id, started_at, location_text, satisfaction, notes, mix_id, mixes(id,title)")
++      .select(
++        "id, started_at, location_text, satisfaction, notes, mix_id, mixes(id,title,mix_components:mix_components(flavor_id,flavors(name,brands(name))))"
++      )
+       .eq("user_id", userId)
+       .order("started_at", { ascending: false });
+ 
+@@ -101,7 +109,18 @@
+         satisfaction: item.satisfaction,
+         notes: item.notes,
+         mix_id: item.mix_id,
+-        mix: item.mixes ?? null
++        mix: item.mixes
++          ? {
++              id: item.mixes.id,
++              title: item.mixes.title,
++              // eslint-disable-next-line @typescript-eslint/no-explicit-any
++              components: (item.mixes.mix_components as any[])?.map((component) => ({
++                flavorId: component.flavor_id,
++                flavorName: component.flavors?.name ?? "不明なフレーバー",
++                brandName: component.flavors?.brands?.name ?? null
++              })) ?? []
++            }
++          : null
+       })) ?? [];
+ 
+     setSessions(normalized);
+@@ -142,6 +161,62 @@
+   const averageSatisfaction = sessions.length
+     ? sessions.reduce((sum, item) => sum + (item.satisfaction ?? 0), 0) / sessions.length
+     : null;
++
++  const sessionsThisMonth = useMemo(() => {
++    const now = new Date();
++    const currentYear = now.getFullYear();
++    const currentMonth = now.getMonth();
++    return sessions.filter((session) => {
++      if (!session.started_at) return false;
++      const date = new Date(session.started_at);
++      return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
++    });
++  }, [sessions]);
++
++  const mixFrequency = useMemo(() => {
++    const counts = new Map<number, { count: number; title: string }>();
++    sessions.forEach((session) => {
++      if (!session.mix || !session.mix_id) return;
++      const current = counts.get(session.mix_id) ?? { count: 0, title: session.mix.title };
++      counts.set(session.mix_id, { count: current.count + 1, title: current.title });
++    });
++    return counts;
++  }, [sessions]);
++
++  const flavorFrequency = useMemo(() => {
++    const counts = new Map<number, { count: number; flavorName: string; brandName?: string | null }>();
++    sessions.forEach((session) => {
++      session.mix?.components?.forEach((component) => {
++        const current = counts.get(component.flavorId) ?? {
++          count: 0,
++          flavorName: component.flavorName,
++          brandName: component.brandName
++        };
++        counts.set(component.flavorId, { ...current, count: current.count + 1 });
++      });
++    });
++    return counts;
++  }, [sessions]);
++
++  const topMix = useMemo(() => {
++    let mostUsed: { title: string; count: number } | null = null;
++    mixFrequency.forEach((value) => {
++      if (!mostUsed || value.count > mostUsed.count) {
++        mostUsed = { title: value.title, count: value.count };
++      }
++    });
++    return mostUsed;
++  }, [mixFrequency]);
++
++  const topFlavor = useMemo(() => {
++    let mostUsed: { name: string; brand?: string | null; count: number } | null = null;
++    flavorFrequency.forEach((value) => {
++      if (!mostUsed || value.count > mostUsed.count) {
++        mostUsed = { name: value.flavorName, brand: value.brandName, count: value.count };
++      }
++    });
++    return mostUsed;
++  }, [flavorFrequency]);
+ 
+   if (sessionState.loading) {
+     return <p className="text-sm text-muted-foreground">認証状態を確認しています...</p>;
+@@ -167,6 +242,45 @@
+     <div className="space-y-6">
+       <Card>
+         <CardHeader>
++          <CardTitle>セッション概要</CardTitle>
++          <CardDescription>直近の記録をもとにサマリーを確認できます。</CardDescription>
++        </CardHeader>
++        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
++          <div className="rounded-lg border p-3">
++            <p className="text-xs text-muted-foreground">総セッション数</p>
++            <p className="text-2xl font-semibold">{sessions.length}件</p>
++          </div>
++          <div className="rounded-lg border p-3">
++            <p className="text-xs text-muted-foreground">今月の記録</p>
++            <p className="text-2xl font-semibold">{sessionsThisMonth.length}件</p>
++          </div>
++          <div className="rounded-lg border p-3">
++            <p className="text-xs text-muted-foreground">平均満足度</p>
++            <p className="text-2xl font-semibold">
++              {averageSatisfaction !== null ? `${averageSatisfaction.toFixed(1)} / 5` : "-"}
++            </p>
++          </div>
++          <div className="rounded-lg border p-3 space-y-1">
++            <p className="text-xs text-muted-foreground">よく使うミックス / フレーバー</p>
++            {topMix ? (
++              <p className="text-sm font-medium">
++                {topMix.title} <span className="text-xs text-muted-foreground">({topMix.count}回)</span>
++              </p>
++            ) : (
++              <p className="text-sm text-muted-foreground">まだ記録がありません</p>
++            )}
++            {topFlavor ? (
++              <p className="text-xs text-muted-foreground">
++                {topFlavor.brand ? `${topFlavor.brand} / ` : ""}
++                {topFlavor.name} を {topFlavor.count}回使用
++              </p>
++            ) : null}
++          </div>
++        </CardContent>
++      </Card>
++
++      <Card>
++        <CardHeader>
+           <CardTitle>吸った記録を残す</CardTitle>
+           <CardDescription>日付や満足度、場所などをメモしておきましょう。</CardDescription>
+         </CardHeader>
+@@ -237,15 +351,10 @@
+ 
+       <Card>
+         <CardHeader>
+-          <CardTitle>最近の記録</CardTitle>
+-          <CardDescription>直近のセッションを振り返りましょう。</CardDescription>
++          <CardTitle>記録一覧</CardTitle>
++          <CardDescription>タイムライン形式でセッション履歴を確認できます。</CardDescription>
+         </CardHeader>
+         <CardContent className="space-y-4">
+-          {averageSatisfaction !== null ? (
+-            <p className="text-sm text-muted-foreground">
+-              平均満足度: <span className="font-semibold">{averageSatisfaction.toFixed(1)}</span>/5
+-            </p>
+-          ) : null}
+           {sessions.length === 0 ? (
+             <p className="text-sm text-muted-foreground">まだ記録がありません。</p>
+           ) : (
+@@ -267,6 +376,16 @@
+                     <p className="mt-2 text-sm text-muted-foreground">場所: {item.location_text}</p>
+                   ) : null}
+                   {item.notes ? <p className="mt-2 text-sm">{item.notes}</p> : null}
++                  {item.mix?.components && item.mix.components.length > 0 ? (
++                    <p className="mt-2 text-xs text-muted-foreground">
++                      使用フレーバー: {" "}
++                      {item.mix.components
++                        .map((component) =>
++                          component.brandName ? `${component.brandName} ${component.flavorName}` : component.flavorName
++                        )
++                        .join(", ")}
++                    </p>
++                  ) : null}
+                 </div>
+               ))}
+             </div>

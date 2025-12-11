@@ -170,16 +170,16 @@ export function SessionForm() {
   const fetchFlavors = async () => {
     const { data, error } = await supabase
       .from("flavors")
-      .select("id,name,brand_id,created_at,tags,brands(id,name)")
+      .select("id,name,brand_id,created_at,tags,brands(id,name,jp_available)")
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) {
       console.error("fetch flavors error", error);
       return;
     }
-    type FlavorQuery = Flavor & { brands?: { id: number; name: string } | null };
+    type FlavorQuery = Flavor & { brands?: { id: number; name: string; jp_available: boolean } | null };
     const rows = (data as FlavorQuery[]) ?? [];
-    setFlavors(rows.map((row) => ({ ...row, brand: row.brands ?? null })));
+    setFlavors(rows.map((row) => ({ ...row, brand: row.brands ?? null, brands: undefined })));
   };
 
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -229,7 +229,8 @@ export function SessionForm() {
       location_text: formState.location.trim() || null,
       notes: formState.notes.trim() || null,
       satisfaction: formState.satisfaction,
-      started_at: new Date(formState.startedAt).toISOString()
+      started_at: new Date(formState.startedAt).toISOString(),
+      mix_id: null
     };
 
     startTransition(async () => {
@@ -287,12 +288,12 @@ export function SessionForm() {
       }
 
       const attemptInsert = async (
-        payload: Record<string, unknown>,
+        payload: SessionInsert,
         allowRetry: boolean,
         allowMixColumn: boolean
       ): Promise<boolean> => {
-        const insertPayload =
-          allowMixColumn && mixColumnAvailable ? { ...payload, mix_id: mixIdToUse ?? null } : { ...payload };
+        const insertPayload: SessionInsert =
+          allowMixColumn && mixColumnAvailable ? { ...payload, mix_id: mixIdToUse ?? null } : { ...payload, mix_id: null };
         const { error } = await supabase.from("sessions").insert(insertPayload);
         if (error) {
           const errorDetail =
@@ -313,8 +314,7 @@ export function SessionForm() {
           toast({
             title: "記録の保存に失敗しました",
             description: message,
-            variant: "destructive",
-            icon: <ShieldAlert className="h-4 w-4" />
+            variant: "destructive"
           });
           return false;
         }

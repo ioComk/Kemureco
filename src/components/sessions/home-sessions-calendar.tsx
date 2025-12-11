@@ -54,7 +54,7 @@ export function HomeSessionsCalendar() {
   const fetchSessions = async (userId: string) => {
     const { data, error } = await supabase
       .from("sessions")
-      .select("id, started_at, satisfaction")
+      .select("id, started_at, satisfaction, user_id, mix_id, location_text, notes")
       .eq("user_id", userId)
       .order("started_at", { ascending: false });
 
@@ -64,7 +64,8 @@ export function HomeSessionsCalendar() {
       return;
     }
 
-    setSessions(Array.isArray(data) ? data : []);
+    const rows = Array.isArray(data) ? data : [];
+    setSessions(rows as Session[]);
   };
 
   const calendarCells = useMemo(() => {
