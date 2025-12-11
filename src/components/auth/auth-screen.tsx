@@ -8,13 +8,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, LogOut, Mail } from "lucide-react";
+import { GoogleFill } from "akar-icons";
 
 type SessionInfo = {
   email?: string;
   loading: boolean;
 };
 
-export function AuthScreen() {
+type AuthScreenProps = {
+  onSignedIn?: () => void;
+};
+
+export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const router = useRouter();
   const { toast } = useToast();
@@ -28,6 +35,7 @@ export function AuthScreen() {
   const [isOtpSubmitting, setIsOtpSubmitting] = useState(false);
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [notifiedSignedIn, setNotifiedSignedIn] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -36,6 +44,10 @@ export function AuthScreen() {
       .then(({ data }) => {
         if (!mounted) return;
         setSession({ loading: false, email: data.user?.email ?? undefined });
+        if (data.user?.email && onSignedIn && !notifiedSignedIn) {
+          setNotifiedSignedIn(true);
+          onSignedIn();
+        }
       })
       .catch(() => {
         if (!mounted) return;
@@ -44,6 +56,10 @@ export function AuthScreen() {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, authSession) => {
       setSession({ loading: false, email: authSession?.user?.email ?? undefined });
+      if (authSession?.user?.email && onSignedIn && !notifiedSignedIn) {
+        setNotifiedSignedIn(true);
+        onSignedIn();
+      }
       router.refresh();
     });
 
@@ -51,7 +67,7 @@ export function AuthScreen() {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [router, supabase]);
+  }, [router, supabase, onSignedIn, notifiedSignedIn]);
 
   const handleOtpSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -135,10 +151,22 @@ export function AuthScreen() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <p className="text-sm text-muted-foreground">
-              現在の状態:{" "}
-              {session.loading ? "確認中..." : session.email ? `${session.email} でサインイン中` : "未サインイン"}
-            </p>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>現在の状態:</span>
+              {session.loading ? (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  確認中...
+                </Badge>
+              ) : session.email ? (
+                <Badge variant="default">Signed in</Badge>
+              ) : (
+                <Badge variant="outline">未サインイン</Badge>
+              )}
+            </div>
+            {session.email ? (
+              <p className="text-xs text-muted-foreground mt-1">※ メールアドレスの表示は省略しています</p>
+            ) : null}
           </div>
           <form className="space-y-3" onSubmit={handleOtpSignIn}>
             <div className="space-y-2">
@@ -153,13 +181,25 @@ export function AuthScreen() {
                 disabled={isOtpSubmitting}
               />
             </div>
-            <Button type="submit" disabled={isOtpSubmitting}>
+            <Button
+              type="submit"
+              disabled={isOtpSubmitting}
+              className="w-full sm:w-auto gap-2 shadow-sm"
+            >
+              {isOtpSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
               {isOtpSubmitting ? "送信中..." : "認証メールを送る"}
             </Button>
           </form>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">または</p>
-            <Button type="button" variant="secondary" onClick={handleGoogleSignIn} disabled={isGoogleSigningIn}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGoogleSignIn}
+              disabled={isGoogleSigningIn}
+              className="w-full sm:w-auto gap-2 shadow-sm"
+            >
+              {isGoogleSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleFill size={18} />}
               {isGoogleSigningIn ? "リダイレクト中..." : "Google でサインイン"}
             </Button>
           </div>
@@ -172,7 +212,14 @@ export function AuthScreen() {
           <CardDescription>共有端末では利用後のサインアウトをおすすめします。</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button type="button" variant="outline" onClick={handleSignOut} disabled={isSigningOut || !session.email}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSignOut}
+            disabled={isSigningOut || !session.email}
+            className="gap-2 shadow-sm w-full sm:w-auto"
+          >
+            {isSigningOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
             {isSigningOut ? "処理中..." : "サインアウト"}
           </Button>
         </CardContent>

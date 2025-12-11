@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthStatus } from "@/components/auth/auth-status";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 export function UserMenu() {
   const [open, setOpen] = useState(false);
@@ -13,7 +12,9 @@ export function UserMenu() {
   useEffect(() => {
     const handler = (event: MouseEvent) => {
       if (!ref.current) return;
-      if (!ref.current.contains(event.target as Node)) {
+      const target = event.target as HTMLElement;
+      if (target.closest("[data-auth-dialog]")) return;
+      if (!ref.current.contains(target)) {
         setOpen(false);
       }
     };
@@ -34,13 +35,7 @@ export function UserMenu() {
       </Button>
       {open ? (
         <div className="absolute right-0 z-50 mt-2 w-64 rounded-md border bg-popover p-3 shadow-lg">
-          <div className="flex items-center justify-between gap-2 pb-3 border-b">
-            <p className="text-sm font-medium">Settings</p>
-            <ThemeToggle />
-          </div>
-          <div className="pt-3">
-            <AuthStatus />
-          </div>
+          <AuthStatus />
         </div>
       ) : null}
     </div>

@@ -1,24 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
+import { GoogleFill } from "akar-icons";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AuthScreen } from "@/components/auth/auth-screen";
 
 type AuthState = {
   loading: boolean;
   email?: string;
+  provider?: string;
 };
 
 export function AuthStatus() {
-  const supabase = createSupabaseClient();
+  const supabase = useMemo(() => createSupabaseClient(), []);
   const router = useRouter();
   const { toast } = useToast();
 
   const [state, setState] = useState<AuthState>({ loading: true });
   const [signingOut, setSigningOut] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -27,7 +32,8 @@ export function AuthStatus() {
       .getUser()
       .then(({ data }) => {
         if (!mounted) return;
-        setState({ loading: false, email: data.user?.email ?? undefined });
+        const provider = data.user?.app_metadata?.provider ?? data.user?.identities?.[0]?.provider;
+        setState({ loading: false, email: data.user?.email ?? undefined, provider });
       })
       .catch(() => {
         if (!mounted) return;
@@ -35,7 +41,8 @@ export function AuthStatus() {
       });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setState({ loading: false, email: session?.user?.email ?? undefined });
+      const provider = session?.user?.app_metadata?.provider ?? session?.user?.identities?.[0]?.provider;
+      setState({ loading: false, email: session?.user?.email ?? undefined, provider });
       router.refresh();
     });
 
@@ -59,7 +66,7 @@ export function AuthStatus() {
       return;
     }
 
-    setState({ loading: false, email: undefined });
+    setState({ loading: false, email: undefined, provider: undefined });
     toast({
       title: "サインアウトしました"
     });
@@ -76,15 +83,30 @@ export function AuthStatus() {
 
   if (!state.email) {
     return (
-      <Button asChild size="sm">
-        <Link href="/auth">サインイン</Link>
-      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button size="sm" className="w-full justify-center sm:w-auto">
+            サインイン
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-2xl">
+          <div data-auth-dialog>
+          <DialogHeader>
+            <DialogTitle>サインイン</DialogTitle>
+          </DialogHeader>
+          <AuthScreen onSignedIn={() => setOpen(false)} />
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
   return (
     <div className="flex flex-col items-end gap-2 text-right sm:flex-row sm:items-center sm:text-left">
-      <span className="text-sm font-medium text-muted-foreground">Signed in</span>
+      <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        {state.provider === "google" ? <GoogleFill size={14} /> : null}
+        Signed in
+      </span>
       <Button
         variant="outline"
         size="sm"
