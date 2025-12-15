@@ -134,7 +134,6 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
       title: "サインアウトしました"
     });
     setSession({ loading: false, email: undefined });
-    router.refresh();
   };
 
   return (
