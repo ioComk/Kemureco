@@ -16,7 +16,11 @@ import { AuthScreen } from "@/components/auth/auth-screen";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Kemureco",
+  metadataBase: new URL("https://kemureco.pages.dev"),
+  title: {
+    default: "Kemureco",
+    template: "%s | Kemureco"
+  },
   description: "Kemureco"
 };
 

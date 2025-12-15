@@ -47,7 +47,7 @@ export function AuthStatus() {
       mounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [router, supabase]);
+  }, [supabase]);
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -87,10 +87,8 @@ export function AuthStatus() {
         </DialogTrigger>
         <DialogContent className="max-w-2xl">
           <div data-auth-dialog>
-          <DialogHeader>
-            <DialogTitle>サインイン</DialogTitle>
-          </DialogHeader>
-          <AuthScreen onSignedIn={() => setOpen(false)} />
+            <DialogTitle className="sr-only">サインイン</DialogTitle>
+            <AuthScreen onSignedIn={() => setOpen(false)} />
           </div>
         </DialogContent>
       </Dialog>

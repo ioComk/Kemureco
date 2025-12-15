@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +22,6 @@ type AuthScreenProps = {
 
 export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
   const supabase = useMemo(() => createSupabaseClient(), []);
-  const router = useRouter();
   const { toast } = useToast();
 
   const siteUrl =
@@ -60,14 +58,13 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
         setNotifiedSignedIn(true);
         onSignedIn();
       }
-      router.refresh();
     });
 
     return () => {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [router, supabase, onSignedIn, notifiedSignedIn]);
+  }, [supabase, onSignedIn, notifiedSignedIn]);
 
   const handleOtpSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
