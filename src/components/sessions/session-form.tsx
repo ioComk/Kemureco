@@ -26,6 +26,9 @@ type FormState = {
 type ComponentState = {
   flavorId: string;
   ratio: number;
+  mode: "existing" | "custom";
+  customName: string;
+  customBrand: string;
 };
 
 type MixInsert = Database["public"]["Tables"]["mixes"]["Insert"];
@@ -50,7 +53,10 @@ function createDefaultComponents(count: number): ComponentState[] {
   let remainder = 100 - equal * count;
   return Array.from({ length: count }, () => ({
     flavorId: "",
-    ratio: equal + (remainder-- > 0 ? 1 : 0)
+    ratio: equal + (remainder-- > 0 ? 1 : 0),
+    mode: "existing",
+    customName: "",
+    customBrand: ""
   }));
 }
 
@@ -124,6 +130,7 @@ export function SessionForm() {
   const [flavors, setFlavors] = useState<FlavorOption[]>([]);
   const [formState, setFormState] = useState<FormState>(DEFAULT_FORM_STATE);
   const [components, setComponents] = useState<ComponentState[]>(() => createDefaultComponents(2));
+  const [useCustomRatio, setUseCustomRatio] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -190,7 +197,7 @@ export function SessionForm() {
     setComponents((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], ...partial };
-      return next;
+      return useCustomRatio ? next : evenDistribution(next);
     });
   };
 
@@ -198,7 +205,7 @@ export function SessionForm() {
     setComponents((prev) => {
       if (prev.length >= MAX_COMPONENTS) return prev;
       const next = [...prev, { flavorId: "", ratio: 0 }];
-      return evenDistribution(next);
+      return useCustomRatio ? next : evenDistribution(next);
     });
   };
 
@@ -206,15 +213,17 @@ export function SessionForm() {
     setComponents((prev) => {
       if (prev.length <= MIN_COMPONENTS) return prev;
       const next = prev.filter((_, i) => i !== index);
-      return evenDistribution(next);
+      return useCustomRatio ? next : evenDistribution(next);
     });
   };
 
   const totalRatio = components.reduce((sum, c) => sum + c.ratio, 0);
   const canSubmitFlavors =
     components.length > 0 &&
-    totalRatio === 100 &&
-    components.every((c) => c.flavorId !== "" && c.ratio > 0) &&
+    (!useCustomRatio || totalRatio === 100) &&
+    components.every((c) =>
+      c.mode === "existing" ? c.flavorId !== "" && c.ratio > 0 : c.customName.trim().length > 0 && c.ratio > 0
+    ) &&
     !!authUserId;
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -237,6 +246,55 @@ export function SessionForm() {
       let mixIdToUse: number | null = null;
 
       if (mixColumnAvailable && canSubmitFlavors) {
+        const brandCache = new Map<string, number>();
+
+        const ensureBrandId = async (name: string): Promise<number | null> => {
+          const key = name.trim() || "Unknown";
+          if (brandCache.has(key)) return brandCache.get(key) ?? null;
+          const { data: existing, error: existingError } = await supabase
+            .from("brands")
+            .select("id")
+            .eq("name", key)
+            .maybeSingle();
+          if (existing) {
+            brandCache.set(key, existing.id);
+            return existing.id;
+          }
+          if (existingError && existingError.code !== "PGRST116") {
+            console.error("fetch brand error", existingError);
+            return null;
+          }
+          const { data: created, error: createError } = await supabase
+            .from("brands")
+            .insert({ name: key, jp_available: false })
+            .select("id")
+            .single();
+          if (createError || !created) {
+            console.error("insert brand error", createError);
+            return null;
+          }
+          brandCache.set(key, created.id);
+          return created.id;
+        };
+
+        const resolveFlavorId = async (component: ComponentState): Promise<number | null> => {
+          if (component.mode === "existing") {
+            return Number(component.flavorId);
+          }
+          const brandId = await ensureBrandId(component.customBrand);
+          if (!brandId) return null;
+          const { data: flavorData, error: flavorError } = await supabase
+            .from("flavors")
+            .insert({ name: component.customName.trim(), brand_id: brandId, tags: null })
+            .select("id")
+            .single();
+          if (flavorError || !flavorData) {
+            console.error("insert flavor error", flavorError);
+            return null;
+          }
+          return flavorData.id;
+        };
+
         const title = `記録フレーバー ${new Date(formState.startedAt).toLocaleString("ja-JP", {
           month: "short",
           day: "numeric",
@@ -268,9 +326,24 @@ export function SessionForm() {
 
         mixIdToUse = mixData.id;
 
+        const resolvedFlavorIds: (number | null)[] = [];
+        for (const component of components) {
+          const id = await resolveFlavorId(component);
+          resolvedFlavorIds.push(id);
+        }
+
+        if (resolvedFlavorIds.some((id) => id === null)) {
+          toast({
+            title: "フレーバー登録に失敗しました",
+            description: "フレーバーの登録または取得に失敗しました。",
+            variant: "destructive"
+          });
+          return;
+        }
+
         const componentsPayload: MixComponentInsert[] = components.map((component, index) => ({
           mix_id: mixData.id,
-          flavor_id: Number(component.flavorId),
+          flavor_id: resolvedFlavorIds[index] as number,
           ratio_percent: component.ratio,
           layer_order: index + 1
         }));
@@ -357,6 +430,21 @@ export function SessionForm() {
                   </Button>
                 </div>
               </div>
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={useCustomRatio}
+                  onChange={(event) => {
+                    const next = event.target.checked;
+                    setUseCustomRatio(next);
+                    if (!next) {
+                      setComponents((prev) => evenDistribution(prev));
+                    }
+                  }}
+                  className="h-4 w-4 accent-primary"
+                />
+                比率を自分で設定する
+              </label>
               <div className="grid gap-4 md:grid-cols-2">
                 {components.map((component, index) => (
                   <div key={index} className="rounded-md border p-3 space-y-3 bg-muted/40">
@@ -368,28 +456,65 @@ export function SessionForm() {
                         </Button>
                       ) : null}
                     </div>
-                    <select
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={component.flavorId}
-                      onChange={(event) => handleComponentChange(index, { flavorId: event.target.value })}
-                    >
-                      <option value="">フレーバーを選択</option>
-                      {flavors.map((flavor) => (
-                        <option key={flavor.id} value={flavor.id}>
-                          {flavor.brand?.name ? `${flavor.brand.name} / ${flavor.name}` : flavor.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">比率 {component.ratio}%</Label>
-                      <Slider
-                        value={[component.ratio]}
-                        min={0}
-                        max={100}
-                        step={1}
-                        onValueChange={(value) => setComponents((prev) => redistributeRatios(prev, index, value[0] ?? 0))}
-                      />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant={component.mode === "existing" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleComponentChange(index, { mode: "existing" })}
+                      >
+                        既存から選ぶ
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={component.mode === "custom" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleComponentChange(index, { mode: "custom" })}
+                      >
+                        自由入力
+                      </Button>
                     </div>
+                    {component.mode === "existing" ? (
+                      <select
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={component.flavorId}
+                        onChange={(event) => handleComponentChange(index, { flavorId: event.target.value })}
+                      >
+                        <option value="">フレーバーを選択</option>
+                        {flavors.map((flavor) => (
+                          <option key={flavor.id} value={flavor.id}>
+                            {flavor.brand?.name ? `${flavor.brand.name} / ${flavor.name}` : flavor.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="フレーバー名 (例: Unknown Mint)"
+                          value={component.customName}
+                          onChange={(event) => handleComponentChange(index, { customName: event.target.value })}
+                        />
+                        <Input
+                          placeholder="ブランド名 (任意: 例 Unknown Brand)"
+                          value={component.customBrand}
+                          onChange={(event) => handleComponentChange(index, { customBrand: event.target.value })}
+                        />
+                      </div>
+                    )}
+                    {useCustomRatio ? (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">比率 {component.ratio}%</Label>
+                        <Slider
+                          value={[component.ratio]}
+                          min={0}
+                          max={100}
+                          step={1}
+                          onValueChange={(value) => setComponents((prev) => redistributeRatios(prev, index, value[0] ?? 0))}
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">比率は自動で均等に設定されます。</p>
+                    )}
                   </div>
                 ))}
               </div>

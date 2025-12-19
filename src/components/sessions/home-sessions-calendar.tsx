@@ -6,6 +6,7 @@ import type { Session } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export function HomeSessionsCalendar() {
   const supabase = useMemo(() => createSupabaseClient(), []);
@@ -16,6 +17,9 @@ export function HomeSessionsCalendar() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedSessions, setSelectedSessions] = useState<Session[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -99,6 +103,7 @@ export function HomeSessionsCalendar() {
   }, [sessions, currentMonth]);
 
   return (
+    <>
     <Card>
       <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -131,6 +136,14 @@ export function HomeSessionsCalendar() {
               <div
                 key={key}
                 className={`h-20 rounded-md border bg-background p-2 text-left ${daySessions.length > 0 ? "border-primary/50" : ""}`}
+                onClick={() => {
+                  if (daySessions.length === 0 || !date) return;
+                  setSelectedDate(date.toISOString().slice(0, 10));
+                  setSelectedSessions(daySessions);
+                  setDialogOpen(true);
+                }}
+                role={daySessions.length > 0 ? "button" : undefined}
+                tabIndex={daySessions.length > 0 ? 0 : -1}
               >
                 {date ? <p className="text-xs font-medium">{date.getDate()}</p> : null}
                 {daySessions.length > 0 ? (
@@ -156,6 +169,38 @@ export function HomeSessionsCalendar() {
         </div>
       </CardContent>
     </Card>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{selectedDate ? new Date(selectedDate).toLocaleDateString("ja-JP") : "記録"}</DialogTitle>
+        </DialogHeader>
+        {selectedSessions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">この日に記録はありません。</p>
+        ) : (
+          <div className="space-y-3">
+            {selectedSessions.map((session) => (
+              <div key={session.id} className="rounded-md border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">
+                    {session.started_at
+                      ? new Date(session.started_at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })
+                      : "時間不明"}
+                  </p>
+                  <Badge variant="secondary" className="text-xs">
+                    満足度 {session.satisfaction ?? "-"}
+                  </Badge>
+                </div>
+                {session.location_text ? (
+                  <p className="text-xs text-muted-foreground mt-1">場所: {session.location_text}</p>
+                ) : null}
+                {session.notes ? <p className="text-sm mt-2">{session.notes}</p> : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

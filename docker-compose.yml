@@ -1,0 +1,14 @@
+services:
+  web:
+    build:
+      context: .
+    ports:
+      - "3000:3000"
+    volumes:
+      # 1) ローカルのソースをコンテナに共有（編集が即反映）
+      - .:/app
+      # 2) node_modules はコンテナ側を使う（OS差異で壊れやすいので分離）
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: npm run dev -- -H 0.0.0.0 -p 3000
