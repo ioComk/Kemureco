@@ -349,7 +349,7 @@ export function HomeSessionsCalendar() {
     const text = buildShareText(session);
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const url = origin ? `${origin}/` : "";
-    return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+    return `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
   };
 
   const sessionsByDate = useMemo(() => {
