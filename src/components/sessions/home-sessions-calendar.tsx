@@ -38,7 +38,6 @@ export function HomeSessionsCalendar() {
   }>({ startedAt: "", satisfaction: 3, location: "", notes: "", mixId: "" });
   const [savingId, setSavingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [sharingId, setSharingId] = useState<number | null>(null);
 
   const formatDateInput = (value?: string | null) => {
     if (!value) return "";
@@ -346,15 +345,11 @@ export function HomeSessionsCalendar() {
     return lines.join("\n");
   };
 
-  const handleShare = (session: SessionItem) => {
-    if (typeof window === "undefined") return;
-    setSharingId(session.id);
+  const buildShareUrl = (session: SessionItem) => {
     const text = buildShareText(session);
-    const origin = window.location.origin ?? "";
-    const url = `${origin}/`;
-    const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-    window.open(shareUrl, "_blank", "noopener,noreferrer");
-    setSharingId(null);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = origin ? `${origin}/` : "";
+    return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
   };
 
   const sessionsByDate = useMemo(() => {
@@ -561,13 +556,14 @@ export function HomeSessionsCalendar() {
                       <Button variant="outline" size="sm" onClick={() => startEdit(session)}>
                         編集
                       </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleShare(session)}
-                        disabled={sharingId === session.id}
-                      >
-                        {sharingId === session.id ? "共有中..." : "Xに投稿"}
+                      <Button variant="secondary" size="sm" asChild>
+                        <a
+                          href={buildShareUrl(session)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Xに投稿
+                        </a>
                       </Button>
                       <Button
                         variant="destructive"
