@@ -204,7 +204,10 @@ export function SessionForm() {
   const handleAddComponent = () => {
     setComponents((prev) => {
       if (prev.length >= MAX_COMPONENTS) return prev;
-      const next = [...prev, { flavorId: "", ratio: 0 }];
+      const next = [
+        ...prev,
+        { flavorId: "", ratio: 0, mode: "existing", customName: "", customBrand: "" } satisfies ComponentState
+      ];
       return useCustomRatio ? next : evenDistribution(next);
     });
   };
