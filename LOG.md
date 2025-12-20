@@ -5,6 +5,7 @@
 - カレンダーモーダルからX（Twitter）への投稿ボタンを追加し、ミックス・満足度・フレーバー構成・メモ付きで intent URL を開くようにしました。
 - スマホ環境でX投稿ボタンが動作するよう、意図URLを a タグで開く方式に変更し、window.open 依存をなくしました。
 - intent URL を `x.com/intent/tweet` に変更し、ユニバーサルリンク経由でアプリが開く可能性を高めました（ブラウザ依存）。
+- 環境変数の読込に dotenvx を追加し、`npm run dev/build/start/preview:cf` で `.env` / `.env.local` / `.env.vault` を自動適用するようにしました。
 - Docker ベースのローカル開発環境（Dockerfile / docker-compose / .dockerignore）を追加し、セッションフォームやホームのカレンダービューを改善しました。
 
 ## 2025-12-16

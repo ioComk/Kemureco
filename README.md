@@ -32,6 +32,8 @@
    NEXT_PUBLIC_SUPABASE_ANON_KEY=Anonキー
    ```
 
+   本リポジトリには [dotenvx](https://github.com/dotenv-org/dotenvx) を同梱しており、`npm run dev` / `npm run build` などのスクリプトは `.env`, `.env.local`, `.env.vault` を自動で読み込みます。`.env.vault` を使う場合は `DOTENV_KEY=... npm run dev` のように鍵を渡してください。
+
 3. データベーススキーマの適用
 
    Supabase ダッシュボードの SQL Editor で [`supabase/schema.sql`](supabase/schema.sql) を実行します。RLS 付きで `brands`, `flavors`, `mixes`, `mix_components`, `sessions` が作成されます。

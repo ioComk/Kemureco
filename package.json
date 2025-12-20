@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "dotenvx run -- next dev",
+    "build": "dotenvx run -- next build",
+    "start": "dotenvx run -- next start",
     "lint": "next lint",
-    "build:cf": "next build && npx @cloudflare/next-on-pages@1.13.16",
-    "preview:cf": "npx wrangler pages dev .vercel/output/static --compatibility-date=$(date +%Y-%m-%d)"
+    "build:cf": "npm run build && npx @cloudflare/next-on-pages@1.13.16",
+    "preview:cf": "dotenvx run -- npx wrangler pages dev .vercel/output/static --compatibility-date=$(date +%Y-%m-%d)"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240208.0",
+    "@dotenvx/dotenvx": "^1.51.2",
     "@types/node": "20.14.2",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
