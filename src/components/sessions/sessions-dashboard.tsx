@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { createSupabaseClient } from "@/lib/supabase";
-import type { Database, Session } from "@/lib/types";
+import type { Session } from "@/lib/types";
+import type { MixOption, SessionItem } from "@/components/sessions/types";
+import { SessionOverviewCard } from "@/components/sessions/session-overview-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -12,18 +14,6 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-
-type MixOption = Pick<Database["public"]["Tables"]["mixes"]["Row"], "id" | "title">;
-
-type MixComponentInfo = {
-  flavorId: number;
-  flavorName: string;
-  brandName?: string | null;
-};
-
-type SessionItem = Session & {
-  mix?: (MixOption & { components?: MixComponentInfo[] }) | null;
-};
 
 export function SessionsDashboard() {
   const supabase = useMemo(() => createSupabaseClient(), []);
@@ -274,48 +264,6 @@ export function SessionsDashboard() {
     }
   };
 
-  const averageSatisfaction = sessions.length
-    ? sessions.reduce((sum, item) => sum + (item.satisfaction ?? 0), 0) / sessions.length
-    : null;
-
-  const sessionsThisMonth = useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-    return sessions.filter((session) => {
-      if (!session.started_at) return false;
-      const date = new Date(session.started_at);
-      return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
-    });
-  }, [sessions]);
-
-  const mixFrequency = useMemo(() => {
-    const counts = new Map<number, { count: number; title: string }>();
-    sessions.forEach((session) => {
-      if (!session.mix || !session.mix_id) return;
-      const current = counts.get(session.mix_id) ?? { count: 0, title: session.mix.title };
-      counts.set(session.mix_id, { count: current.count + 1, title: current.title });
-    });
-    return counts;
-  }, [sessions]);
-
-  const flavorFrequency = useMemo(() => {
-    const counts = new Map<number, { count: number; flavorName: string; brandName?: string | null }>();
-    sessions.forEach((session) => {
-      const components = session.mix?.components ?? [];
-      components.forEach((component) => {
-        if (!component?.flavorId) return;
-        const current = counts.get(component.flavorId) ?? {
-          count: 0,
-          flavorName: component.flavorName,
-          brandName: component.brandName
-        };
-        counts.set(component.flavorId, { ...current, count: current.count + 1 });
-      });
-    });
-    return counts;
-  }, [sessions]);
-
   const calendarSessions = useMemo(() => {
     const map = new Map<string, SessionItem[]>();
     const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
@@ -358,26 +306,6 @@ export function SessionsDashboard() {
     return cells;
   }, [currentMonth]);
 
-  const topMix = useMemo<{ title: string; count: number } | null>(() => {
-    let mostUsed: { title: string; count: number } | null = null;
-    mixFrequency.forEach((value) => {
-      if (!mostUsed || value.count > mostUsed.count) {
-        mostUsed = { title: value.title, count: value.count };
-      }
-    });
-    return mostUsed;
-  }, [mixFrequency]);
-
-  const topFlavor = useMemo<{ name: string; brand?: string | null; count: number } | null>(() => {
-    let mostUsed: { name: string; brand?: string | null; count: number } | null = null;
-    flavorFrequency.forEach((value) => {
-      if (!mostUsed || value.count > mostUsed.count) {
-        mostUsed = { name: value.flavorName, brand: value.brandName, count: value.count };
-      }
-    });
-    return mostUsed;
-  }, [flavorFrequency]);
-
   if (sessionState.loading) {
     return <p className="text-sm text-muted-foreground">認証状態を確認しています...</p>;
   }
@@ -400,44 +328,7 @@ export function SessionsDashboard() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>セッション概要</CardTitle>
-          <CardDescription>直近の記録をもとにサマリーを確認できます。</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">総セッション数</p>
-            <p className="text-2xl font-semibold">{sessions.length}件</p>
-          </div>
-          <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">今月の記録</p>
-            <p className="text-2xl font-semibold">{sessionsThisMonth.length}件</p>
-          </div>
-          <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">平均満足度</p>
-            <p className="text-2xl font-semibold">
-              {averageSatisfaction !== null ? `${averageSatisfaction.toFixed(1)} / 5` : "-"}
-            </p>
-          </div>
-          <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-xs text-muted-foreground">よく使うミックス / フレーバー</p>
-            {topMix ? (
-              <p className="text-sm font-medium">
-                {topMix.title} <span className="text-xs text-muted-foreground">({topMix.count}回)</span>
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">まだ記録がありません</p>
-            )}
-            {topFlavor ? (
-              <p className="text-xs text-muted-foreground">
-                {topFlavor.brand ? `${topFlavor.brand} / ` : ""}
-                {topFlavor.name} を {topFlavor.count}回使用
-              </p>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+      <SessionOverviewCard sessions={sessions} />
 
       <Card>
         <CardHeader>

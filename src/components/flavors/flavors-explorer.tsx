@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FlavorWithBrand } from "@/lib/types";
+import { createSupabaseClient } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 type SortOption = "name" | "brand" | "popular";
+type ViewMode = "grid" | "list";
 type GroupOption = "none" | "brand";
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -31,12 +33,14 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const supabase = useMemo(() => createSupabaseClient(), []);
 
   const [query, setQuery] = useState(initialQuery);
   const [activeTag, setActiveTag] = useState(initialTag);
   const [sort, setSort] = useState<SortOption>(
     SORT_OPTIONS.some((option) => option.value === initialSort) ? (initialSort as SortOption) : "name"
   );
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [group, setGroup] = useState<GroupOption>("none");
 
   useEffect(() => {
@@ -97,6 +101,18 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
     updateSearchParam("tag", nextTag || undefined);
   };
 
+  const imageUrls = useMemo(() => {
+    const map = new Map<number, string>();
+    flavors.forEach((flavor) => {
+      if (!flavor.image_path) return;
+      const { data } = supabase.storage.from("flavor-images").getPublicUrl(flavor.image_path);
+      if (data.publicUrl) {
+        map.set(flavor.id, data.publicUrl);
+      }
+    });
+    return map;
+  }, [flavors, supabase]);
+
   const filteredFlavors = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const normalizedTag = activeTag.trim().toLowerCase();
@@ -147,6 +163,88 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
     return Array.from(grouped.entries()).sort(([a], [b]) => a.localeCompare(b, "ja"));
   }, [filteredFlavors, group]);
 
+  const renderFlavorGridCard = (flavor: FlavorWithBrand) => {
+    const imageUrl = imageUrls.get(flavor.id);
+    return (
+      <div key={flavor.id} className="space-y-3 rounded-lg border p-4">
+        {imageUrl ? (
+          <div className="overflow-hidden rounded-md border">
+            <img
+              src={imageUrl}
+              alt={`${flavor.name} の画像`}
+              className="h-40 w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        ) : (
+          <div className="flex h-40 items-center justify-center rounded-md border bg-muted/30 text-xs text-muted-foreground">
+            画像なし
+          </div>
+        )}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">{flavor.brand?.name ?? "ブランド未設定"}</p>
+            <p className="text-lg font-semibold">{flavor.name}</p>
+          </div>
+          {flavor.brand?.jp_available ? <Badge variant="secondary">国内取扱</Badge> : null}
+        </div>
+        {flavor.tags?.length ? (
+          <div className="flex flex-wrap gap-2">
+            {flavor.tags.map((tag) => (
+              <Badge key={`${flavor.id}-${tag}`} variant="outline">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">タグ情報はまだありません。</p>
+        )}
+      </div>
+    );
+  };
+
+  const renderFlavorListCard = (flavor: FlavorWithBrand) => {
+    const imageUrl = imageUrls.get(flavor.id);
+    return (
+      <div key={flavor.id} className="flex flex-col gap-4 rounded-lg border p-4 md:flex-row">
+        {imageUrl ? (
+          <div className="w-full overflow-hidden rounded-md border md:w-40">
+            <img
+              src={imageUrl}
+              alt={`${flavor.name} の画像`}
+              className="h-28 w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        ) : (
+          <div className="flex h-28 w-full items-center justify-center rounded-md border bg-muted/30 text-xs text-muted-foreground md:w-40">
+            画像なし
+          </div>
+        )}
+        <div className="flex-1 space-y-3">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">{flavor.brand?.name ?? "ブランド未設定"}</p>
+              <p className="text-lg font-semibold">{flavor.name}</p>
+            </div>
+            {flavor.brand?.jp_available ? <Badge variant="secondary">国内取扱</Badge> : null}
+          </div>
+          {flavor.tags?.length ? (
+            <div className="flex flex-wrap gap-2">
+              {flavor.tags.map((tag) => (
+                <Badge key={`${flavor.id}-${tag}`} variant="outline">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">タグ情報はまだありません。</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -179,6 +277,27 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>表示切り替え</Label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={viewMode === "grid" ? "default" : "outline"}
+                onClick={() => setViewMode("grid")}
+              >
+                グリッド
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={viewMode === "list" ? "default" : "outline"}
+                onClick={() => setViewMode("list")}
+              >
+                リスト
+              </Button>
             </div>
           </div>
           <div className="space-y-2">
@@ -242,58 +361,22 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
                 <h3 className="text-lg font-semibold">{brandName}</h3>
                 <Badge variant="secondary">{brandFlavors.length}</Badge>
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                {brandFlavors.map((flavor) => (
-                  <div key={flavor.id} className="space-y-3 rounded-lg border p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">{flavor.brand?.name ?? "ブランド未設定"}</p>
-                        <p className="text-lg font-semibold">{flavor.name}</p>
-                      </div>
-                      {flavor.brand?.jp_available ? <Badge variant="secondary">国内取扱</Badge> : null}
-                    </div>
-                    {flavor.tags?.length ? (
-                      <div className="flex flex-wrap gap-2">
-                        {flavor.tags.map((tag) => (
-                          <Badge key={`${flavor.id}-${tag}`} variant="outline">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">タグ情報はまだありません。</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {filteredFlavors.map((flavor) => (
-            <div key={flavor.id} className="space-y-3 rounded-lg border p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">{flavor.brand?.name ?? "ブランド未設定"}</p>
-                  <p className="text-lg font-semibold">{flavor.name}</p>
-                </div>
-                {flavor.brand?.jp_available ? <Badge variant="secondary">国内取扱</Badge> : null}
-              </div>
-              {flavor.tags?.length ? (
-                <div className="flex flex-wrap gap-2">
-                  {flavor.tags.map((tag) => (
-                    <Badge key={`${flavor.id}-${tag}`} variant="outline">
-                      {tag}
-                    </Badge>
-                  ))}
+              {viewMode === "grid" ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {brandFlavors.map((flavor) => renderFlavorGridCard(flavor))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">タグ情報はまだありません。</p>
+                <div className="space-y-4">
+                  {brandFlavors.map((flavor) => renderFlavorListCard(flavor))}
+                </div>
               )}
             </div>
           ))}
         </div>
+      ) : viewMode === "grid" ? (
+        <div className="grid gap-4 md:grid-cols-2">{filteredFlavors.map((flavor) => renderFlavorGridCard(flavor))}</div>
+      ) : (
+        <div className="space-y-4">{filteredFlavors.map((flavor) => renderFlavorListCard(flavor))}</div>
       )}
     </div>
   );

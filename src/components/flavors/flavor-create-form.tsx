@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Brand } from "@/lib/types";
 import { createSupabaseClient } from "@/lib/supabase";
@@ -21,6 +21,7 @@ type FormState = {
   newBrandJpAvailable: boolean;
   flavorName: string;
   tagsInput: string;
+  imageFile: File | null;
 };
 
 const INITIAL_STATE: FormState = {
@@ -29,7 +30,8 @@ const INITIAL_STATE: FormState = {
   newBrandName: "",
   newBrandJpAvailable: true,
   flavorName: "",
-  tagsInput: ""
+  tagsInput: "",
+  imageFile: null
 };
 
 export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
@@ -41,6 +43,7 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const router = useRouter();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setFormState((prev) => ({ ...prev, [key]: value }));
@@ -96,13 +99,45 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
         .map((tag) => tag.trim())
         .filter((tag) => tag.length > 0);
 
+      let imagePath: string | null = null;
+      if (formState.imageFile) {
+        const file = formState.imageFile;
+        const fileExt = file.name.split(".").pop()?.toLowerCase() || "png";
+        const normalizedName = formState.flavorName
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 40);
+        imagePath = `flavors/${normalizedName || "flavor"}-${crypto.randomUUID()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage.from("flavor-images").upload(imagePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type || "image/png"
+        });
+
+        if (uploadError) {
+          toast({
+            title: "画像のアップロードに失敗しました",
+            description: uploadError.message,
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
       const { error: flavorError } = await supabase.from("flavors").insert({
         name: formState.flavorName.trim(),
         brand_id: brandId,
-        tags: tags.length ? tags : null
+        tags: tags.length ? tags : null,
+        image_path: imagePath
       });
 
       if (flavorError) {
+        if (imagePath) {
+          await supabase.storage.from("flavor-images").remove([imagePath]);
+        }
         toast({
           title: "フレーバー登録に失敗しました",
           description: flavorError.message,
@@ -120,6 +155,9 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
         ...INITIAL_STATE,
         selectedBrandId: brands[0] ? String(brands[0].id) : ""
       });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       router.refresh();
     });
   };
@@ -214,9 +252,43 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
               />
               <p className="text-xs text-muted-foreground">例: mint,fresh,sweet</p>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="flavor-image">画像（任意）</Label>
+              <Input
+                id="flavor-image"
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0] ?? null;
+                  if (file && file.size > 5 * 1024 * 1024) {
+                    toast({
+                      title: "画像サイズが大きすぎます",
+                      description: "5MB以下の画像を選んでください。",
+                      variant: "destructive"
+                    });
+                    event.currentTarget.value = "";
+                    handleChange("imageFile", null);
+                    return;
+                  }
+                  handleChange("imageFile", file);
+                }}
+              />
+              <p className="text-xs text-muted-foreground">PNG/JPEG/WEBP、最大5MBまで。</p>
+            </div>
           </div>
           <div className="flex justify-end gap-3">
-            <Button type="reset" variant="ghost" onClick={() => setFormState(INITIAL_STATE)} disabled={isPending}>
+            <Button
+              type="reset"
+              variant="ghost"
+              onClick={() => {
+                setFormState(INITIAL_STATE);
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = "";
+                }
+              }}
+              disabled={isPending}
+            >
               リセット
             </Button>
             <Button type="submit" disabled={!canSubmit || isPending}>

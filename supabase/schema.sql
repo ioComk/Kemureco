@@ -9,6 +9,7 @@ create table if not exists public.flavors (
   brand_id integer not null references public.brands(id) on delete cascade,
   name text not null,
   tags text[] default array[]::text[],
+  image_path text,
   created_at timestamptz not null default timezone('utc'::text, now())
 );
 

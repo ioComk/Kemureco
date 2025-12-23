@@ -177,7 +177,7 @@ export function SessionForm() {
   const fetchFlavors = async () => {
     const { data, error } = await supabase
       .from("flavors")
-      .select("id,name,brand_id,created_at,tags,brands(id,name,jp_available)")
+      .select("id,name,brand_id,created_at,tags,image_path,brands(id,name,jp_available)")
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) {
