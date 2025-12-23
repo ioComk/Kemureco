@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 type SortOption = "name" | "brand" | "popular";
+type GroupOption = "none" | "brand";
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "name", label: "名前順" },
@@ -36,6 +37,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   const [sort, setSort] = useState<SortOption>(
     SORT_OPTIONS.some((option) => option.value === initialSort) ? (initialSort as SortOption) : "name"
   );
+  const [group, setGroup] = useState<GroupOption>("none");
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -130,6 +132,21 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
     });
   }, [activeTag, flavors, query, sort]);
 
+  const groupedFlavors = useMemo(() => {
+    if (group !== "brand") return [];
+    const grouped = new Map<string, FlavorWithBrand[]>();
+    filteredFlavors.forEach((flavor) => {
+      const key = flavor.brand?.name ?? "ブランド未設定";
+      const list = grouped.get(key);
+      if (list) {
+        list.push(flavor);
+      } else {
+        grouped.set(key, [flavor]);
+      }
+    });
+    return Array.from(grouped.entries()).sort(([a], [b]) => a.localeCompare(b, "ja"));
+  }, [filteredFlavors, group]);
+
   return (
     <div className="space-y-6">
       <Card>
@@ -164,6 +181,27 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
               </Select>
             </div>
           </div>
+          <div className="space-y-2">
+            <Label>グルーピング</Label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={group === "none" ? "default" : "outline"}
+                onClick={() => setGroup("none")}
+              >
+                なし
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={group === "brand" ? "default" : "outline"}
+                onClick={() => setGroup("brand")}
+              >
+                メーカー
+              </Button>
+            </div>
+          </div>
           {availableTags.length ? (
             <div className="space-y-2">
               <Label>タグで絞り込み</Label>
@@ -196,6 +234,41 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
             条件に一致するフレーバーが見つかりませんでした。検索条件を調整してください。
           </CardContent>
         </Card>
+      ) : group === "brand" ? (
+        <div className="space-y-8">
+          {groupedFlavors.map(([brandName, brandFlavors]) => (
+            <div key={brandName} className="space-y-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold">{brandName}</h3>
+                <Badge variant="secondary">{brandFlavors.length}</Badge>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {brandFlavors.map((flavor) => (
+                  <div key={flavor.id} className="space-y-3 rounded-lg border p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">{flavor.brand?.name ?? "ブランド未設定"}</p>
+                        <p className="text-lg font-semibold">{flavor.name}</p>
+                      </div>
+                      {flavor.brand?.jp_available ? <Badge variant="secondary">国内取扱</Badge> : null}
+                    </div>
+                    {flavor.tags?.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {flavor.tags.map((tag) => (
+                          <Badge key={`${flavor.id}-${tag}`} variant="outline">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">タグ情報はまだありません。</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {filteredFlavors.map((flavor) => (
