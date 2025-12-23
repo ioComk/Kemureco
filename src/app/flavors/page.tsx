@@ -15,7 +15,7 @@ async function loadFlavors(): Promise<FlavorWithBrand[]> {
   const supabase = createSupabaseClient();
   const { data, error } = await supabase
     .from("flavors")
-    .select("id,name,tags,brand_id,created_at,brands(id,name,jp_available)")
+    .select("id,name,tags,image_path,brand_id,created_at,brands(id,name,jp_available)")
     .limit(200);
 
   if (error) {

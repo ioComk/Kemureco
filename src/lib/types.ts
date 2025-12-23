@@ -9,6 +9,7 @@ export type Flavor = {
   brand_id: number;
   name: string;
   tags: string[] | null;
+  image_path: string | null;
   created_at: string | null;
   brand?: Brand | null;
 };
