@@ -31,6 +31,48 @@ type ComponentState = {
   customBrand: string;
 };
 
+const JP_QUERY_MAP: Array<{ jp: string; en: string }> = [
+  { jp: "みんと", en: "mint" },
+  { jp: "ミント", en: "mint" },
+  { jp: "れもん", en: "lemon" },
+  { jp: "レモン", en: "lemon" },
+  { jp: "おれんじ", en: "orange" },
+  { jp: "オレンジ", en: "orange" },
+  { jp: "あっぷる", en: "apple" },
+  { jp: "アップル", en: "apple" },
+  { jp: "だぶるあっぷる", en: "two apples" },
+  { jp: "ダブルアップル", en: "two apples" },
+  { jp: "ぐれーぷ", en: "grape" },
+  { jp: "グレープ", en: "grape" },
+  { jp: "ぶどう", en: "grape" },
+  { jp: "ぶるーべりー", en: "blueberry" },
+  { jp: "ブルーベリー", en: "blueberry" },
+  { jp: "ちぇりー", en: "cherry" },
+  { jp: "チェリー", en: "cherry" },
+  { jp: "すいか", en: "watermelon" },
+  { jp: "スイカ", en: "watermelon" },
+  { jp: "めろん", en: "melon" },
+  { jp: "メロン", en: "melon" },
+  { jp: "ぴーち", en: "peach" },
+  { jp: "ピーチ", en: "peach" },
+  { jp: "ぱいなっぷる", en: "pineapple" },
+  { jp: "パイナップル", en: "pineapple" },
+  { jp: "ばにら", en: "vanilla" },
+  { jp: "バニラ", en: "vanilla" },
+  { jp: "ちょこ", en: "chocolate" },
+  { jp: "チョコ", en: "chocolate" },
+  { jp: "しとらす", en: "citrus" },
+  { jp: "シトラス", en: "citrus" },
+  { jp: "らいむ", en: "lime" },
+  { jp: "ライム", en: "lime" },
+  { jp: "ここなっつ", en: "coconut" },
+  { jp: "ココナッツ", en: "coconut" },
+  { jp: "すぱいす", en: "spice" },
+  { jp: "スパイス", en: "spice" },
+  { jp: "でざーと", en: "dessert" },
+  { jp: "デザート", en: "dessert" }
+];
+
 type MixInsert = Database["public"]["Tables"]["mixes"]["Insert"];
 
 type MixComponentInsert = Database["public"]["Tables"]["mix_components"]["Insert"];
@@ -177,7 +219,7 @@ export function SessionForm() {
   const fetchFlavors = async () => {
     const { data, error } = await supabase
       .from("flavors")
-      .select("id,name,brand_id,created_at,tags,image_path,brands(id,name,jp_available)")
+      .select("id,name,brand_id,created_at,created_by,tags,image_path,brands(id,name,jp_available)")
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) {
@@ -199,6 +241,24 @@ export function SessionForm() {
       next[index] = { ...next[index], ...partial };
       return useCustomRatio ? next : evenDistribution(next);
     });
+  };
+
+  const getFlavorSuggestions = (query: string, max = 6) => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return [];
+    const tokens = new Set([normalized]);
+    JP_QUERY_MAP.forEach(({ jp, en }) => {
+      if (normalized.includes(jp)) {
+        tokens.add(en);
+      }
+    });
+    const tokenList = Array.from(tokens);
+    return flavors
+      .filter((flavor) => {
+        const haystack = [flavor.name, flavor.brand?.name ?? "", ...(flavor.tags ?? [])].join(" ").toLowerCase();
+        return tokenList.some((token) => haystack.includes(token));
+      })
+      .slice(0, max);
   };
 
   const handleAddComponent = () => {
@@ -236,10 +296,22 @@ export function SessionForm() {
       return;
     }
 
+    const customFlavorNotes = components
+      .filter((component) => component.mode === "custom" && component.customName.trim().length > 0)
+      .map((component) => {
+        const name = component.customName.trim();
+        const brand = component.customBrand.trim();
+        const ratio = component.ratio > 0 ? ` (${component.ratio}%)` : "";
+        return `${brand ? `${brand} ` : ""}${name}${ratio}`;
+      });
+    const notesPayload = [formState.notes.trim(), customFlavorNotes.length ? `自由入力フレーバー: ${customFlavorNotes.join(", ")}` : ""]
+      .filter((value) => value.length > 0)
+      .join("\n");
+
     const basePayload: SessionInsert = {
       user_id: authUserId,
       location_text: formState.location.trim() || null,
-      notes: formState.notes.trim() || null,
+      notes: notesPayload || null,
       satisfaction: formState.satisfaction,
       started_at: new Date(formState.startedAt).toISOString(),
       mix_id: null
@@ -248,55 +320,7 @@ export function SessionForm() {
     startTransition(async () => {
       let mixIdToUse: number | null = null;
 
-      if (mixColumnAvailable && canSubmitFlavors) {
-        const brandCache = new Map<string, number>();
-
-        const ensureBrandId = async (name: string): Promise<number | null> => {
-          const key = name.trim() || "Unknown";
-          if (brandCache.has(key)) return brandCache.get(key) ?? null;
-          const { data: existing, error: existingError } = await supabase
-            .from("brands")
-            .select("id")
-            .eq("name", key)
-            .maybeSingle();
-          if (existing) {
-            brandCache.set(key, existing.id);
-            return existing.id;
-          }
-          if (existingError && existingError.code !== "PGRST116") {
-            console.error("fetch brand error", existingError);
-            return null;
-          }
-          const { data: created, error: createError } = await supabase
-            .from("brands")
-            .insert({ name: key, jp_available: false })
-            .select("id")
-            .single();
-          if (createError || !created) {
-            console.error("insert brand error", createError);
-            return null;
-          }
-          brandCache.set(key, created.id);
-          return created.id;
-        };
-
-        const resolveFlavorId = async (component: ComponentState): Promise<number | null> => {
-          if (component.mode === "existing") {
-            return Number(component.flavorId);
-          }
-          const brandId = await ensureBrandId(component.customBrand);
-          if (!brandId) return null;
-          const { data: flavorData, error: flavorError } = await supabase
-            .from("flavors")
-            .insert({ name: component.customName.trim(), brand_id: brandId, tags: null })
-            .select("id")
-            .single();
-          if (flavorError || !flavorData) {
-            console.error("insert flavor error", flavorError);
-            return null;
-          }
-          return flavorData.id;
-        };
+      if (mixColumnAvailable && canSubmitFlavors && customFlavorNotes.length === 0) {
 
         const title = `記録フレーバー ${new Date(formState.startedAt).toLocaleString("ja-JP", {
           month: "short",
@@ -329,24 +353,9 @@ export function SessionForm() {
 
         mixIdToUse = mixData.id;
 
-        const resolvedFlavorIds: (number | null)[] = [];
-        for (const component of components) {
-          const id = await resolveFlavorId(component);
-          resolvedFlavorIds.push(id);
-        }
-
-        if (resolvedFlavorIds.some((id) => id === null)) {
-          toast({
-            title: "フレーバー登録に失敗しました",
-            description: "フレーバーの登録または取得に失敗しました。",
-            variant: "destructive"
-          });
-          return;
-        }
-
         const componentsPayload: MixComponentInsert[] = components.map((component, index) => ({
           mix_id: mixData.id,
-          flavor_id: resolvedFlavorIds[index] as number,
+          flavor_id: Number(component.flavorId),
           ratio_percent: component.ratio,
           layer_order: index + 1
         }));
@@ -497,6 +506,39 @@ export function SessionForm() {
                           value={component.customName}
                           onChange={(event) => handleComponentChange(index, { customName: event.target.value })}
                         />
+                        {component.customName.trim().length > 0 ? (
+                          <div className="rounded-md border bg-background">
+                            <div className="px-3 py-2 text-xs font-medium text-muted-foreground">サジェスト</div>
+                            {(() => {
+                              const suggestions = getFlavorSuggestions(component.customName);
+                              if (!suggestions.length) {
+                                return <p className="px-3 pb-3 text-sm text-muted-foreground">候補が見つかりませんでした。</p>;
+                              }
+                              return (
+                                <div className="max-h-40 overflow-auto">
+                                  {suggestions.map((flavor) => (
+                                    <button
+                                      key={flavor.id}
+                                      type="button"
+                                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent"
+                                      onClick={() =>
+                                        handleComponentChange(index, {
+                                          customName: flavor.name,
+                                          customBrand: flavor.brand?.name ?? ""
+                                        })
+                                      }
+                                    >
+                                      <span>{flavor.name}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {flavor.brand?.name ?? "ブランド未設定"}
+                                      </span>
+                                    </button>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        ) : null}
                         <Input
                           placeholder="ブランド名 (任意: 例 Unknown Brand)"
                           value={component.customBrand}

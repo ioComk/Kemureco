@@ -11,7 +11,7 @@ async function loadFlavors(): Promise<FlavorWithBrand[]> {
   const supabase = createSupabaseClient();
   const { data, error } = await supabase
     .from("flavors")
-    .select("id,name,tags,image_path,brand_id,created_at,brands(id,name,jp_available)")
+    .select("id,name,tags,image_path,brand_id,created_at,created_by,brands(id,name,jp_available)")
     .limit(50);
 
   if (error) {
@@ -28,6 +28,7 @@ async function loadFlavors(): Promise<FlavorWithBrand[]> {
     image_path: item.image_path,
     brand_id: item.brand_id,
     created_at: item.created_at,
+    created_by: item.created_by,
     brand: item.brands ?? null
   }));
 }

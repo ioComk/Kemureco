@@ -131,7 +131,8 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
         name: formState.flavorName.trim(),
         brand_id: brandId,
         tags: tags.length ? tags : null,
-        image_path: imagePath
+        image_path: imagePath,
+        created_by: authData.user.id
       });
 
       if (flavorError) {

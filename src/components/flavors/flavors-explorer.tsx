@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FlavorWithBrand } from "@/lib/types";
@@ -11,10 +11,78 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LayoutGrid, List } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 type SortOption = "name" | "brand" | "popular";
 type ViewMode = "grid" | "list";
 type GroupOption = "none" | "brand";
+
+const JP_QUERY_MAP: Array<{ jp: string; en: string }> = [
+  { jp: "たんじあ", en: "tangiers" },
+  { jp: "タンジア", en: "tangiers" },
+  { jp: "とりふぇくた", en: "trifecta" },
+  { jp: "トリフェクタ", en: "trifecta" },
+  { jp: "ふまり", en: "fumari" },
+  { jp: "フマリ", en: "fumari" },
+  { jp: "あるふぁーへる", en: "al fakher" },
+  { jp: "アルファーヘル", en: "al fakher" },
+  { jp: "あずあ", en: "azure" },
+  { jp: "アズア", en: "azure" },
+  { jp: "せるべとり", en: "serbetli" },
+  { jp: "セルベトリ", en: "serbetli" },
+  { jp: "ふーかいん", en: "hookain" },
+  { jp: "フーカイン", en: "hookain" },
+  { jp: "すたーばず", en: "starbuzz" },
+  { jp: "スターバズ", en: "starbuzz" },
+  { jp: "あだりや", en: "adalya" },
+  { jp: "アダリヤ", en: "adalya" },
+  { jp: "あぐりー", en: "ugly" },
+  { jp: "アグリー", en: "ugly" },
+  { jp: "くっきーず", en: "cookies" },
+  { jp: "クッキーズ", en: "cookies" },
+  { jp: "えたーなるすもーく", en: "eternal smoke" },
+  { jp: "エターナルスモーク", en: "eternal smoke" },
+  { jp: "みんと", en: "mint" },
+  { jp: "ミント", en: "mint" },
+  { jp: "れもん", en: "lemon" },
+  { jp: "レモン", en: "lemon" },
+  { jp: "おれんじ", en: "orange" },
+  { jp: "オレンジ", en: "orange" },
+  { jp: "あっぷる", en: "apple" },
+  { jp: "アップル", en: "apple" },
+  { jp: "だぶるあっぷる", en: "two apples" },
+  { jp: "ダブルアップル", en: "two apples" },
+  { jp: "ぐれーぷ", en: "grape" },
+  { jp: "グレープ", en: "grape" },
+  { jp: "ぶどう", en: "grape" },
+  { jp: "ぶるーべりー", en: "blueberry" },
+  { jp: "ブルーベリー", en: "blueberry" },
+  { jp: "ちぇりー", en: "cherry" },
+  { jp: "チェリー", en: "cherry" },
+  { jp: "すいか", en: "watermelon" },
+  { jp: "スイカ", en: "watermelon" },
+  { jp: "めろん", en: "melon" },
+  { jp: "メロン", en: "melon" },
+  { jp: "ぴーち", en: "peach" },
+  { jp: "ピーチ", en: "peach" },
+  { jp: "ぱいなっぷる", en: "pineapple" },
+  { jp: "パイナップル", en: "pineapple" },
+  { jp: "ばにら", en: "vanilla" },
+  { jp: "バニラ", en: "vanilla" },
+  { jp: "ちょこ", en: "chocolate" },
+  { jp: "チョコ", en: "chocolate" },
+  { jp: "しとらす", en: "citrus" },
+  { jp: "シトラス", en: "citrus" },
+  { jp: "らいむ", en: "lime" },
+  { jp: "ライム", en: "lime" },
+  { jp: "ここなっつ", en: "coconut" },
+  { jp: "ココナッツ", en: "coconut" },
+  { jp: "すぱいす", en: "spice" },
+  { jp: "スパイス", en: "spice" },
+  { jp: "でざーと", en: "dessert" },
+  { jp: "デザート", en: "dessert" }
+];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "name", label: "名前順" },
@@ -27,21 +95,27 @@ type FlavorsExplorerProps = {
   initialQuery: string;
   initialTag: string;
   initialSort: string;
+  totalCount: number;
 };
 
-export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort }: FlavorsExplorerProps) {
+export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort, totalCount }: FlavorsExplorerProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createSupabaseClient(), []);
+  const { toast } = useToast();
+  const [, startTransition] = useTransition();
 
+  const [items, setItems] = useState<FlavorWithBrand[]>(flavors);
   const [query, setQuery] = useState(initialQuery);
+  const deferredQuery = useDeferredValue(query);
   const [activeTag, setActiveTag] = useState(initialTag);
   const [sort, setSort] = useState<SortOption>(
     SORT_OPTIONS.some((option) => option.value === initialSort) ? (initialSort as SortOption) : "name"
   );
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [group, setGroup] = useState<GroupOption>("none");
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -57,13 +131,38 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
     }
   }, [initialSort]);
 
+  useEffect(() => {
+    setItems(flavors);
+  }, [flavors]);
+
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (!mounted) return;
+        setUserId(data.user?.id ?? null);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setUserId(null);
+      });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
   const availableTags = useMemo(() => {
     const tags = new Set<string>();
-    flavors.forEach((flavor) => {
+    items.forEach((flavor) => {
       flavor.tags?.forEach((tag) => tags.add(tag));
     });
     return Array.from(tags).sort((a, b) => a.localeCompare(b, "ja"));
-  }, [flavors]);
+  }, [items]);
 
   const updateSearchParam = useCallback(
     (key: "q" | "tag" | "sort", value?: string) => {
@@ -75,19 +174,21 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
       }
       const queryString = params.toString();
       const target = (queryString ? `${pathname}?${queryString}` : pathname) as Route;
-      router.replace(target, { scroll: false });
+      startTransition(() => {
+        router.replace(target, { scroll: false });
+      });
     },
-    [pathname, router, searchParams]
+    [pathname, router, searchParams, startTransition]
   );
 
   useEffect(() => {
     const handle = setTimeout(() => {
-      const normalized = query.trim();
+      const normalized = deferredQuery.trim();
       updateSearchParam("q", normalized || undefined);
     }, 300);
 
     return () => clearTimeout(handle);
-  }, [query, updateSearchParam]);
+  }, [deferredQuery, updateSearchParam]);
 
   const handleSortChange = (value: string) => {
     const next = SORT_OPTIONS.some((option) => option.value === value) ? (value as SortOption) : "name";
@@ -103,7 +204,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
 
   const imageUrls = useMemo(() => {
     const map = new Map<number, string>();
-    flavors.forEach((flavor) => {
+    items.forEach((flavor) => {
       if (!flavor.image_path) return;
       const { data } = supabase.storage.from("flavor-images").getPublicUrl(flavor.image_path);
       if (data.publicUrl) {
@@ -111,15 +212,22 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
       }
     });
     return map;
-  }, [flavors, supabase]);
+  }, [items, supabase]);
 
   const filteredFlavors = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = deferredQuery.trim().toLowerCase();
     const normalizedTag = activeTag.trim().toLowerCase();
+    const queryTokens = new Set([normalizedQuery]);
+    JP_QUERY_MAP.forEach(({ jp, en }) => {
+      if (normalizedQuery && normalizedQuery.includes(jp)) {
+        queryTokens.add(en);
+      }
+    });
+    const tokens = Array.from(queryTokens).filter((token) => token.length > 0);
 
-    const filtered = flavors.filter((flavor) => {
-      const haystack = `${flavor.name} ${flavor.brand?.name ?? ""}`.toLowerCase();
-      const matchesQuery = normalizedQuery ? haystack.includes(normalizedQuery) : true;
+    const filtered = items.filter((flavor) => {
+      const haystack = [flavor.name, flavor.brand?.name ?? "", ...(flavor.tags ?? [])].join(" ").toLowerCase();
+      const matchesQuery = tokens.length > 0 ? tokens.some((token) => haystack.includes(token)) : true;
       const matchesTag = normalizedTag
         ? flavor.tags?.some((tag) => tag.toLowerCase() === normalizedTag)
         : true;
@@ -146,7 +254,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
 
       return a.name.localeCompare(b.name, "ja");
     });
-  }, [activeTag, flavors, query, sort]);
+  }, [activeTag, items, query, sort]);
 
   const groupedFlavors = useMemo(() => {
     if (group !== "brand") return [];
@@ -162,6 +270,25 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
     });
     return Array.from(grouped.entries()).sort(([a], [b]) => a.localeCompare(b, "ja"));
   }, [filteredFlavors, group]);
+
+  const canDeleteFlavor = (flavor: FlavorWithBrand) => !!userId && flavor.created_by === userId;
+
+  const handleDeleteFlavor = async (flavor: FlavorWithBrand) => {
+    if (!canDeleteFlavor(flavor)) return;
+    const confirmed = window.confirm(`${flavor.name} を削除しますか？`);
+    if (!confirmed) return;
+    const { error } = await supabase.from("flavors").delete().eq("id", flavor.id);
+    if (error) {
+      toast({
+        title: "削除に失敗しました",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+    setItems((prev) => prev.filter((item) => item.id !== flavor.id));
+    toast({ title: "フレーバーを削除しました" });
+  };
 
   const renderFlavorGridCard = (flavor: FlavorWithBrand) => {
     const imageUrl = imageUrls.get(flavor.id);
@@ -186,7 +313,13 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
             <p className="text-sm text-muted-foreground">{flavor.brand?.name ?? "ブランド未設定"}</p>
             <p className="text-lg font-semibold">{flavor.name}</p>
           </div>
-          {flavor.brand?.jp_available ? <Badge variant="secondary">国内取扱</Badge> : null}
+          <div className="flex items-center gap-2">
+            {canDeleteFlavor(flavor) ? (
+              <Button type="button" size="sm" variant="ghost" onClick={() => handleDeleteFlavor(flavor)}>
+                削除
+              </Button>
+            ) : null}
+          </div>
         </div>
         {flavor.tags?.length ? (
           <div className="flex flex-wrap gap-2">
@@ -222,13 +355,19 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
           </div>
         )}
         <div className="flex-1 space-y-3">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">{flavor.brand?.name ?? "ブランド未設定"}</p>
-              <p className="text-lg font-semibold">{flavor.name}</p>
-            </div>
-            {flavor.brand?.jp_available ? <Badge variant="secondary">国内取扱</Badge> : null}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">{flavor.brand?.name ?? "ブランド未設定"}</p>
+            <p className="text-lg font-semibold">{flavor.name}</p>
           </div>
+          <div className="flex items-center gap-2">
+            {canDeleteFlavor(flavor) ? (
+              <Button type="button" size="sm" variant="ghost" onClick={() => handleDeleteFlavor(flavor)}>
+                削除
+              </Button>
+            ) : null}
+          </div>
+        </div>
           {flavor.tags?.length ? (
             <div className="flex flex-wrap gap-2">
               {flavor.tags.map((tag) => (
@@ -248,9 +387,40 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle>フィルター</CardTitle>
-          <CardDescription>ブランド／タグ／名前で素早く絞り込めます。</CardDescription>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <CardTitle>フレーバーライブラリ</CardTitle>
+              <CardDescription>ブランドやタグで絞り込んで、次のミックス候補を探しましょう。</CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <Badge variant="secondary">{totalCount}</Badge>
+              <span>件のフレーバーが登録されています。</span>
+              <span>検索状態はURLパラメータとして保存されます。</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2" aria-label="表示切り替え">
+            <Button
+              type="button"
+              size="icon"
+                variant={viewMode === "grid" ? "default" : "outline"}
+                onClick={() => setViewMode("grid")}
+                aria-pressed={viewMode === "grid"}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                <span className="sr-only">グリッド</span>
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant={viewMode === "list" ? "default" : "outline"}
+                onClick={() => setViewMode("list")}
+                aria-pressed={viewMode === "list"}
+              >
+                <List className="h-4 w-4" />
+                <span className="sr-only">リスト</span>
+              </Button>
+            </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
@@ -277,27 +447,6 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>表示切り替え</Label>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={viewMode === "grid" ? "default" : "outline"}
-                onClick={() => setViewMode("grid")}
-              >
-                グリッド
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={viewMode === "list" ? "default" : "outline"}
-                onClick={() => setViewMode("list")}
-              >
-                リスト
-              </Button>
             </div>
           </div>
           <div className="space-y-2">
@@ -362,7 +511,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
                 <Badge variant="secondary">{brandFlavors.length}</Badge>
               </div>
               {viewMode === "grid" ? (
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                   {brandFlavors.map((flavor) => renderFlavorGridCard(flavor))}
                 </div>
               ) : (
@@ -374,7 +523,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
           ))}
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid gap-4 md:grid-cols-2">{filteredFlavors.map((flavor) => renderFlavorGridCard(flavor))}</div>
+        <div className="grid gap-4 md:grid-cols-3">{filteredFlavors.map((flavor) => renderFlavorGridCard(flavor))}</div>
       ) : (
         <div className="space-y-4">{filteredFlavors.map((flavor) => renderFlavorListCard(flavor))}</div>
       )}

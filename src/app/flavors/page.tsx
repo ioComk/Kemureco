@@ -1,12 +1,7 @@
-import Link from "next/link";
-import type { Route } from "next";
 import { Suspense } from "react";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { Brand, FlavorWithBrand } from "@/lib/types";
 import { FlavorsExplorer } from "@/components/flavors/flavors-explorer";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 
 export const revalidate = 0;
 export const runtime = "edge";
@@ -15,7 +10,7 @@ async function loadFlavors(): Promise<FlavorWithBrand[]> {
   const supabase = createSupabaseClient();
   const { data, error } = await supabase
     .from("flavors")
-    .select("id,name,tags,image_path,brand_id,created_at,brands(id,name,jp_available)")
+    .select("id,name,tags,image_path,brand_id,created_at,created_by,brands(id,name,jp_available)")
     .limit(200);
 
   if (error) {
@@ -51,35 +46,13 @@ export default async function FlavorsPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>フレーバーライブラリ</CardTitle>
-          <CardDescription>
-            ブランドやタグで絞り込んで、次のミックス候補を探しましょう。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            <Badge variant="secondary">{flavors.length}</Badge>
-            <span>件のフレーバーが登録されています。</span>
-            <span>検索状態はURLパラメータとして保存されます。</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild size="sm">
-              <Link href={"/flavors/new" as Route}>フレーバーを登録</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href={"/mixes" as Route}>マイミックスを見る</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading flavors...</p>}>
         <FlavorsExplorer
           flavors={flavors}
           initialQuery={query}
           initialTag={tag}
           initialSort={sort}
+          totalCount={flavors.length}
         />
       </Suspense>
     </div>

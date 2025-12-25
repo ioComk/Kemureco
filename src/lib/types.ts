@@ -11,6 +11,7 @@ export type Flavor = {
   tags: string[] | null;
   image_path: string | null;
   created_at: string | null;
+  created_by: string | null;
   brand?: Brand | null;
 };
 
@@ -52,7 +53,10 @@ export type Database = {
       };
       flavors: {
         Row: Flavor;
-        Insert: Omit<Flavor, "id" | "created_at" | "brand"> & { id?: number; created_at?: string | null };
+        Insert: Omit<Flavor, "id" | "created_at" | "brand"> & {
+          id?: number;
+          created_at?: string | null;
+        };
         Update: Partial<Omit<Flavor, "id" | "brand">> & { id?: number };
         Relationships: [
           {

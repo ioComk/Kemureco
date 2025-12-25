@@ -10,7 +10,8 @@ create table if not exists public.flavors (
   name text not null,
   tags text[] default array[]::text[],
   image_path text,
-  created_at timestamptz not null default timezone('utc'::text, now())
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  created_by uuid references auth.users(id) on delete set null
 );
 
 create table if not exists public.mixes (
@@ -61,7 +62,12 @@ create policy "Authenticated users can insert brands"
 create policy "Authenticated users can insert flavors"
   on public.flavors
   for insert
-  with check (auth.role() = 'authenticated');
+  with check (auth.role() = 'authenticated' and created_by = auth.uid());
+
+create policy "Users can delete their own flavors"
+  on public.flavors
+  for delete
+  using (created_by = auth.uid());
 
 create policy "Users manage their mixes"
   on public.mixes
