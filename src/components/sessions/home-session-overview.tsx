@@ -149,7 +149,7 @@ export function HomeSessionOverview() {
 
   if (sessionState.loading) {
     return (
-      <Card>
+      <Card className="border-0 shadow-none">
         <CardHeader>
           <CardTitle>セッション概要</CardTitle>
           <CardDescription>認証状態を確認しています...</CardDescription>
@@ -160,7 +160,7 @@ export function HomeSessionOverview() {
 
   if (!sessionState.userId) {
     return (
-      <Card>
+      <Card className="border-0 shadow-none">
         <CardHeader>
           <CardTitle>セッション概要</CardTitle>
           <CardDescription>サインインすると記録のサマリーが表示されます。</CardDescription>

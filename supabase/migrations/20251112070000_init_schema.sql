@@ -46,9 +46,9 @@ create policy "Brands are readable by anyone"
   on public.brands for select
   using (true);
 
-create policy "Flavors are readable by anyone"
+create policy "Flavors are readable by owners or public seeds"
   on public.flavors for select
-  using (true);
+  using (created_by is null or created_by = auth.uid());
 
 create policy "Authenticated users can insert brands"
   on public.brands

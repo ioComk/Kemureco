@@ -14,6 +14,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export function SessionsDashboard() {
   const supabase = useMemo(() => createSupabaseClient(), []);
@@ -28,6 +29,9 @@ export function SessionsDashboard() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedSessions, setSelectedSessions] = useState<SessionItem[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingForm, setEditingForm] = useState<{
     mixId: string;
@@ -74,6 +78,15 @@ export function SessionsDashboard() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!selectedDate) return;
+    const filtered = sessions.filter((session) => {
+      if (!session.started_at) return false;
+      return session.started_at.slice(0, 10) === selectedDate;
+    });
+    setSelectedSessions(filtered);
+  }, [selectedDate, sessions]);
 
   const fetchMixes = async () => {
     const { data } = await supabase.from("mixes").select("id,title").order("created_at", { ascending: false });
@@ -306,6 +319,14 @@ export function SessionsDashboard() {
     return cells;
   }, [currentMonth]);
 
+  const handleSelectDate = (date: Date | undefined, daySessions: SessionItem[]) => {
+    if (!date || daySessions.length === 0) return;
+    const key = date.toISOString().slice(0, 10);
+    setSelectedDate(key);
+    setSelectedSessions(daySessions);
+    setDialogOpen(true);
+  };
+
   if (sessionState.loading) {
     return <p className="text-sm text-muted-foreground">認証状態を確認しています...</p>;
   }
@@ -327,71 +348,76 @@ export function SessionsDashboard() {
   }
 
   return (
+    <>
     <div className="space-y-6">
       <SessionOverviewCard sessions={sessions} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>カレンダー</CardTitle>
-          <CardDescription>いつ吸ったかをひと目で振り返れます。</CardDescription>
+      <Card className="border-0 shadow-none">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">カレンダー</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-            >
-              ← 前の月
-            </Button>
-            <p className="text-sm font-medium">
-              {currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-            >
-              次の月 →
-            </Button>
-          </div>
-          <div className="grid grid-cols-7 gap-2 text-center text-xs text-muted-foreground">
-            {["日", "月", "火", "水", "木", "金", "土"].map((w) => (
-              <div key={w} className="font-medium">
-                {w}
-              </div>
-            ))}
-            {calendarCells.map((cell, index) => {
-              const date = cell.date;
-              const key = date ? date.toISOString().slice(0, 10) : `blank-${index}`;
-              const daySessions = date ? calendarSessions.get(key) ?? [] : [];
-              const hasSessions = daySessions.length > 0;
-              return (
-                <div
-                  key={key}
-                  className={`h-20 rounded-md border bg-background p-2 text-left ${hasSessions ? "border-primary/50" : ""}`}
-                >
-                  {date ? <p className="text-xs font-medium">{date.getDate()}</p> : null}
-                  {hasSessions ? (
-                    <div className="mt-2 space-y-1">
-                      <p className="text-[10px] text-muted-foreground">{daySessions.length} 件</p>
-                      <div className="space-y-1">
-                        {daySessions.slice(0, 2).map((session) => (
-                          <p key={session.id} className="truncate text-[11px] font-medium">
-                            {session.mix?.title ?? "ミックス未選択"}
-                          </p>
-                        ))}
-                        {daySessions.length > 2 ? (
-                          <p className="text-[10px] text-muted-foreground">他 {daySessions.length - 2} 件</p>
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
+        <CardContent>
+          <div className="rounded-3xl bg-card/80 p-5 shadow-lg">
+            <div className="mb-4 flex items-center justify-between text-sm font-semibold text-foreground/80">
+              <button
+                type="button"
+                className="rounded-full p-2 text-muted-foreground transition hover:bg-muted"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+                aria-label="前の月"
+              >
+                ←
+              </button>
+              <p className="text-sm font-semibold tracking-wide">
+                {currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月
+              </p>
+              <button
+                type="button"
+                className="rounded-full p-2 text-muted-foreground transition hover:bg-muted"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                aria-label="次の月"
+              >
+                →
+              </button>
+            </div>
+            <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-semibold tracking-[0.2em] text-muted-foreground/70">
+              {["日", "月", "火", "水", "木", "金", "土"].map((w) => (
+                <div key={w}>{w}</div>
+              ))}
+            </div>
+            <div className="mt-3 grid grid-cols-7 gap-2 text-center">
+              {calendarCells.map((cell, index) => {
+                const date = cell.date;
+                const key = date ? date.toISOString().slice(0, 10) : `blank-${index}`;
+                const daySessions = date ? calendarSessions.get(key) ?? [] : [];
+                const hasSessions = daySessions.length > 0;
+                const highlightAlpha = Math.min(0.25 + daySessions.length * 0.18, 0.85);
+                const highlightStyle = hasSessions
+                  ? { backgroundColor: `rgba(56, 189, 248, ${highlightAlpha})` }
+                  : undefined;
+                return (
+                  <div
+                    key={key}
+                    className="flex h-10 items-center justify-center"
+                    onClick={() => handleSelectDate(date, daySessions)}
+                    role={hasSessions ? "button" : undefined}
+                    tabIndex={hasSessions ? 0 : -1}
+                  >
+                    {date ? (
+                      <span
+                        className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition ${
+                          hasSessions
+                            ? "border-transparent text-white"
+                            : "border-transparent text-muted-foreground"
+                        }`}
+                        style={highlightStyle}
+                      >
+                        {date.getDate()}
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -540,5 +566,59 @@ export function SessionsDashboard() {
         </CardContent>
       </Card>
     </div>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{selectedDate ? new Date(selectedDate).toLocaleDateString("ja-JP") : "記録"}</DialogTitle>
+          </DialogHeader>
+          {selectedSessions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">この日に記録はありません。</p>
+          ) : (
+            <div className="space-y-3">
+              {selectedSessions.map((session) => (
+                <div key={session.id} className="rounded-md border p-3">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium">{session.mix?.title ?? "ミックス未選択"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {session.started_at
+                            ? new Date(session.started_at).toLocaleTimeString("ja-JP", {
+                                hour: "2-digit",
+                                minute: "2-digit"
+                              })
+                            : "時間不明"}
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        満足度 {session.satisfaction ?? "-"} / 5
+                      </Badge>
+                    </div>
+                    {session.mix?.components && session.mix.components.length > 0 ? (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-[11px] text-muted-foreground">使用フレーバー</p>
+                        <div className="flex flex-wrap gap-2">
+                          {session.mix.components.map((component) => (
+                            <Badge key={`${session.id}-${component.flavorId}`} variant="outline" className="text-[11px]">
+                              {component.brandName ? `${component.brandName} ` : ""}
+                              {component.flavorName}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {session.location_text ? (
+                      <p className="mt-2 text-sm text-muted-foreground">場所: {session.location_text}</p>
+                    ) : null}
+                    {session.notes ? <p className="mt-2 whitespace-pre-wrap text-sm">{session.notes}</p> : null}
+                    <p className="mt-2 text-[11px] text-muted-foreground">記録ID: {session.id}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

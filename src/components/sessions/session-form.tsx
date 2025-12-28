@@ -87,7 +87,7 @@ const DEFAULT_FORM_STATE: FormState = {
 };
 
 const MIN_COMPONENTS = 1;
-const MAX_COMPONENTS = 3;
+const MAX_COMPONENTS = 4;
 
 function createDefaultComponents(count: number): ComponentState[] {
   if (count <= 0) return [];
@@ -417,7 +417,7 @@ export function SessionForm() {
   };
 
   return (
-    <Card className="max-w-4xl">
+    <Card className="mx-auto max-w-4xl border-0 shadow-none">
       <CardHeader className="space-y-2">
         <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
           <Droplets className="h-5 w-5" /> フレーバーを記録

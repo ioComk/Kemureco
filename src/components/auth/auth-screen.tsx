@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, LogOut, Mail } from "lucide-react";
+import { Loader2, LogOut, Mail, Twitter } from "lucide-react";
 import { GoogleFill } from "akar-icons";
 
 type SessionInfo = {
@@ -32,6 +32,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
   const [email, setEmail] = useState("");
   const [isOtpSubmitting, setIsOtpSubmitting] = useState(false);
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
+  const [isTwitterSigningIn, setIsTwitterSigningIn] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [notifiedSignedIn, setNotifiedSignedIn] = useState(false);
 
@@ -116,6 +117,26 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
     }
   };
 
+  const handleTwitterSignIn = async () => {
+    setIsTwitterSigningIn(true);
+    const redirectTo = siteUrl ? `${siteUrl}/auth` : undefined;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "twitter",
+      options: {
+        redirectTo
+      }
+    });
+    setIsTwitterSigningIn(false);
+
+    if (error) {
+      toast({
+        title: "X サインインに失敗しました",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleSignOut = async () => {
     setIsSigningOut(true);
     const { error } = await supabase.auth.signOut();
@@ -142,7 +163,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
         <CardHeader>
           <CardTitle>サインイン</CardTitle>
           <CardDescription>
-            メールによる認証リンク、または Google アカウントでサインインできます。
+            メールによる認証リンク、または Google / X アカウントでサインインできます。
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -197,6 +218,16 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
             >
               {isGoogleSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleFill size={18} />}
               {isGoogleSigningIn ? "リダイレクト中..." : "Google でサインイン"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTwitterSignIn}
+              disabled={isTwitterSigningIn}
+              className="w-full sm:w-auto gap-2 shadow-sm"
+            >
+              {isTwitterSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <Twitter className="h-4 w-4" />}
+              {isTwitterSigningIn ? "リダイレクト中..." : "X でサインイン"}
             </Button>
           </div>
         </CardContent>

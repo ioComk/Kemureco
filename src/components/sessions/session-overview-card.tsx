@@ -73,27 +73,27 @@ export function SessionOverviewCard({ sessions, className }: SessionOverviewCard
   }, [sessions]);
 
   return (
-    <Card className={className}>
+    <Card className={`border-0 shadow-none ${className ?? ""}`.trim()}>
       <CardHeader>
         <CardTitle>セッション概要</CardTitle>
         <CardDescription>直近の記録をもとにサマリーを確認できます。</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border p-3">
+        <div className="rounded-lg bg-muted/20 p-3">
           <p className="text-xs text-muted-foreground">総セッション数</p>
           <p className="text-2xl font-semibold">{sessions.length}件</p>
         </div>
-        <div className="rounded-lg border p-3">
+        <div className="rounded-lg bg-muted/20 p-3">
           <p className="text-xs text-muted-foreground">今月の記録</p>
           <p className="text-2xl font-semibold">{sessionsThisMonth.length}件</p>
         </div>
-        <div className="rounded-lg border p-3">
+        <div className="rounded-lg bg-muted/20 p-3">
           <p className="text-xs text-muted-foreground">平均満足度</p>
           <p className="text-2xl font-semibold">
             {averageSatisfaction !== null ? `${averageSatisfaction.toFixed(1)} / 5` : "-"}
           </p>
         </div>
-        <div className="rounded-lg border p-3 space-y-1">
+        <div className="rounded-lg bg-muted/20 p-3 space-y-1">
           <p className="text-xs text-muted-foreground">よく使うミックス / フレーバー</p>
           {topMix ? (
             <p className="text-sm font-medium">

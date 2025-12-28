@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { createSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { GoogleFill } from "akar-icons";
+import { Twitter } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AuthScreen } from "@/components/auth/auth-screen";
 
@@ -99,6 +100,7 @@ export function AuthStatus() {
     <div className="flex flex-col items-end gap-2 text-right sm:flex-row sm:items-center sm:text-left">
       <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
         {state.provider === "google" ? <GoogleFill size={14} /> : null}
+        {state.provider === "twitter" ? <Twitter className="h-4 w-4" /> : null}
         Signed in
       </span>
       <Button

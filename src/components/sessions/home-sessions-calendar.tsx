@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { Session } from "@/lib/types";
 import type { MixOption, SessionItem } from "./types";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -370,67 +370,79 @@ export function HomeSessionsCalendar() {
 
   return (
     <>
-    <Card>
-      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <CardTitle>最近の記録カレンダー</CardTitle>
-          <CardDescription>ログイン中のユーザーのセッションを月別に表示します。</CardDescription>
-        </div>
-        <div className="flex items-center gap-2">
-          <ButtonControls
-            onPrev={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-            onNext={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-            label={`${currentMonth.getFullYear()}年 ${currentMonth.getMonth() + 1}月`}
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {sessionState.userId ? null : (
-          <p className="text-sm text-muted-foreground">サインインするとカレンダーに記録が表示されます。</p>
-        )}
-        <div className="grid grid-cols-7 gap-2 text-center text-xs text-muted-foreground">
-          {["日", "月", "火", "水", "木", "金", "土"].map((w) => (
-            <div key={w} className="font-medium">
-              {w}
-            </div>
-          ))}
-          {calendarCells.map((cell, idx) => {
-            const date = cell.date;
-            const key = date ? date.toISOString().slice(0, 10) : `blank-${idx}`;
-            const daySessions = date ? sessionsByDate.get(key) ?? [] : [];
-            return (
-              <div
-                key={key}
-                className={`h-20 rounded-md border bg-background p-2 text-left ${daySessions.length > 0 ? "border-primary/50" : ""}`}
-                onClick={() => handleSelectDate(date, daySessions)}
-                role={daySessions.length > 0 ? "button" : undefined}
-                tabIndex={daySessions.length > 0 ? 0 : -1}
+      <Card className="border-0 shadow-none">
+        <CardHeader className="pb-2">
+          {/* <CardTitle className="text-sm font-medium text-muted-foreground">最近の記録カレンダー</CardTitle> */}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {sessionState.userId ? null : (
+            <p className="text-sm text-muted-foreground">サインインするとカレンダーに記録が表示されます。</p>
+          )}
+          <div className="rounded-3xl bg-card/80 p-5 shadow-lg">
+            <div className="mb-4 flex items-center justify-between text-sm font-semibold text-foreground/80">
+              <button
+                type="button"
+                className="rounded-full p-2 text-muted-foreground transition hover:bg-muted"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+                aria-label="前の月"
               >
-                {date ? <p className="text-xs font-medium">{date.getDate()}</p> : null}
-                {daySessions.length > 0 ? (
-                  <div className="mt-2 space-y-1">
-                    <Badge variant="secondary" className="text-[10px]">
-                      {daySessions.length} 件
-                    </Badge>
-                    <div className="flex flex-wrap gap-1">
-                      {daySessions.slice(0, 3).map((session) => (
-                        <span key={session.id} className="text-[10px] text-muted-foreground">
-                          {session.satisfaction ? `満足度 ${session.satisfaction}` : "記録"}
-                        </span>
-                      ))}
-                      {daySessions.length > 3 ? (
-                        <span className="text-[10px] text-muted-foreground">他 {daySessions.length - 3} 件</span>
-                      ) : null}
-                    </div>
+                ←
+              </button>
+              <p className="text-sm font-semibold tracking-wide">
+                {currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月
+              </p>
+              <button
+                type="button"
+                className="rounded-full p-2 text-muted-foreground transition hover:bg-muted"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                aria-label="次の月"
+              >
+                →
+              </button>
+            </div>
+            <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-semibold tracking-[0.2em] text-muted-foreground/70">
+              {["日", "月", "火", "水", "木", "金", "土"].map((w) => (
+                <div key={w}>{w}</div>
+              ))}
+            </div>
+            <div className="mt-3 grid grid-cols-7 gap-2 text-center">
+              {calendarCells.map((cell, idx) => {
+                const date = cell.date;
+                const key = date ? date.toISOString().slice(0, 10) : `blank-${idx}`;
+                const daySessions = date ? sessionsByDate.get(key) ?? [] : [];
+                const hasSessions = daySessions.length > 0;
+                const highlightAlpha = Math.min(0.25 + daySessions.length * 0.18, 0.85);
+                const highlightStyle = hasSessions
+                  ? { backgroundColor: `rgba(56, 189, 248, ${highlightAlpha})` }
+                  : undefined;
+                return (
+                  <div
+                    key={key}
+                    className="flex h-10 items-center justify-center"
+                    onClick={() => handleSelectDate(date, daySessions)}
+                    role={hasSessions ? "button" : undefined}
+                    tabIndex={hasSessions ? 0 : -1}
+                  >
+                    {date ? (
+                      <span
+                        className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition ${
+                          hasSessions
+                            ? "border-transparent text-white"
+                            : "border-transparent text-muted-foreground"
+                        }`}
+                        style={highlightStyle}
+                      >
+                        {date.getDate()}
+                      </span>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
-    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>{selectedDate ? new Date(selectedDate).toLocaleDateString("ja-JP") : "記録"}</DialogTitle>
@@ -583,29 +595,5 @@ export function HomeSessionsCalendar() {
       </DialogContent>
     </Dialog>
     </>
-  );
-}
-
-function ButtonControls({ onPrev, onNext, label }: { onPrev: () => void; onNext: () => void; label: string }) {
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <button
-        type="button"
-        className="rounded-md border px-2 py-1 text-muted-foreground transition hover:bg-accent"
-        onClick={onPrev}
-        aria-label="前の月"
-      >
-        ←
-      </button>
-      <span className="font-medium">{label}</span>
-      <button
-        type="button"
-        className="rounded-md border px-2 py-1 text-muted-foreground transition hover:bg-accent"
-        onClick={onNext}
-        aria-label="次の月"
-      >
-        →
-      </button>
-    </div>
   );
 }
