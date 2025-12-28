@@ -4,14 +4,16 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { Database, Flavor } from "@/lib/types";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { Droplets, Plus, ShieldAlert, ThumbsUp, Trash2 } from "lucide-react";
+import { useAuth } from "@/components/auth/auth-provider";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 type MixOption = Pick<Database["public"]["Tables"]["mixes"]["Row"], "id" | "title">;
 type FlavorOption = Flavor & { brand?: { id: number; name: string } | null };
@@ -25,7 +27,7 @@ type FormState = {
 
 type ComponentState = {
   flavorId: string;
-  ratio: number;
+  grams: number;
   mode: "existing" | "custom";
   customName: string;
   customBrand: string;
@@ -79,8 +81,22 @@ type MixComponentInsert = Database["public"]["Tables"]["mix_components"]["Insert
 
 type SessionInsert = Database["public"]["Tables"]["sessions"]["Insert"];
 
+const toJstDatetimeValue = (date: Date) => {
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+};
+
 const DEFAULT_FORM_STATE: FormState = {
-  startedAt: new Date().toISOString().slice(0, 16),
+  startedAt: toJstDatetimeValue(new Date()),
   location: "",
   satisfaction: 3,
   notes: ""
@@ -88,75 +104,28 @@ const DEFAULT_FORM_STATE: FormState = {
 
 const MIN_COMPONENTS = 1;
 const MAX_COMPONENTS = 4;
+const DEFAULT_COMPONENT_GRAMS = 3;
 
 function createDefaultComponents(count: number): ComponentState[] {
   if (count <= 0) return [];
-  const equal = Math.floor(100 / count);
-  let remainder = 100 - equal * count;
   return Array.from({ length: count }, () => ({
     flavorId: "",
-    ratio: equal + (remainder-- > 0 ? 1 : 0),
+    grams: DEFAULT_COMPONENT_GRAMS,
     mode: "existing",
     customName: "",
     customBrand: ""
   }));
 }
 
-function redistributeRatios(prev: ComponentState[], targetIndex: number, rawValue: number): ComponentState[] {
-  if (prev.length === 0) return prev;
-  const clampedValue = Math.min(100, Math.max(0, Math.round(rawValue)));
-  const next = prev.map((component, idx) =>
-    idx === targetIndex ? { ...component, ratio: clampedValue } : { ...component }
-  );
-
-  if (next.length === 1) {
-    next[0].ratio = 100;
-    return next;
-  }
-
-  const otherIndices = next.map((_, idx) => idx).filter((idx) => idx !== targetIndex);
-  let remaining = Math.max(0, 100 - clampedValue);
-  const prevOthersTotal = otherIndices.reduce((sum, idx) => sum + prev[idx].ratio, 0);
-
-  let distributed = 0;
-  otherIndices.forEach((idx) => {
-    let newRatio: number;
-    if (prevOthersTotal === 0) {
-      newRatio = Math.floor(remaining / otherIndices.length);
-    } else {
-      newRatio = Math.max(0, Math.round((prev[idx].ratio / prevOthersTotal) * remaining));
-    }
-    next[idx].ratio = newRatio;
-    distributed += newRatio;
-  });
-
-  let diff = remaining - distributed;
-  let adjustPointer = 0;
-  while (diff !== 0 && otherIndices.length > 0) {
-    const idx = otherIndices[adjustPointer % otherIndices.length];
-    const proposed = next[idx].ratio + Math.sign(diff);
-    if (proposed >= 0) {
-      next[idx].ratio = proposed;
-      diff -= Math.sign(diff);
-    }
-    adjustPointer++;
-  }
-
-  const total = next.reduce((sum, component) => sum + component.ratio, 0);
-  if (total !== 100 && next.length > 0) {
-    next[next.length - 1].ratio = Math.max(0, next[next.length - 1].ratio + (100 - total));
-  }
-
-  return next;
-}
-
-function evenDistribution(list: ComponentState[]): ComponentState[] {
+function evenDistribution(list: ComponentState[], totalOverride?: number): ComponentState[] {
   if (list.length === 0) return list;
-  const equal = Math.floor(100 / list.length);
-  let remainder = 100 - equal * list.length;
+  const currentTotal = list.reduce((sum, component) => sum + component.grams, 0);
+  const total = totalOverride ?? (currentTotal > 0 ? currentTotal : DEFAULT_COMPONENT_GRAMS * list.length);
+  const equal = Math.floor(total / list.length);
+  let remainder = total - equal * list.length;
   return list.map((component) => ({
     ...component,
-    ratio: equal + (remainder-- > 0 ? 1 : 0)
+    grams: Math.max(0, equal + (remainder-- > 0 ? 1 : 0))
   }));
 }
 
@@ -165,50 +134,37 @@ export function SessionForm() {
   const { toast } = useToast();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { user, loading: authLoading } = useAuth();
 
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [mixColumnAvailable, setMixColumnAvailable] = useState(true);
   const [mixes, setMixes] = useState<MixOption[]>([]);
   const [flavors, setFlavors] = useState<FlavorOption[]>([]);
   const [formState, setFormState] = useState<FormState>(DEFAULT_FORM_STATE);
+  const [hoverSatisfaction, setHoverSatisfaction] = useState<number | null>(null);
   const [components, setComponents] = useState<ComponentState[]>(() => createDefaultComponents(2));
   const [useCustomRatio, setUseCustomRatio] = useState(false);
+  const [flavorModalIndex, setFlavorModalIndex] = useState<number | null>(null);
+  const [flavorQuery, setFlavorQuery] = useState("");
 
   useEffect(() => {
-    let mounted = true;
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (!mounted) return;
-        const userId = data.user?.id ?? null;
-        setAuthUserId(userId);
-        if (userId) {
-          void fetchMixes();
-          void fetchFlavors();
-        }
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setAuthUserId(null);
-      });
+    if (authLoading) {
+      setAuthUserId(null);
+      return;
+    }
+    const userId = user?.id ?? null;
+    setAuthUserId(userId);
+    if (userId) {
+      void fetchMixes();
+      void fetchFlavors();
+    } else {
+      setMixes([]);
+      setFlavors([]);
+    }
+  }, [authLoading, user?.id]);
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      const userId = session?.user?.id ?? null;
-      setAuthUserId(userId);
-      if (userId) {
-        void fetchMixes();
-        void fetchFlavors();
-      } else {
-        setMixes([]);
-        setFlavors([]);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setFormState((prev) => ({ ...prev, startedAt: toJstDatetimeValue(new Date()) }));
   }, []);
 
   const fetchMixes = async () => {
@@ -239,11 +195,11 @@ export function SessionForm() {
     setComponents((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], ...partial };
-      return useCustomRatio ? next : evenDistribution(next);
+      return next;
     });
   };
 
-  const getFlavorSuggestions = (query: string, max = 6) => {
+  const getFlavorSearchTokens = (query: string) => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return [];
     const tokens = new Set([normalized]);
@@ -252,7 +208,12 @@ export function SessionForm() {
         tokens.add(en);
       }
     });
-    const tokenList = Array.from(tokens);
+    return Array.from(tokens);
+  };
+
+  const getFlavorSuggestions = (query: string, max = 6) => {
+    const tokenList = getFlavorSearchTokens(query);
+    if (!tokenList.length) return [];
     return flavors
       .filter((flavor) => {
         const haystack = [flavor.name, flavor.brand?.name ?? "", ...(flavor.tags ?? [])].join(" ").toLowerCase();
@@ -261,14 +222,31 @@ export function SessionForm() {
       .slice(0, max);
   };
 
+  const flavorById = useMemo(() => new Map(flavors.map((flavor) => [String(flavor.id), flavor])), [flavors]);
+
+  const filteredFlavors = useMemo(() => {
+    const tokenList = getFlavorSearchTokens(flavorQuery);
+    if (!tokenList.length) return flavors;
+    return flavors.filter((flavor) => {
+      const haystack = [flavor.name, flavor.brand?.name ?? "", ...(flavor.tags ?? [])].join(" ").toLowerCase();
+      return tokenList.some((token) => haystack.includes(token));
+    });
+  }, [flavors, flavorQuery]);
+
   const handleAddComponent = () => {
     setComponents((prev) => {
       if (prev.length >= MAX_COMPONENTS) return prev;
       const next = [
         ...prev,
-        { flavorId: "", ratio: 0, mode: "existing", customName: "", customBrand: "" } satisfies ComponentState
+        {
+          flavorId: "",
+          grams: DEFAULT_COMPONENT_GRAMS,
+          mode: "existing",
+          customName: "",
+          customBrand: ""
+        } satisfies ComponentState
       ];
-      return useCustomRatio ? next : evenDistribution(next);
+      return next;
     });
   };
 
@@ -276,17 +254,15 @@ export function SessionForm() {
     setComponents((prev) => {
       if (prev.length <= MIN_COMPONENTS) return prev;
       const next = prev.filter((_, i) => i !== index);
-      return useCustomRatio ? next : evenDistribution(next);
+      return next;
     });
   };
 
-  const totalRatio = components.reduce((sum, c) => sum + c.ratio, 0);
+  const totalGrams = components.reduce((sum, c) => sum + c.grams, 0);
   const canSubmitFlavors =
     components.length > 0 &&
-    (!useCustomRatio || totalRatio === 100) &&
-    components.every((c) =>
-      c.mode === "existing" ? c.flavorId !== "" && c.ratio > 0 : c.customName.trim().length > 0 && c.ratio > 0
-    ) &&
+    components.every((c) => (c.mode === "existing" ? c.flavorId !== "" : c.customName.trim().length > 0)) &&
+    (!useCustomRatio || (totalGrams > 0 && components.every((c) => c.grams > 0))) &&
     !!authUserId;
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -301,8 +277,8 @@ export function SessionForm() {
       .map((component) => {
         const name = component.customName.trim();
         const brand = component.customBrand.trim();
-        const ratio = component.ratio > 0 ? ` (${component.ratio}%)` : "";
-        return `${brand ? `${brand} ` : ""}${name}${ratio}`;
+        const grams = component.grams > 0 ? ` (${component.grams}g)` : "";
+        return `${brand ? `${brand} ` : ""}${name}${grams}`;
       });
     const notesPayload = [formState.notes.trim(), customFlavorNotes.length ? `自由入力フレーバー: ${customFlavorNotes.join(", ")}` : ""]
       .filter((value) => value.length > 0)
@@ -353,10 +329,38 @@ export function SessionForm() {
 
         mixIdToUse = mixData.id;
 
+        const deriveRatios = () => {
+          if (!useCustomRatio) {
+            const equal = Math.floor(100 / components.length);
+            let remainder = 100 - equal * components.length;
+            return components.map(() => equal + (remainder-- > 0 ? 1 : 0));
+          }
+
+          const total = components.reduce((sum, component) => sum + component.grams, 0);
+          const rawRatios = components.map((component) => (total > 0 ? (component.grams / total) * 100 : 0));
+          const floored = rawRatios.map((value) => Math.floor(value));
+          let remainder = 100 - floored.reduce((sum, value) => sum + value, 0);
+          const order = rawRatios
+            .map((value, idx) => ({ idx, frac: value - Math.floor(value) }))
+            .sort((a, b) => b.frac - a.frac);
+          let pointer = 0;
+          while (remainder > 0 && order.length > 0) {
+            const target = order[pointer % order.length];
+            if (target) {
+              floored[target.idx] += 1;
+            }
+            remainder -= 1;
+            pointer += 1;
+          }
+          return floored;
+        };
+
+        const ratios = deriveRatios();
+
         const componentsPayload: MixComponentInsert[] = components.map((component, index) => ({
           mix_id: mixData.id,
           flavor_id: Number(component.flavorId),
-          ratio_percent: component.ratio,
+          ratio_percent: ratios[index] ?? 0,
           layer_order: index + 1
         }));
 
@@ -410,7 +414,7 @@ export function SessionForm() {
       if (!ok) return;
 
       toast({ title: "記録しました" });
-      setFormState({ ...DEFAULT_FORM_STATE, startedAt: new Date().toISOString().slice(0, 16) });
+      setFormState({ ...DEFAULT_FORM_STATE, startedAt: toJstDatetimeValue(new Date()) });
       setComponents(createDefaultComponents(2));
       router.push("/sessions");
     });
@@ -422,7 +426,6 @@ export function SessionForm() {
         <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
           <Droplets className="h-5 w-5" /> フレーバーを記録
         </CardTitle>
-        <CardDescription>フレーバー構成と時間・満足度・場所・メモを入力して保存します。</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
@@ -431,7 +434,7 @@ export function SessionForm() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-base">フレーバー構成</Label>
-                  <p className="text-xs text-muted-foreground">合計: {totalRatio}%</p>
+                  {useCustomRatio ? <p className="text-xs text-muted-foreground">合計: {totalGrams}g</p> : null}
                 </div>
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={handleAddComponent} disabled={components.length >= MAX_COMPONENTS}>
@@ -449,13 +452,13 @@ export function SessionForm() {
                   onChange={(event) => {
                     const next = event.target.checked;
                     setUseCustomRatio(next);
-                    if (!next) {
+                    if (next) {
                       setComponents((prev) => evenDistribution(prev));
                     }
                   }}
                   className="h-4 w-4 accent-primary"
                 />
-                比率を自分で設定する
+                グラム数を自分で設定する
               </label>
               <div className="grid gap-4 md:grid-cols-2">
                 {components.map((component, index) => (
@@ -463,8 +466,8 @@ export function SessionForm() {
                     <div className="flex items-center justify-between gap-2">
                       <Label className="text-sm">フレーバー #{index + 1}</Label>
                       {components.length > MIN_COMPONENTS ? (
-                        <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveComponent(index)}>
-                          <Trash2 className="h-4 w-4" /> 削除
+                        <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveComponent(index)} aria-label="削除">
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       ) : null}
                     </div>
@@ -487,18 +490,77 @@ export function SessionForm() {
                       </Button>
                     </div>
                     {component.mode === "existing" ? (
-                      <select
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        value={component.flavorId}
-                        onChange={(event) => handleComponentChange(index, { flavorId: event.target.value })}
+                      <Dialog
+                        open={flavorModalIndex === index}
+                        onOpenChange={(open) => {
+                          setFlavorModalIndex(open ? index : null);
+                          if (!open) {
+                            setFlavorQuery("");
+                          }
+                        }}
                       >
-                        <option value="">フレーバーを選択</option>
-                        {flavors.map((flavor) => (
-                          <option key={flavor.id} value={flavor.id}>
-                            {flavor.brand?.name ? `${flavor.brand.name} / ${flavor.name}` : flavor.name}
-                          </option>
-                        ))}
-                      </select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full justify-between text-left"
+                          onClick={() => {
+                            setFlavorModalIndex(index);
+                            setFlavorQuery("");
+                          }}
+                        >
+                          <span className="truncate">
+                            {component.flavorId
+                              ? (() => {
+                                  const selected = flavorById.get(component.flavorId);
+                                  if (!selected) return "フレーバーを選択";
+                                  return selected.brand?.name ? `${selected.brand.name} / ${selected.name}` : selected.name;
+                                })()
+                              : "フレーバーを選択"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">変更</span>
+                        </Button>
+                        <DialogContent className="max-w-lg">
+                          <DialogHeader>
+                            <DialogTitle>既存フレーバーを選択</DialogTitle>
+                            <DialogDescription>ブランド名やフレーバー名で絞り込めます。</DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-3">
+                            <Input
+                              placeholder="検索 (例: Mint, レモン)"
+                              value={flavorQuery}
+                              onChange={(event) => setFlavorQuery(event.target.value)}
+                            />
+                            <div className="max-h-72 overflow-auto rounded-md border">
+                              {filteredFlavors.length === 0 ? (
+                                <p className="px-3 py-6 text-center text-sm text-muted-foreground">候補が見つかりませんでした。</p>
+                              ) : (
+                                <div className="divide-y">
+                                  {filteredFlavors.map((flavor) => (
+                                    <button
+                                      key={flavor.id}
+                                      type="button"
+                                      className="flex w-full items-center justify-between px-3 py-3 text-left text-sm transition hover:bg-accent"
+                                      onClick={() => {
+                                        handleComponentChange(index, {
+                                          flavorId: String(flavor.id),
+                                          mode: "existing",
+                                          customName: "",
+                                          customBrand: ""
+                                        });
+                                        setFlavorModalIndex(null);
+                                        setFlavorQuery("");
+                                      }}
+                                    >
+                                      <span>{flavor.name}</span>
+                                      <span className="text-xs text-muted-foreground">{flavor.brand?.name ?? "ブランド未設定"}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     ) : (
                       <div className="space-y-2">
                         <Input
@@ -548,17 +610,23 @@ export function SessionForm() {
                     )}
                     {useCustomRatio ? (
                       <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">比率 {component.ratio}%</Label>
-                        <Slider
-                          value={[component.ratio]}
+                        <Label className="text-xs text-muted-foreground">グラム数</Label>
+                        <Input
+                          type="number"
                           min={0}
-                          max={100}
                           step={1}
-                          onValueChange={(value) => setComponents((prev) => redistributeRatios(prev, index, value[0] ?? 0))}
+                          value={component.grams}
+                          onChange={(event) => {
+                            const nextValue = Number(event.target.value);
+                            handleComponentChange(index, { grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0 });
+                          }}
                         />
+                        {component.grams <= 0 ? (
+                          <p className="text-xs text-destructive">0gのフレーバーは保存できません。</p>
+                        ) : null}
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground">比率は自動で均等に設定されます。</p>
+                      null
                     )}
                   </div>
                 ))}
@@ -567,12 +635,11 @@ export function SessionForm() {
           ) : null}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="startedAt">開始時間</Label>
-              <Input
+              <Label htmlFor="startedAt">日時</Label>
+              <DateTimePicker
                 id="startedAt"
-                type="datetime-local"
                 value={formState.startedAt}
-                onChange={(event) => handleChange("startedAt", event.target.value)}
+                onChange={(nextValue) => handleChange("startedAt", nextValue)}
                 required
               />
             </div>
@@ -588,16 +655,18 @@ export function SessionForm() {
           </div>
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
-              満足度 <span className="text-sm font-medium">{formState.satisfaction}/5</span>
+              満足度 <span className="text-sm font-medium">{hoverSatisfaction ?? formState.satisfaction}/5</span>
             </Label>
             <div className="flex flex-wrap gap-2">
               {[1, 2, 3, 4, 5].map((score) => {
-                const active = formState.satisfaction >= score;
+                const active = (hoverSatisfaction ?? formState.satisfaction) >= score;
                 return (
                   <button
                     key={score}
                     type="button"
                     onClick={() => handleChange("satisfaction", score)}
+                    onMouseEnter={() => setHoverSatisfaction(score)}
+                    onMouseLeave={() => setHoverSatisfaction(null)}
                     className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
                       active ? "border-primary bg-primary/10 text-primary" : "border-input bg-background text-muted-foreground"
                     }`}
@@ -619,7 +688,7 @@ export function SessionForm() {
             />
           </div>
         </CardContent>
-        <CardFooter className="flex justify-end">
+        <CardFooter className="sticky bottom-0 z-10 flex justify-end border-t bg-background/95 py-4 backdrop-blur">
           <Button type="submit" disabled={isPending || (mixColumnAvailable && !canSubmitFlavors)}>
             {isPending ? "保存中..." : "記録する"}
           </Button>

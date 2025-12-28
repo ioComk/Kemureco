@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import type { Database, Flavor } from "@/lib/types";
 import { createSupabaseClient } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 
 type FlavorOption = Flavor & {
   brand?: { id: number; name: string } | null;
@@ -109,6 +110,7 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
 
   const flavorMap = useMemo(() => {
     const map = new Map<number, FlavorOption>();
@@ -160,9 +162,7 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
     if (!canSubmit || isPending) return;
 
     startTransition(async () => {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-
-      if (authError || !authData?.user) {
+      if (authLoading || !user) {
         toast({
           title: "サインインが必要です",
           description: "ミックスを保存するには Supabase Auth でサインインしてください。",
@@ -175,7 +175,7 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
       const mixPayload: MixInsert = {
         title: title.trim(),
         description: trimmedDescription ? trimmedDescription : null,
-        user_id: authData.user.id
+        user_id: user.id
       };
 
       const { data: mixData, error: mixError } = await supabase

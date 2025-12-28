@@ -12,6 +12,7 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AuthScreen } from "@/components/auth/auth-screen";
+import { AuthProvider } from "@/components/auth/auth-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -31,36 +32,38 @@ export default function RootLayout({
     <html lang="ja" suppressHydrationWarning>
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.className)}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <div className="flex min-h-screen flex-col">
-            <header className="border-b bg-card">
-              <div className="container flex h-16 items-center justify-between gap-4">
-                <Link href="/" className="flex items-center gap-3">
-                  <span className="text-lg font-semibold">Kemureco</span>
-                </Link>
-                <div className="flex items-center gap-3">
-                  <NavMenu />
-                  <div className="hidden items-center gap-2 sm:flex">
-                    <Button asChild variant="ghost" size="sm">
-                      <Link href="/flavors">Flavors</Link>
-                    </Button>
-                    <Button asChild variant="ghost" size="sm">
-                      <Link href="/sessions">My records</Link>
-                    </Button>
+          <AuthProvider>
+            <div className="flex min-h-screen flex-col">
+              <header className="border-b bg-card">
+                <div className="container flex h-16 items-center justify-between gap-4">
+                  <Link href="/" className="flex items-center gap-3">
+                    <span className="text-lg font-semibold">Kemureco</span>
+                  </Link>
+                  <div className="flex items-center gap-3">
+                    <NavMenu />
+                    <div className="hidden items-center gap-2 sm:flex">
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href="/flavors">Flavors</Link>
+                      </Button>
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href="/sessions">My records</Link>
+                      </Button>
+                    </div>
+                    <ThemeToggle />
+                    <UserMenu />
                   </div>
-                  <ThemeToggle />
-                  <UserMenu />
                 </div>
-              </div>
-            </header>
-            <main className="container flex-1 py-10">{children}</main>
-            <footer className="border-t bg-card">
-              <div className="container flex h-14 items-center text-sm text-muted-foreground">
-                &copy; {new Date().getFullYear()} Kemureco
-              </div>
-            </footer>
-          </div>
-          <FloatingRecordButton />
-          <Toaster />
+              </header>
+              <main className="container flex-1 py-10">{children}</main>
+              <footer className="border-t bg-card">
+                <div className="container flex h-14 items-center text-sm text-muted-foreground">
+                  &copy; {new Date().getFullYear()} Kemureco
+                </div>
+              </footer>
+            </div>
+            <FloatingRecordButton />
+            <Toaster />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

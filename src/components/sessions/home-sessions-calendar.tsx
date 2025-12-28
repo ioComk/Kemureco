@@ -13,10 +13,12 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from "@/components/auth/auth-provider";
 
 export function HomeSessionsCalendar() {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [sessionState, setSessionState] = useState<{ loading: boolean; userId?: string }>({ loading: true });
   const [mixColumnAvailable, setMixColumnAvailable] = useState(true);
   const [mixes, setMixes] = useState<MixOption[]>([]);
@@ -49,41 +51,20 @@ export function HomeSessionsCalendar() {
   };
 
   useEffect(() => {
-    let mounted = true;
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (!mounted) return;
-        const userId = data.user?.id;
-        setSessionState({ loading: false, userId });
-        if (userId) {
-          void fetchSessions(userId);
-          void fetchMixes(userId);
-        }
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setSessionState({ loading: false, userId: undefined });
-      });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, authSession) => {
-      const nextUserId = authSession?.user?.id;
-      setSessionState({ loading: false, userId: nextUserId });
-      if (nextUserId) {
-        void fetchSessions(nextUserId);
-        void fetchMixes(nextUserId);
-      } else {
-        setSessions([]);
-        setMixes([]);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (authLoading) {
+      setSessionState({ loading: true, userId: undefined });
+      return;
+    }
+    const userId = user?.id;
+    setSessionState({ loading: false, userId });
+    if (userId) {
+      void fetchSessions(userId);
+      void fetchMixes(userId);
+    } else {
+      setSessions([]);
+      setMixes([]);
+    }
+  }, [authLoading, user?.id]);
 
   useEffect(() => {
     if (!selectedDate) return;

@@ -10,11 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, LogOut, Mail, Twitter } from "lucide-react";
 import { GoogleFill } from "akar-icons";
-
-type SessionInfo = {
-  email?: string;
-  loading: boolean;
-};
+import { useAuth } from "@/components/auth/auth-provider";
 
 type AuthScreenProps = {
   onSignedIn?: () => void;
@@ -23,12 +19,12 @@ type AuthScreenProps = {
 export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
+  const { user, loading } = useAuth();
 
   const siteUrl =
     (typeof window === "undefined" ? process.env.NEXT_PUBLIC_SITE_URL : process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin) ??
     undefined;
 
-  const [session, setSession] = useState<SessionInfo>({ loading: true });
   const [email, setEmail] = useState("");
   const [isOtpSubmitting, setIsOtpSubmitting] = useState(false);
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
@@ -37,35 +33,11 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
   const [notifiedSignedIn, setNotifiedSignedIn] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (!mounted) return;
-        setSession({ loading: false, email: data.user?.email ?? undefined });
-        if (data.user?.email && onSignedIn && !notifiedSignedIn) {
-          setNotifiedSignedIn(true);
-          onSignedIn();
-        }
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setSession({ loading: false, email: undefined });
-      });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, authSession) => {
-      setSession({ loading: false, email: authSession?.user?.email ?? undefined });
-      if (authSession?.user?.email && onSignedIn && !notifiedSignedIn) {
-        setNotifiedSignedIn(true);
-        onSignedIn();
-      }
-    });
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-  }, [supabase, onSignedIn, notifiedSignedIn]);
+    if (user?.email && onSignedIn && !notifiedSignedIn) {
+      setNotifiedSignedIn(true);
+      onSignedIn();
+    }
+  }, [user?.email, onSignedIn, notifiedSignedIn]);
 
   const handleOtpSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -154,7 +126,6 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
     toast({
       title: "サインアウトしました"
     });
-    setSession({ loading: false, email: undefined });
   };
 
   return (
@@ -170,18 +141,18 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
           <div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>現在の状態:</span>
-              {session.loading ? (
+              {loading ? (
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" />
                   確認中...
                 </Badge>
-              ) : session.email ? (
+              ) : user?.email ? (
                 <Badge variant="default">Signed in</Badge>
               ) : (
                 <Badge variant="outline">未サインイン</Badge>
               )}
             </div>
-            {session.email ? (
+            {user?.email ? (
               <p className="text-xs text-muted-foreground mt-1">※ メールアドレスの表示は省略しています</p>
             ) : null}
           </div>
@@ -239,13 +210,13 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
           <CardDescription>共有端末では利用後のサインアウトをおすすめします。</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleSignOut}
-            disabled={isSigningOut || !session.email}
-            className="gap-2 shadow-sm w-full sm:w-auto"
-          >
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSignOut}
+              disabled={isSigningOut || !user?.email}
+              className="gap-2 shadow-sm w-full sm:w-auto"
+            >
             {isSigningOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
             {isSigningOut ? "処理中..." : "サインアウト"}
           </Button>

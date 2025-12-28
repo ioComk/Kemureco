@@ -15,10 +15,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from "@/components/auth/auth-provider";
 
 export function SessionsDashboard() {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [isPending, startTransition] = useTransition();
 
   const [sessionState, setSessionState] = useState<{ loading: boolean; userId?: string }>({ loading: true });
@@ -43,41 +45,19 @@ export function SessionsDashboard() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
-    let mounted = true;
-
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (!mounted) return;
-        const userId = data.user?.id;
-        setSessionState({ loading: false, userId });
-        if (userId) {
-          void fetchMixes();
-          void fetchSessions(userId);
-        }
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setSessionState({ loading: false, userId: undefined });
-      });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, authSession) => {
-      const nextUserId = authSession?.user?.id;
-      setSessionState({ loading: false, userId: nextUserId });
-      if (nextUserId) {
-        void fetchMixes();
-        void fetchSessions(nextUserId);
-      } else {
-        setSessions([]);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (authLoading) {
+      setSessionState({ loading: true, userId: undefined });
+      return;
+    }
+    const userId = user?.id;
+    setSessionState({ loading: false, userId });
+    if (userId) {
+      void fetchMixes();
+      void fetchSessions(userId);
+    } else {
+      setSessions([]);
+    }
+  }, [authLoading, user?.id]);
 
   useEffect(() => {
     if (!selectedDate) return;

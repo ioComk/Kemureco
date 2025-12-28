@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/auth/auth-provider";
 
 type FlavorCreateFormProps = {
   brands: Brand[];
@@ -43,6 +44,7 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const router = useRouter();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -60,8 +62,7 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
     if (!canSubmit || isPending) return;
 
     startTransition(async () => {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError || !authData?.user) {
+      if (authLoading || !user) {
         toast({
           title: "サインインが必要です",
           description: "フレーバーを登録するにはサインインしてください。",
@@ -132,7 +133,7 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
         brand_id: brandId,
         tags: tags.length ? tags : null,
         image_path: imagePath,
-        created_by: authData.user.id
+        created_by: user.id
       });
 
       if (flavorError) {

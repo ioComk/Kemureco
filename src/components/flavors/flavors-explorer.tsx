@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, List } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/components/auth/auth-provider";
 
 type SortOption = "name" | "brand" | "popular";
 type ViewMode = "grid" | "list";
@@ -104,6 +105,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [, startTransition] = useTransition();
 
   const [items, setItems] = useState<FlavorWithBrand[]>(flavors);
@@ -136,25 +138,12 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   }, [flavors]);
 
   useEffect(() => {
-    let mounted = true;
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (!mounted) return;
-        setUserId(data.user?.id ?? null);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setUserId(null);
-      });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user?.id ?? null);
-    });
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-  }, [supabase]);
+    if (authLoading) {
+      setUserId(null);
+      return;
+    }
+    setUserId(user?.id ?? null);
+  }, [authLoading, user?.id]);
 
   const availableTags = useMemo(() => {
     const tags = new Set<string>();

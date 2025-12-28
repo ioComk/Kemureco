@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { useAuth } from "@/components/auth/auth-provider";
 
 type FlavorOption = Flavor & {
   brand: { id: number; name: string } | null;
@@ -50,6 +51,7 @@ export function MixesDashboard({ flavors }: MixesDashboardProps) {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const router = useRouter();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
 
   const [session, setSession] = useState<{ loading: boolean; userId?: string }>({ loading: true });
   const [mixes, setMixes] = useState<MixSummary[]>([]);
@@ -64,42 +66,19 @@ export function MixesDashboard({ flavors }: MixesDashboardProps) {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
-    let mounted = true;
-
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (!mounted) return;
-        const userId = data.user?.id;
-        setSession({ loading: false, userId });
-        if (userId) {
-          fetchMixes(userId);
-        } else {
-          setLoadingMixes(false);
-        }
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setSession({ loading: false, userId: undefined });
-        setLoadingMixes(false);
-      });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, authSession) => {
-      const nextUserId = authSession?.user?.id;
-      setSession({ loading: false, userId: nextUserId });
-      if (nextUserId) {
-        fetchMixes(nextUserId);
-      } else {
-        setMixes([]);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase]);
+    if (authLoading) {
+      setSession({ loading: true, userId: undefined });
+      return;
+    }
+    const userId = user?.id;
+    setSession({ loading: false, userId });
+    if (userId) {
+      fetchMixes(userId);
+    } else {
+      setMixes([]);
+      setLoadingMixes(false);
+    }
+  }, [authLoading, user?.id]);
 
   const fetchMixes = useCallback(
     async (userId: string) => {

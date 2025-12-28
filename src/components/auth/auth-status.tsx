@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { createSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
@@ -9,46 +9,14 @@ import { GoogleFill } from "akar-icons";
 import { Twitter } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AuthScreen } from "@/components/auth/auth-screen";
-
-type AuthState = {
-  loading: boolean;
-  email?: string;
-  provider?: string;
-};
+import { useAuth } from "@/components/auth/auth-provider";
 
 export function AuthStatus() {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
-
-  const [state, setState] = useState<AuthState>({ loading: true });
+  const { user, loading } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (!mounted) return;
-        const provider = data.user?.app_metadata?.provider ?? data.user?.identities?.[0]?.provider;
-        setState({ loading: false, email: data.user?.email ?? undefined, provider });
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setState({ loading: false, email: undefined });
-      });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      const provider = session?.user?.app_metadata?.provider ?? session?.user?.identities?.[0]?.provider;
-      setState({ loading: false, email: session?.user?.email ?? undefined, provider });
-    });
-
-    return () => {
-      mounted = false;
-      authListener.subscription.unsubscribe();
-    };
-  }, [supabase]);
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -64,13 +32,13 @@ export function AuthStatus() {
       return;
     }
 
-    setState({ loading: false, email: undefined, provider: undefined });
+    setOpen(false);
     toast({
       title: "サインアウトしました"
     });
   };
 
-  if (state.loading) {
+  if (loading) {
     return (
       <Button variant="outline" size="sm" disabled>
         認証中...
@@ -78,7 +46,7 @@ export function AuthStatus() {
     );
   }
 
-  if (!state.email) {
+  if (!user?.email) {
     return (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
@@ -99,8 +67,8 @@ export function AuthStatus() {
   return (
     <div className="flex flex-col items-end gap-2 text-right sm:flex-row sm:items-center sm:text-left">
       <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        {state.provider === "google" ? <GoogleFill size={14} /> : null}
-        {state.provider === "twitter" ? <Twitter className="h-4 w-4" /> : null}
+        {user?.app_metadata?.provider === "google" ? <GoogleFill size={14} /> : null}
+        {user?.app_metadata?.provider === "twitter" ? <Twitter className="h-4 w-4" /> : null}
         Signed in
       </span>
       <Button

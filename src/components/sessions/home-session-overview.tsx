@@ -9,48 +9,29 @@ import { SessionOverviewCard } from "@/components/sessions/session-overview-card
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/components/auth/auth-provider";
 
 export function HomeSessionOverview() {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [sessionState, setSessionState] = useState<{ loading: boolean; userId?: string }>({ loading: true });
   const [mixColumnAvailable, setMixColumnAvailable] = useState(true);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
 
   useEffect(() => {
-    let mounted = true;
-
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (!mounted) return;
-        const userId = data.user?.id;
-        setSessionState({ loading: false, userId });
-        if (userId) {
-          void fetchSessions(userId);
-        }
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setSessionState({ loading: false, userId: undefined });
-      });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, authSession) => {
-      const nextUserId = authSession?.user?.id;
-      setSessionState({ loading: false, userId: nextUserId });
-      if (nextUserId) {
-        void fetchSessions(nextUserId);
-      } else {
-        setSessions([]);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (authLoading) {
+      setSessionState({ loading: true, userId: undefined });
+      return;
+    }
+    const userId = user?.id;
+    setSessionState({ loading: false, userId });
+    if (userId) {
+      void fetchSessions(userId);
+    } else {
+      setSessions([]);
+    }
+  }, [authLoading, user?.id]);
 
   const fetchSessions = async (userId: string) => {
     try {
