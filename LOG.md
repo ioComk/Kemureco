@@ -16,6 +16,10 @@
 - Next.jsのルート検出ズレ対策としてoutputFileTracingRootを再設定しました。
 - セッション記録の日時ピッカーをカレンダー表示込みに戻し、react-day-picker依存を復活させました。
 - 日時ピッカーの時間選択を24時間表記に変更しました。
+- カレンダーのカスタムDropdownを外し、型エラーを解消しました。
+- カレンダーのclassNames定義をreact-day-pickerの型に合わせました。
+- カレンダーのdropdowns指定をcaption_dropdownsに修正しました。
+- カレンダーのclassNamesキーをreact-day-picker v8の命名に整理しました。
 - セッション記録（/sessions/new）で既存フレーバー選択をモーダルで行うようにしました。
 - セッション記録で追加できるフレーバー数の上限を4に変更しました。
 - セッション記録フォームのカードボーダーを外しました。
