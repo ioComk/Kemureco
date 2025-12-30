@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AuthScreen } from "@/components/auth/auth-screen";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { Github } from "lucide-react";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -56,8 +57,17 @@ export default function RootLayout({
               </header>
               <main className="container flex-1 py-10">{children}</main>
               <footer className="border-t bg-card">
-                <div className="container flex h-14 items-center text-sm text-muted-foreground">
+                <div className="container flex h-14 items-center justify-between text-sm text-muted-foreground">
                   &copy; {new Date().getFullYear()} Kemureco
+                  <a
+                    href="https://github.com/ioComk/Kemureco"
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Kemureco GitHub repository"
+                    className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Github className="h-4 w-4" />
+                  </a>
                 </div>
               </footer>
             </div>
