@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AuthScreen } from "@/components/auth/auth-screen";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { Github } from "lucide-react";
+import { RouteProgress } from "@/components/ui/route-progress";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,14 +41,14 @@ export default function RootLayout({
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.className)}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <AuthProvider>
+            <RouteProgress />
             <div className="flex min-h-screen flex-col">
               <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
                 <div className="container flex h-16 items-center justify-between gap-4">
-                  <Link href="/" className="flex items-center gap-3">
-                    <BrandLogo />
-                  </Link>
-                  <div className="flex items-center gap-3">
-                    <NavMenu />
+                  <div className="flex items-center gap-4">
+                    <Link href="/" className="flex items-center gap-3">
+                      <BrandLogo />
+                    </Link>
                     <div className="hidden items-center gap-2 sm:flex">
                       <Button asChild variant="ghost" size="sm">
                         <Link href="/flavors">Flavors</Link>
@@ -56,6 +57,9 @@ export default function RootLayout({
                         <Link href="/sessions">My records</Link>
                       </Button>
                     </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <NavMenu />
                     <ThemeToggle />
                     <UserMenu />
                   </div>
@@ -63,7 +67,7 @@ export default function RootLayout({
               </header>
               <main className="container flex-1 py-10">{children}</main>
               <footer className="border-t bg-card">
-                <div className="container flex h-14 items-center justify-between text-sm text-muted-foreground">
+                <div className="container flex h-14 items-center justify-center gap-3 text-sm text-muted-foreground">
                   &copy; {new Date().getFullYear()} Kemureco
                   <a
                     href="https://github.com/ioComk/Kemureco"

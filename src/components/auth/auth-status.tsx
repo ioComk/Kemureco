@@ -1,12 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { GoogleFill } from "akar-icons";
 import { Mail } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AuthScreen } from "@/components/auth/auth-screen";
 import { useAuth } from "@/components/auth/auth-provider";
 
 const XIcon = ({ className }: { className?: string }) => (
@@ -21,7 +18,6 @@ const XIcon = ({ className }: { className?: string }) => (
 
 export function AuthStatus() {
   const { user, loading } = useAuth();
-  const [open, setOpen] = useState(false);
 
   if (loading) {
     return (
@@ -33,19 +29,9 @@ export function AuthStatus() {
 
   if (!user?.email) {
     return (
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button size="sm" className="w-full justify-center">
-            サインイン
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="max-w-2xl">
-          <div data-auth-dialog>
-            <DialogTitle className="sr-only">サインイン</DialogTitle>
-            <AuthScreen onSignedIn={() => setOpen(false)} />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <Button asChild size="sm" className="w-full justify-center">
+        <Link href="/auth">サインイン</Link>
+      </Button>
     );
   }
 

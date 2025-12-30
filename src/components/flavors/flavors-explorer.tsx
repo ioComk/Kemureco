@@ -135,6 +135,10 @@ export function FlavorsExplorer({
   const [isSaving, setIsSaving] = useState(false);
   const [previewFlavor, setPreviewFlavor] = useState<FlavorWithBrand | null>(null);
   const [isComposing, setIsComposing] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [expandedTagIds, setExpandedTagIds] = useState<Set<number>>(new Set());
+  const maxCollapsedTags = 8;
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -218,14 +222,14 @@ export function FlavorsExplorer({
   );
 
   useEffect(() => {
-    if (isComposing) return;
+    if (isComposing || isSearchFocused) return;
     const handle = setTimeout(() => {
       const normalized = deferredQuery.trim();
       updateSearchParam("q", normalized || undefined);
     }, 300);
 
     return () => clearTimeout(handle);
-  }, [deferredQuery, isComposing, updateSearchParam]);
+  }, [deferredQuery, isComposing, isSearchFocused, updateSearchParam]);
 
   const handleSortChange = (value: string) => {
     const next = SORT_OPTIONS.some((option) => option.value === value) ? (value as SortOption) : "name";
@@ -243,6 +247,18 @@ export function FlavorsExplorer({
     const nextBrand = activeBrand === brand ? "" : brand;
     setActiveBrand(nextBrand);
     updateSearchParam("brand", nextBrand || undefined);
+  };
+
+  const toggleTagExpand = (flavorId: number) => {
+    setExpandedTagIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(flavorId)) {
+        next.delete(flavorId);
+      } else {
+        next.add(flavorId);
+      }
+      return next;
+    });
   };
 
   const imageUrls = useMemo(() => {
@@ -472,13 +488,32 @@ export function FlavorsExplorer({
           </div>
         </div>
         {flavor.tags?.length ? (
-          <div className="flex flex-wrap gap-2">
-            {flavor.tags.map((tag) => (
-              <Badge key={`${flavor.id}-${tag}`} variant="outline">
-                {tag}
-              </Badge>
-            ))}
-          </div>
+          (() => {
+            const isExpanded = expandedTagIds.has(flavor.id);
+            const tagsToShow = isExpanded ? flavor.tags : flavor.tags.slice(0, maxCollapsedTags);
+            const canExpand = flavor.tags.length > maxCollapsedTags;
+            return (
+              <div className={isExpanded ? "flex flex-wrap gap-2" : "flex items-center gap-2 overflow-hidden"}>
+                {tagsToShow.map((tag) => (
+                  <Badge key={`${flavor.id}-${tag}`} variant="outline" className={!isExpanded ? "truncate" : undefined}>
+                    {tag}
+                  </Badge>
+                ))}
+                {canExpand ? (
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleTagExpand(flavor.id);
+                    }}
+                  >
+                    {isExpanded ? "show less" : "show more..."}
+                  </button>
+                ) : null}
+              </div>
+            );
+          })()
         ) : (
           <p className="text-sm text-muted-foreground">タグ情報はまだありません。</p>
         )}
@@ -503,16 +538,16 @@ export function FlavorsExplorer({
         }}
       >
         {imageUrl ? (
-          <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-md bg-muted/10 md:w-40">
+          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted/10">
             <img
               src={imageUrl}
               alt={`${flavor.name} の画像`}
-              className="h-full w-full object-contain"
+              className="h-full w-full object-cover"
               loading="lazy"
             />
           </div>
         ) : (
-          <div className="flex h-28 w-full items-center justify-center rounded-md bg-muted/30 text-xs text-muted-foreground md:w-40">
+          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-muted/30 text-[10px] text-muted-foreground">
             画像なし
           </div>
         )}
@@ -552,13 +587,33 @@ export function FlavorsExplorer({
           </div>
         </div>
           {flavor.tags?.length ? (
-            <div className="flex flex-wrap gap-2">
-              {flavor.tags.map((tag) => (
-                <Badge key={`${flavor.id}-${tag}`} variant="outline">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
+            (() => {
+              const isExpanded = expandedTagIds.has(flavor.id);
+              const tagsToShow = isExpanded ? flavor.tags : flavor.tags.slice(0, maxCollapsedTags);
+              const canExpand = flavor.tags.length > maxCollapsedTags;
+              return (
+                <div className={isExpanded ? "flex flex-wrap gap-2" : "flex items-center gap-2 overflow-hidden"}>
+                  {tagsToShow.map((tag) => (
+                    <Badge key={`${flavor.id}-${tag}`} variant="outline" className={!isExpanded ? "truncate" : undefined}>
+                      {tag}
+                    </Badge>
+                  ))}
+                  {canExpand ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleTagExpand(flavor.id);
+                      }}
+                    >
+                      {isExpanded ? "show less" : "show more..."}
+                    </Button>
+                  ) : null}
+                </div>
+              );
+            })()
           ) : (
             <p className="text-sm text-muted-foreground">タグ情報はまだありません。</p>
           )}
@@ -614,10 +669,16 @@ export function FlavorsExplorer({
                 placeholder="例: ミント / Trifecta"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={(event) => {
+                  setIsSearchFocused(false);
+                  updateSearchParam("q", event.currentTarget.value.trim() || undefined);
+                }}
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={(event) => {
                   setIsComposing(false);
                   setQuery(event.currentTarget.value);
+                  updateSearchParam("q", event.currentTarget.value.trim() || undefined);
                 }}
               />
             </div>
@@ -637,9 +698,9 @@ export function FlavorsExplorer({
               </Select>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Group by</Label>
-            <div className="flex flex-wrap gap-2">
+          <div className="flex flex-nowrap items-center gap-3 overflow-x-auto">
+            <Label className="whitespace-nowrap">Group by</Label>
+            <div className="flex flex-nowrap items-center gap-2">
               <Button
                 type="button"
                 size="sm"
@@ -683,9 +744,11 @@ export function FlavorsExplorer({
           ) : null}
           {availableTags.length ? (
             <div className="space-y-2">
-              <Label>タグで絞り込み</Label>
-              <div className="flex flex-wrap gap-2">
-                {availableTags.map((tag) => (
+              <div className="flex items-center justify-between gap-2">
+                <Label>タグで絞り込み</Label>
+              </div>
+              <div className={tagsOpen ? "flex flex-wrap gap-2" : "flex items-center gap-2 overflow-hidden"}>
+                {(tagsOpen ? availableTags : availableTags.slice(0, maxCollapsedTags)).map((tag) => (
                   <Button
                     key={tag}
                     type="button"
@@ -696,6 +759,15 @@ export function FlavorsExplorer({
                     {tag}
                   </Button>
                 ))}
+                {availableTags.length > maxCollapsedTags ? (
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                    onClick={() => setTagsOpen((prev) => !prev)}
+                  >
+                    {tagsOpen ? "show less" : "show more..."}
+                  </button>
+                ) : null}
                 {activeTag ? (
                   <Button type="button" size="sm" variant="ghost" onClick={() => handleTagToggle("")}>
                     クリア

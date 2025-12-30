@@ -3,12 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { createSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, LogOut, Mail } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
 import { GoogleFill } from "akar-icons";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -36,10 +34,13 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
     undefined;
 
   const [email, setEmail] = useState("");
+  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const [authMethod, setAuthMethod] = useState<"magic" | "password">("magic");
+  const [password, setPassword] = useState("");
   const [isOtpSubmitting, setIsOtpSubmitting] = useState(false);
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
   const [isTwitterSigningIn, setIsTwitterSigningIn] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const [notifiedSignedIn, setNotifiedSignedIn] = useState(false);
   
 
@@ -78,6 +79,42 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
       description: `${email} を確認してください。`
     });
     setEmail("");
+  };
+
+  const handlePasswordAuth = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!email || !password) return;
+
+    setIsPasswordSubmitting(true);
+    if (mode === "sign-in") {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      setIsPasswordSubmitting(false);
+      if (error) {
+        toast({
+          title: "サインインに失敗しました",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      toast({ title: "サインインしました" });
+      return;
+    }
+
+    const { error } = await supabase.auth.signUp({ email, password });
+    setIsPasswordSubmitting(false);
+    if (error) {
+      toast({
+        title: "サインアップに失敗しました",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+    toast({
+      title: "確認メールを送信しました",
+      description: `${email} を確認してください。`
+    });
   };
 
   const handleGoogleSignIn = async () => {
@@ -123,119 +160,139 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
 
   };
 
-  const handleSignOut = async () => {
-    setIsSigningOut(true);
-    const { error } = await supabase.auth.signOut();
-    setIsSigningOut(false);
-
-    if (error) {
-      toast({
-        title: "サインアウトに失敗しました",
-        description: error.message,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    toast({
-      title: "サインアウトしました"
-    });
-  };
-
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>サインイン</CardTitle>
-          <CardDescription>
-            メールによる認証リンク、または Google / X アカウントでサインインできます。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>現在の状態:</span>
-              {loading ? (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  確認中...
-                </Badge>
-              ) : user?.email ? (
-                <Badge variant="default">Signed in</Badge>
-              ) : (
-                <Badge variant="outline">未サインイン</Badge>
-              )}
-            </div>
-            {user?.email ? (
-              <p className="text-xs text-muted-foreground mt-1">※ メールアドレスの表示は省略しています</p>
-            ) : null}
-          </div>
-          <form className="space-y-3" onSubmit={handleOtpSignIn}>
-            <div className="space-y-2">
-              <Label htmlFor="auth-email">メールアドレス</Label>
-              <Input
-                id="auth-email"
-                type="email"
-                required
-                placeholder="you@example.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                disabled={isOtpSubmitting}
-              />
-            </div>
-            <Button
-              type="submit"
-              disabled={isOtpSubmitting}
-              className="w-full sm:w-auto gap-2 shadow-sm"
-            >
-              {isOtpSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-              {isOtpSubmitting ? "送信中..." : "認証メールを送る"}
-            </Button>
-          </form>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">または</p>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGoogleSignIn}
-              disabled={isGoogleSigningIn}
-              className="w-full sm:w-auto gap-2 shadow-sm"
-            >
-              {isGoogleSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleFill size={18} />}
-              {isGoogleSigningIn ? "リダイレクト中..." : "Google でサインイン"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleTwitterSignIn}
-              disabled={isTwitterSigningIn}
-              className="w-full sm:w-auto gap-2 shadow-sm"
-            >
-              {isTwitterSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <XIcon className="h-4 w-4" />}
-              {isTwitterSigningIn ? "リダイレクト中..." : "X でサインイン"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="mx-auto max-w-xl px-4 py-12">
+      <div className="mb-10 flex items-center justify-end text-sm">
+        <button
+          type="button"
+          className="text-muted-foreground underline-offset-4 hover:underline"
+          onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}
+        >
+          {mode === "sign-in" ? "Sign Up" : "Sign In"}
+        </button>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>サインアウト</CardTitle>
-          <CardDescription>共有端末では利用後のサインアウトをおすすめします。</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleSignOut}
-              disabled={isSigningOut || !user?.email}
-              className="gap-2 shadow-sm w-full sm:w-auto"
-            >
-            {isSigningOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-            {isSigningOut ? "処理中..." : "サインアウト"}
+      <div className="space-y-8">
+        <div className="space-y-3 text-center">
+          <h1 className="text-3xl font-semibold sm:text-4xl">
+            {mode === "sign-in" ? "Sign in to your account" : "Create an account"}
+          </h1>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleSigningIn}
+            className="h-12 gap-2 rounded-full"
+          >
+            {isGoogleSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleFill size={18} />}
+            Google
           </Button>
-        </CardContent>
-      </Card>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleTwitterSignIn}
+            disabled={isTwitterSigningIn}
+            className="h-12 gap-2 rounded-full"
+          >
+            {isTwitterSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <XIcon className="h-4 w-4" />}
+            X
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          OR CONTINUE WITH EMAIL
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <div className="grid grid-cols-2 rounded-full border bg-muted/30 p-1 text-sm">
+          <button
+            type="button"
+            className={`rounded-full px-3 py-2 font-medium transition ${
+              authMethod === "magic" ? "bg-background shadow-sm" : "text-muted-foreground"
+            }`}
+            onClick={() => setAuthMethod("magic")}
+          >
+            Magic Link
+          </button>
+          <button
+            type="button"
+            className={`rounded-full px-3 py-2 font-medium transition ${
+              authMethod === "password" ? "bg-background shadow-sm" : "text-muted-foreground"
+            }`}
+            onClick={() => setAuthMethod("password")}
+          >
+            Password
+          </button>
+        </div>
+
+        <form
+          className="space-y-4"
+          onSubmit={authMethod === "magic" ? handleOtpSignIn : handlePasswordAuth}
+        >
+          <div className="space-y-2">
+            <Label htmlFor="auth-email">Email</Label>
+            <Input
+              id="auth-email"
+              type="email"
+              required
+              placeholder="name@example.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              disabled={isOtpSubmitting || isPasswordSubmitting}
+            />
+          </div>
+          {authMethod === "password" ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="auth-password">Password</Label>
+                <Input
+                  id="auth-password"
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  disabled={isPasswordSubmitting}
+                />
+              </div>
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" className="h-4 w-4 rounded border-input" />
+                  Remember me
+                </label>
+                <button type="button" className="underline-offset-4 hover:underline">
+                  Forgot password?
+                </button>
+              </div>
+            </>
+          ) : null}
+          <Button
+            type="submit"
+            disabled={isOtpSubmitting || isPasswordSubmitting}
+            className="h-12 w-full rounded-full"
+          >
+            {(isOtpSubmitting || isPasswordSubmitting) ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : authMethod === "magic" ? (
+              <Mail className="mr-2 h-4 w-4" />
+            ) : null}
+            {isOtpSubmitting || isPasswordSubmitting
+              ? "Sending..."
+              : authMethod === "magic"
+                ? "Send magic link"
+                : mode === "sign-in"
+                  ? "Sign in"
+                  : "Create account"}
+          </Button>
+          {user?.email ? (
+            <p className="text-center text-xs text-muted-foreground">Signed in as {user.email}</p>
+          ) : null}
+        </form>
+      </div>
     </div>
   );
 }

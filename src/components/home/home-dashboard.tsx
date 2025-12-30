@@ -26,16 +26,6 @@ export function HomeDashboard() {
     return (
       <Card className="border-0 shadow-none">
         <CardHeader>
-          <div className="flex justify-center sm:justify-start">
-            <Image
-              src="/icon.png"
-              alt="Kemureco"
-              width={64}
-              height={64}
-              className="h-16 w-16"
-              priority
-            />
-          </div>
           <CardTitle>Kemurecoへようこそ</CardTitle>
           <CardDescription>
             シーシャのフレーバーを記録・管理・共有して、自分だけのミックス履歴を育てられるサービスです。

@@ -11,7 +11,7 @@ export function BrandLogo() {
   useEffect(() => setMounted(true), []);
 
   const currentTheme = mounted ? resolvedTheme : "light";
-  const logoSrc = currentTheme === "dark" ? "/icon-dark.png" : "/icon.png";
+  const logoSrc = currentTheme === "dark" ? "/brand/icon-dark.png" : "/brand/icon.png";
 
   return (
     <>

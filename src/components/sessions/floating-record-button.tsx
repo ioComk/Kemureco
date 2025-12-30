@@ -16,7 +16,7 @@ export function FloatingRecordButton() {
 
   return (
     <div
-      className="fixed bottom-6 right-2 sm:right-4 z-50 flex flex-col items-end"
+      className="fixed bottom-7 right-3 sm:right-5 z-50 flex flex-col items-end"
       onMouseLeave={() => setOpen(false)}
     >
       <div
