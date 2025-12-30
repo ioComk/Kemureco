@@ -689,7 +689,7 @@ export function SessionForm() {
           </div>
         </CardContent>
         <CardFooter className="sticky bottom-0 z-10 flex justify-end border-t bg-background/95 py-4 backdrop-blur">
-          <Button type="submit" disabled={isPending || (mixColumnAvailable && !canSubmitFlavors)}>
+          <Button type="submit" disabled={isPending || (mixColumnAvailable && !canSubmitFlavors)} className="text-black">
             {isPending ? "保存中..." : "記録する"}
           </Button>
         </CardFooter>

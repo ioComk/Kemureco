@@ -31,7 +31,7 @@ export function FloatingRecordButton() {
           </Link>
         </Button>
         <Button asChild size="sm" variant="secondary" className="rounded-full shadow-lg">
-          <Link href="/sessions/new" onClick={handleSelect}>
+          <Link href="/sessions/new" onClick={handleSelect} className="text-black">
             記録する
           </Link>
         </Button>

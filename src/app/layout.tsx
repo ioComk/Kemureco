@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import FloatingRecordButton from "@/components/sessions/floating-record-button";
 import { UserMenu } from "@/components/header/user-menu";
 import { NavMenu } from "@/components/header/nav-menu";
+import { BrandLogo } from "@/components/header/brand-logo";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -43,7 +44,7 @@ export default function RootLayout({
               <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
                 <div className="container flex h-16 items-center justify-between gap-4">
                   <Link href="/" className="flex items-center gap-3">
-                    <span className="text-lg font-semibold">Kemureco</span>
+                    <BrandLogo />
                   </Link>
                   <div className="flex items-center gap-3">
                     <NavMenu />
