@@ -1,46 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { createSupabaseClient } from "@/lib/supabase";
-import { useToast } from "@/components/ui/use-toast";
 import { GoogleFill } from "akar-icons";
-import { Twitter } from "lucide-react";
+import { Mail } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AuthScreen } from "@/components/auth/auth-screen";
 import { useAuth } from "@/components/auth/auth-provider";
 
+const XIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 1024 1024" aria-hidden="true">
+    <path
+      fill="currentColor"
+      fillRule="evenodd"
+      d="M921 912L601.11 445.745l.546.437L890.084 112h-96.385L558.738 384L372.15 112H119.367l298.648 435.31l-.036-.037L103 912h96.385l261.222-302.618L668.217 912zM333.96 184.727l448.827 654.546h-76.38l-449.19-654.546z"
+    />
+  </svg>
+);
+
 export function AuthStatus() {
-  const supabase = useMemo(() => createSupabaseClient(), []);
-  const { toast } = useToast();
   const { user, loading } = useAuth();
-  const [signingOut, setSigningOut] = useState(false);
   const [open, setOpen] = useState(false);
-
-  const handleSignOut = async () => {
-    setSigningOut(true);
-    const { error } = await supabase.auth.signOut();
-    setSigningOut(false);
-
-    if (error) {
-      toast({
-        title: "サインアウトに失敗しました",
-        description: error.message,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setOpen(false);
-    toast({
-      title: "サインアウトしました"
-    });
-  };
 
   if (loading) {
     return (
-      <Button variant="outline" size="sm" disabled>
+      <Button variant="outline" size="sm" disabled className="w-full justify-center">
         認証中...
       </Button>
     );
@@ -50,7 +35,7 @@ export function AuthStatus() {
     return (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button size="sm" className="w-full justify-center sm:w-auto">
+          <Button size="sm" className="w-full justify-center">
             サインイン
           </Button>
         </DialogTrigger>
@@ -64,22 +49,24 @@ export function AuthStatus() {
     );
   }
 
+  const provider = user?.app_metadata?.provider;
+  const providerIcon =
+    provider === "google" ? (
+      <GoogleFill size={14} />
+    ) : provider === "twitter" ? (
+      <XIcon className="h-4 w-4" />
+    ) : (
+      <Mail className="h-4 w-4" />
+    );
+  const providerLabel = provider === "google" ? "Google" : provider === "twitter" ? "X" : "Email";
+
   return (
-    <div className="flex flex-col items-end gap-2 text-right sm:flex-row sm:items-center sm:text-left">
-      <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        {user?.app_metadata?.provider === "google" ? <GoogleFill size={14} /> : null}
-        {user?.app_metadata?.provider === "twitter" ? <Twitter className="h-4 w-4" /> : null}
-        Signed in
+    <div className="w-full text-center text-sm font-medium text-muted-foreground">
+      <span className="inline-flex items-center gap-2">
+        <span>Signed in with</span>
+        {providerIcon}
+        <span className="sr-only">{providerLabel}</span>
       </span>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleSignOut}
-        disabled={signingOut}
-        className="w-full sm:w-auto"
-      >
-        {signingOut ? "処理中..." : "サインアウト"}
-      </Button>
     </div>
   );
 }
