@@ -34,7 +34,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <AuthProvider>
             <div className="flex min-h-screen flex-col">
-              <header className="border-b bg-card">
+              <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
                 <div className="container flex h-16 items-center justify-between gap-4">
                   <Link href="/" className="flex items-center gap-3">
                     <span className="text-lg font-semibold">Kemureco</span>

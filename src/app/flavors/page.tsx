@@ -30,15 +30,17 @@ type PageProps = {
   searchParams?: Promise<{
     q?: string;
     tag?: string;
+    brand?: string;
     sort?: string;
   }>;
 };
 
 export default async function FlavorsPage({ searchParams }: PageProps) {
   const resolvedParams = (await searchParams) ?? {};
-  const [query = "", tag = "", sort = "name"] = [
+  const [query = "", tag = "", brand = "", sort = "name"] = [
     resolvedParams.q ?? "",
     resolvedParams.tag ?? "",
+    resolvedParams.brand ?? "",
     resolvedParams.sort ?? "name"
   ];
 
@@ -51,6 +53,7 @@ export default async function FlavorsPage({ searchParams }: PageProps) {
           flavors={flavors}
           initialQuery={query}
           initialTag={tag}
+          initialBrand={brand}
           initialSort={sort}
           totalCount={flavors.length}
         />

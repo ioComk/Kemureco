@@ -96,11 +96,19 @@ type FlavorsExplorerProps = {
   flavors: FlavorWithBrand[];
   initialQuery: string;
   initialTag: string;
+  initialBrand: string;
   initialSort: string;
   totalCount: number;
 };
 
-export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort, totalCount }: FlavorsExplorerProps) {
+export function FlavorsExplorer({
+  flavors,
+  initialQuery,
+  initialTag,
+  initialBrand,
+  initialSort,
+  totalCount
+}: FlavorsExplorerProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -113,6 +121,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   const [query, setQuery] = useState(initialQuery);
   const deferredQuery = useDeferredValue(query);
   const [activeTag, setActiveTag] = useState(initialTag);
+  const [activeBrand, setActiveBrand] = useState(initialBrand);
   const [sort, setSort] = useState<SortOption>(
     SORT_OPTIONS.some((option) => option.value === initialSort) ? (initialSort as SortOption) : "name"
   );
@@ -124,6 +133,8 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   const [editFlavor, setEditFlavor] = useState<FlavorWithBrand | null>(null);
   const [editForm, setEditForm] = useState({ name: "", brandId: "", tags: "" });
   const [isSaving, setIsSaving] = useState(false);
+  const [previewFlavor, setPreviewFlavor] = useState<FlavorWithBrand | null>(null);
+  const [isComposing, setIsComposing] = useState(false);
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -132,6 +143,10 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   useEffect(() => {
     setActiveTag(initialTag);
   }, [initialTag]);
+
+  useEffect(() => {
+    setActiveBrand(initialBrand);
+  }, [initialBrand]);
 
   useEffect(() => {
     if (SORT_OPTIONS.some((option) => option.value === initialSort)) {
@@ -175,8 +190,18 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
     return Array.from(tags).sort((a, b) => a.localeCompare(b, "ja"));
   }, [items]);
 
+  const availableBrands = useMemo(() => {
+    const brandsSet = new Set<string>();
+    items.forEach((flavor) => {
+      if (flavor.brand?.name) {
+        brandsSet.add(flavor.brand.name);
+      }
+    });
+    return Array.from(brandsSet).sort((a, b) => a.localeCompare(b, "ja"));
+  }, [items]);
+
   const updateSearchParam = useCallback(
-    (key: "q" | "tag" | "sort", value?: string) => {
+    (key: "q" | "tag" | "brand" | "sort", value?: string) => {
       const params = new URLSearchParams(searchParams?.toString());
       if (value && value.length > 0) {
         params.set(key, value);
@@ -193,13 +218,14 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   );
 
   useEffect(() => {
+    if (isComposing) return;
     const handle = setTimeout(() => {
       const normalized = deferredQuery.trim();
       updateSearchParam("q", normalized || undefined);
     }, 300);
 
     return () => clearTimeout(handle);
-  }, [deferredQuery, updateSearchParam]);
+  }, [deferredQuery, isComposing, updateSearchParam]);
 
   const handleSortChange = (value: string) => {
     const next = SORT_OPTIONS.some((option) => option.value === value) ? (value as SortOption) : "name";
@@ -211,6 +237,12 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
     const nextTag = activeTag === tag ? "" : tag;
     setActiveTag(nextTag);
     updateSearchParam("tag", nextTag || undefined);
+  };
+
+  const handleBrandToggle = (brand: string) => {
+    const nextBrand = activeBrand === brand ? "" : brand;
+    setActiveBrand(nextBrand);
+    updateSearchParam("brand", nextBrand || undefined);
   };
 
   const imageUrls = useMemo(() => {
@@ -228,6 +260,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   const filteredFlavors = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
     const normalizedTag = activeTag.trim().toLowerCase();
+    const normalizedBrand = activeBrand.trim().toLowerCase();
     const queryTokens = new Set([normalizedQuery]);
     JP_QUERY_MAP.forEach(({ jp, en }) => {
       if (normalizedQuery && normalizedQuery.includes(jp)) {
@@ -242,7 +275,10 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
       const matchesTag = normalizedTag
         ? flavor.tags?.some((tag) => tag.toLowerCase() === normalizedTag)
         : true;
-      return matchesQuery && matchesTag;
+      const matchesBrand = normalizedBrand
+        ? flavor.brand?.name?.toLowerCase() === normalizedBrand
+        : true;
+      return matchesQuery && matchesTag && matchesBrand;
     });
 
     const scoreByPopularity = (flavor: FlavorWithBrand) => {
@@ -265,7 +301,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
 
       return a.name.localeCompare(b.name, "ja");
     });
-  }, [activeTag, items, query, sort]);
+  }, [activeBrand, activeTag, items, query, sort]);
 
   const groupedFlavors = useMemo(() => {
     if (group !== "brand") return [];
@@ -374,9 +410,21 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   const renderFlavorGridCard = (flavor: FlavorWithBrand) => {
     const imageUrl = imageUrls.get(flavor.id);
     return (
-      <div key={flavor.id} className="space-y-3 rounded-lg border p-4">
+      <div
+        key={flavor.id}
+        className="space-y-3 rounded-lg border p-4 transition hover:border-primary/40 hover:shadow-sm"
+        role="button"
+        tabIndex={0}
+        onClick={() => setPreviewFlavor(flavor)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setPreviewFlavor(flavor);
+          }
+        }}
+      >
         {imageUrl ? (
-          <div className="flex h-40 items-center justify-center overflow-hidden rounded-md border bg-muted/10">
+          <div className="flex h-40 items-center justify-center overflow-hidden rounded-md bg-muted/10">
             <img
               src={imageUrl}
               alt={`${flavor.name} の画像`}
@@ -385,7 +433,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
             />
           </div>
         ) : (
-          <div className="flex h-40 items-center justify-center rounded-md border bg-muted/30 text-xs text-muted-foreground">
+          <div className="flex h-40 items-center justify-center rounded-md bg-muted/30 text-xs text-muted-foreground">
             画像なし
           </div>
         )}
@@ -396,12 +444,28 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
           </div>
           <div className="flex items-center gap-2">
             {canEditFlavor(flavor) ? (
-              <Button type="button" size="sm" variant="outline" onClick={() => handleOpenEdit(flavor)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleOpenEdit(flavor);
+                }}
+              >
                 編集
               </Button>
             ) : null}
             {canDeleteFlavor(flavor) ? (
-              <Button type="button" size="sm" variant="ghost" onClick={() => handleDeleteFlavor(flavor)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleDeleteFlavor(flavor);
+                }}
+              >
                 削除
               </Button>
             ) : null}
@@ -425,9 +489,21 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   const renderFlavorListCard = (flavor: FlavorWithBrand) => {
     const imageUrl = imageUrls.get(flavor.id);
     return (
-      <div key={flavor.id} className="flex flex-col gap-4 rounded-lg border p-4 md:flex-row">
+      <div
+        key={flavor.id}
+        className="flex flex-col gap-4 rounded-lg border p-4 transition hover:border-primary/40 hover:shadow-sm md:flex-row"
+        role="button"
+        tabIndex={0}
+        onClick={() => setPreviewFlavor(flavor)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setPreviewFlavor(flavor);
+          }
+        }}
+      >
         {imageUrl ? (
-          <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-md border bg-muted/10 md:w-40">
+          <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-md bg-muted/10 md:w-40">
             <img
               src={imageUrl}
               alt={`${flavor.name} の画像`}
@@ -436,7 +512,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
             />
           </div>
         ) : (
-          <div className="flex h-28 w-full items-center justify-center rounded-md border bg-muted/30 text-xs text-muted-foreground md:w-40">
+          <div className="flex h-28 w-full items-center justify-center rounded-md bg-muted/30 text-xs text-muted-foreground md:w-40">
             画像なし
           </div>
         )}
@@ -448,12 +524,28 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
           </div>
           <div className="flex items-center gap-2">
             {canEditFlavor(flavor) ? (
-              <Button type="button" size="sm" variant="outline" onClick={() => handleOpenEdit(flavor)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleOpenEdit(flavor);
+                }}
+              >
                 編集
               </Button>
             ) : null}
             {canDeleteFlavor(flavor) ? (
-              <Button type="button" size="sm" variant="ghost" onClick={() => handleDeleteFlavor(flavor)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleDeleteFlavor(flavor);
+                }}
+              >
                 削除
               </Button>
             ) : null}
@@ -522,6 +614,11 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
                 placeholder="例: ミント / Trifecta"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={(event) => {
+                  setIsComposing(false);
+                  setQuery(event.currentTarget.value);
+                }}
               />
             </div>
             <div className="space-y-2">
@@ -541,7 +638,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
             </div>
           </div>
           <div className="space-y-2">
-            <Label>グルーピング</Label>
+            <Label>Group by</Label>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -549,7 +646,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
                 variant={group === "none" ? "default" : "outline"}
                 onClick={() => setGroup("none")}
               >
-                なし
+                None
               </Button>
               <Button
                 type="button"
@@ -557,10 +654,33 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
                 variant={group === "brand" ? "default" : "outline"}
                 onClick={() => setGroup("brand")}
               >
-                メーカー
+                Brand
               </Button>
             </div>
           </div>
+          {availableBrands.length ? (
+            <div className="space-y-2">
+              <Label>メーカーで絞り込み</Label>
+              <div className="flex flex-wrap gap-2">
+                {availableBrands.map((brand) => (
+                  <Button
+                    key={brand}
+                    type="button"
+                    size="sm"
+                    variant={activeBrand === brand ? "default" : "outline"}
+                    onClick={() => handleBrandToggle(brand)}
+                  >
+                    {brand}
+                  </Button>
+                ))}
+                {activeBrand ? (
+                  <Button type="button" size="sm" variant="ghost" onClick={() => handleBrandToggle("")}>
+                    クリア
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           {availableTags.length ? (
             <div className="space-y-2">
               <Label>タグで絞り込み</Label>
@@ -620,6 +740,41 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
       ) : (
         <div className="space-y-4">{filteredFlavors.map((flavor) => renderFlavorListCard(flavor))}</div>
       )}
+
+      <Dialog open={Boolean(previewFlavor)} onOpenChange={(open) => (open ? null : setPreviewFlavor(null))}>
+        <DialogContent className="max-w-lg rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>{previewFlavor?.name ?? ""}</DialogTitle>
+            <DialogDescription>{previewFlavor?.brand?.name ?? "ブランド未設定"}</DialogDescription>
+          </DialogHeader>
+          {previewFlavor?.tags?.length ? (
+            <div className="flex flex-wrap gap-2">
+              {previewFlavor.tags.map((tag) => (
+                <Badge key={`preview-${previewFlavor.id}-${tag}`} variant="outline">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">タグ情報はまだありません。</p>
+          )}
+          {previewFlavor ? (
+            imageUrls.get(previewFlavor.id) ? (
+              <div className="flex items-center justify-center rounded-lg bg-muted/10 p-4">
+                <img
+                  src={imageUrls.get(previewFlavor.id)}
+                  alt={`${previewFlavor.name} の画像`}
+                  className="max-h-[70vh] w-full object-contain"
+                />
+              </div>
+            ) : (
+              <div className="flex h-48 items-center justify-center rounded-lg bg-muted/30 text-sm text-muted-foreground">
+                画像なし
+              </div>
+            )
+          ) : null}
+        </DialogContent>
+      </Dialog>
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>

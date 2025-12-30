@@ -15,7 +15,10 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 const BUCKET = process.env.SUPABASE_BUCKET || 'flavor-images';
 const SOURCE_DIR =
   process.env.SOURCE_DIR || '/Users/iocomk/Squoosh/output';
-const STORAGE_PREFIX = 'flavors/AIFakher';
+const BRAND_NAME = process.env.BRAND_NAME || 'AL Fakher';
+const STORAGE_PREFIX =
+  process.env.STORAGE_PREFIX ||
+  `flavors/${BRAND_NAME.replace(/\\s+/g, '')}`;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
@@ -49,7 +52,7 @@ const main = async () => {
   const { data: brand, error: brandError } = await supabase
     .from('brands')
     .select('id')
-    .eq('name', 'Al Fakher')
+    .eq('name', BRAND_NAME)
     .single();
 
   if (brandError) {
