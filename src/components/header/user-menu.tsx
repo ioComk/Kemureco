@@ -27,7 +27,11 @@ export function UserMenu() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const avatarUrl =
+    (user?.user_metadata?.avatar_url as string | undefined) ??
+    (user?.user_metadata?.picture as string | undefined);
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -71,10 +75,20 @@ export function UserMenu() {
         aria-label="User menu"
         onClick={() => setOpen((prev) => !prev)}
       >
-        <UserRound className="h-5 w-5" />
+        {avatarUrl && !avatarError ? (
+          <img
+            src={avatarUrl}
+            alt={user?.email ?? "User avatar"}
+            className="h-6 w-6 rounded-full object-cover"
+            referrerPolicy="no-referrer"
+            onError={() => setAvatarError(true)}
+          />
+        ) : (
+          <UserRound className="h-5 w-5" />
+        )}
       </Button>
       {open ? (
-        <div className="absolute right-0 z-50 mt-2 w-64 rounded-md border bg-popover p-3 shadow-lg">
+        <div className="absolute right-0 z-50 mt-2 w-64 rounded-md border bg-background p-3 shadow-lg dark:bg-neutral-900">
           <div className="space-y-3">
             <AuthStatus />
             <Button asChild variant="outline" size="sm" className="w-full">

@@ -43,6 +43,10 @@ export default async function FlavorsPage({ searchParams }: PageProps) {
     resolvedParams.brand ?? "",
     resolvedParams.sort ?? "name"
   ];
+  const initialTags = tag
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
 
   const flavors = await loadFlavors();
 
@@ -52,7 +56,7 @@ export default async function FlavorsPage({ searchParams }: PageProps) {
         <FlavorsExplorer
           flavors={flavors}
           initialQuery={query}
-          initialTag={tag}
+          initialTags={initialTags}
           initialBrand={brand}
           initialSort={sort}
           totalCount={flavors.length}

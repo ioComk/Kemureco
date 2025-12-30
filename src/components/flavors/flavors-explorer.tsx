@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Brand, FlavorWithBrand } from "@/lib/types";
@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LayoutGrid, List } from "lucide-react";
+import { LayoutGrid, List, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -95,7 +95,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 type FlavorsExplorerProps = {
   flavors: FlavorWithBrand[];
   initialQuery: string;
-  initialTag: string;
+  initialTags: string[];
   initialBrand: string;
   initialSort: string;
   totalCount: number;
@@ -104,7 +104,7 @@ type FlavorsExplorerProps = {
 export function FlavorsExplorer({
   flavors,
   initialQuery,
-  initialTag,
+  initialTags,
   initialBrand,
   initialSort,
   totalCount
@@ -120,7 +120,7 @@ export function FlavorsExplorer({
   const [items, setItems] = useState<FlavorWithBrand[]>(flavors);
   const [query, setQuery] = useState(initialQuery);
   const deferredQuery = useDeferredValue(query);
-  const [activeTag, setActiveTag] = useState(initialTag);
+  const [activeTags, setActiveTags] = useState<string[]>(initialTags);
   const [activeBrand, setActiveBrand] = useState(initialBrand);
   const [sort, setSort] = useState<SortOption>(
     SORT_OPTIONS.some((option) => option.value === initialSort) ? (initialSort as SortOption) : "name"
@@ -139,14 +139,15 @@ export function FlavorsExplorer({
   const [tagsOpen, setTagsOpen] = useState(false);
   const [expandedTagIds, setExpandedTagIds] = useState<Set<number>>(new Set());
   const maxCollapsedTags = 8;
+  const initialTagSync = useRef(true);
 
   useEffect(() => {
     setQuery(initialQuery);
   }, [initialQuery]);
 
   useEffect(() => {
-    setActiveTag(initialTag);
-  }, [initialTag]);
+    setActiveTags(initialTags);
+  }, [initialTags]);
 
   useEffect(() => {
     setActiveBrand(initialBrand);
@@ -213,6 +214,8 @@ export function FlavorsExplorer({
         params.delete(key);
       }
       const queryString = params.toString();
+      const currentQuery = searchParams?.toString() ?? "";
+      if (queryString === currentQuery) return;
       const target = (queryString ? `${pathname}?${queryString}` : pathname) as Route;
       startTransition(() => {
         router.replace(target, { scroll: false });
@@ -238,9 +241,10 @@ export function FlavorsExplorer({
   };
 
   const handleTagToggle = (tag: string) => {
-    const nextTag = activeTag === tag ? "" : tag;
-    setActiveTag(nextTag);
-    updateSearchParam("tag", nextTag || undefined);
+    setActiveTags((prev) => {
+      const hasTag = prev.includes(tag);
+      return hasTag ? prev.filter((value) => value !== tag) : [...prev, tag];
+    });
   };
 
   const handleBrandToggle = (brand: string) => {
@@ -248,6 +252,18 @@ export function FlavorsExplorer({
     setActiveBrand(nextBrand);
     updateSearchParam("brand", nextBrand || undefined);
   };
+
+  const clearTags = () => {
+    setActiveTags([]);
+  };
+
+  useEffect(() => {
+    if (initialTagSync.current) {
+      initialTagSync.current = false;
+      return;
+    }
+    updateSearchParam("tag", activeTags.length ? activeTags.join(",") : undefined);
+  }, [activeTags, updateSearchParam]);
 
   const toggleTagExpand = (flavorId: number) => {
     setExpandedTagIds((prev) => {
@@ -275,7 +291,7 @@ export function FlavorsExplorer({
 
   const filteredFlavors = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
-    const normalizedTag = activeTag.trim().toLowerCase();
+    const normalizedTags = activeTags.map((tag) => tag.trim().toLowerCase()).filter((tag) => tag.length > 0);
     const normalizedBrand = activeBrand.trim().toLowerCase();
     const queryTokens = new Set([normalizedQuery]);
     JP_QUERY_MAP.forEach(({ jp, en }) => {
@@ -288,8 +304,8 @@ export function FlavorsExplorer({
     const filtered = items.filter((flavor) => {
       const haystack = [flavor.name, flavor.brand?.name ?? "", ...(flavor.tags ?? [])].join(" ").toLowerCase();
       const matchesQuery = tokens.length > 0 ? tokens.some((token) => haystack.includes(token)) : true;
-      const matchesTag = normalizedTag
-        ? flavor.tags?.some((tag) => tag.toLowerCase() === normalizedTag)
+      const matchesTag = normalizedTags.length > 0
+        ? normalizedTags.every((tag) => flavor.tags?.some((item) => item.toLowerCase() === tag))
         : true;
       const matchesBrand = normalizedBrand
         ? flavor.brand?.name?.toLowerCase() === normalizedBrand
@@ -317,7 +333,7 @@ export function FlavorsExplorer({
 
       return a.name.localeCompare(b.name, "ja");
     });
-  }, [activeBrand, activeTag, items, query, sort]);
+  }, [activeBrand, activeTags, items, query, sort]);
 
   const groupedFlavors = useMemo(() => {
     if (group !== "brand") return [];
@@ -634,7 +650,6 @@ export function FlavorsExplorer({
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <Badge variant="secondary">{totalCount}</Badge>
               <span>件のフレーバーが登録されています。</span>
-              <span>検索状態はURLパラメータとして保存されます。</span>
             </div>
           </div>
           <div className="flex flex-wrap gap-2" aria-label="表示切り替え">
@@ -721,7 +736,23 @@ export function FlavorsExplorer({
           </div>
           {availableBrands.length ? (
             <div className="space-y-2">
-              <Label>メーカーで絞り込み</Label>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Label>メーカーで絞り込み</Label>
+                  {activeBrand ? (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleBrandToggle("")}
+                      aria-label="メーカー絞り込みをクリア"
+                      className="h-6 w-6"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {availableBrands.map((brand) => (
                   <Button
@@ -734,18 +765,27 @@ export function FlavorsExplorer({
                     {brand}
                   </Button>
                 ))}
-                {activeBrand ? (
-                  <Button type="button" size="sm" variant="ghost" onClick={() => handleBrandToggle("")}>
-                    クリア
-                  </Button>
-                ) : null}
               </div>
             </div>
           ) : null}
           {availableTags.length ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <Label>タグで絞り込み</Label>
+                <div className="flex items-center gap-2">
+                  <Label>タグで絞り込み</Label>
+                  {activeTags.length > 0 ? (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={clearTags}
+                      aria-label="タグ絞り込みをクリア"
+                      className="h-6 w-6"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  ) : null}
+                </div>
               </div>
               <div className={tagsOpen ? "flex flex-wrap gap-2" : "flex items-center gap-2 overflow-hidden"}>
                 {(tagsOpen ? availableTags : availableTags.slice(0, maxCollapsedTags)).map((tag) => (
@@ -753,7 +793,7 @@ export function FlavorsExplorer({
                     key={tag}
                     type="button"
                     size="sm"
-                    variant={activeTag === tag ? "default" : "outline"}
+                    variant={activeTags.includes(tag) ? "default" : "outline"}
                     onClick={() => handleTagToggle(tag)}
                   >
                     {tag}
@@ -767,11 +807,6 @@ export function FlavorsExplorer({
                   >
                     {tagsOpen ? "show less" : "show more..."}
                   </button>
-                ) : null}
-                {activeTag ? (
-                  <Button type="button" size="sm" variant="ghost" onClick={() => handleTagToggle("")}>
-                    クリア
-                  </Button>
                 ) : null}
               </div>
             </div>
@@ -814,7 +849,7 @@ export function FlavorsExplorer({
       )}
 
       <Dialog open={Boolean(previewFlavor)} onOpenChange={(open) => (open ? null : setPreviewFlavor(null))}>
-        <DialogContent className="max-w-lg rounded-2xl">
+        <DialogContent className="max-w-lg rounded-2xl bg-background dark:bg-neutral-900">
           <DialogHeader>
             <DialogTitle>{previewFlavor?.name ?? ""}</DialogTitle>
             <DialogDescription>{previewFlavor?.brand?.name ?? "ブランド未設定"}</DialogDescription>

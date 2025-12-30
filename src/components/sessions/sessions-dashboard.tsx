@@ -316,7 +316,7 @@ export function SessionsDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>記録にはサインインが必要です</CardTitle>
-          <CardDescription>記録の確認・編集・削除には Supabase Auth でログインしてください。</CardDescription>
+          <CardDescription>記録の確認・編集・削除にはサインインが必要です。</CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild>
