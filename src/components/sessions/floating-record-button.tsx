@@ -3,10 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/auth/auth-provider";
 
 export function FloatingRecordButton() {
+  const { user, loading: authLoading } = useAuth();
   const [open, setOpen] = useState(false);
   const handleSelect = () => setOpen(false);
+
+  if (authLoading || !user) {
+    return null;
+  }
 
   return (
     <div

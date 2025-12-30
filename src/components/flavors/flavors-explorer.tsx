@@ -3,7 +3,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { FlavorWithBrand } from "@/lib/types";
+import type { Brand, FlavorWithBrand } from "@/lib/types";
 import { createSupabaseClient } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LayoutGrid, List } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -118,6 +119,11 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [group, setGroup] = useState<GroupOption>("none");
   const [userId, setUserId] = useState<string | null>(null);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editFlavor, setEditFlavor] = useState<FlavorWithBrand | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", brandId: "", tags: "" });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -144,6 +150,22 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
     }
     setUserId(user?.id ?? null);
   }, [authLoading, user?.id]);
+
+  const isAdmin = user?.app_metadata?.role === "admin";
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (brands.length > 0) return;
+    const fetchBrands = async () => {
+      const { data, error } = await supabase.from("brands").select("id,name,jp_available").order("name");
+      if (error) {
+        console.warn("brands fetch failed", error);
+        return;
+      }
+      setBrands((data as Brand[]) ?? []);
+    };
+    void fetchBrands();
+  }, [brands.length, isAdmin, supabase]);
 
   const availableTags = useMemo(() => {
     const tags = new Set<string>();
@@ -260,7 +282,9 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
     return Array.from(grouped.entries()).sort(([a], [b]) => a.localeCompare(b, "ja"));
   }, [filteredFlavors, group]);
 
-  const canDeleteFlavor = (flavor: FlavorWithBrand) => !!userId && flavor.created_by === userId;
+  const canDeleteFlavor = (flavor: FlavorWithBrand) =>
+    (!!userId && flavor.created_by === userId) || (isAdmin && !flavor.created_by);
+  const canEditFlavor = (flavor: FlavorWithBrand) => isAdmin && !flavor.created_by;
 
   const handleDeleteFlavor = async (flavor: FlavorWithBrand) => {
     if (!canDeleteFlavor(flavor)) return;
@@ -279,16 +303,84 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
     toast({ title: "フレーバーを削除しました" });
   };
 
+  const handleOpenEdit = (flavor: FlavorWithBrand) => {
+    if (!canEditFlavor(flavor)) return;
+    setEditFlavor(flavor);
+    setEditForm({
+      name: flavor.name ?? "",
+      brandId: flavor.brand_id ? String(flavor.brand_id) : "",
+      tags: flavor.tags?.join(", ") ?? ""
+    });
+    setEditOpen(true);
+  };
+
+  const handleEditChange = <K extends keyof typeof editForm>(key: K, value: (typeof editForm)[K]) => {
+    setEditForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleUpdateFlavor = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editFlavor || !canEditFlavor(editFlavor)) return;
+    if (isSaving) return;
+
+    const name = editForm.name.trim();
+    const brandId = Number(editForm.brandId);
+    if (!name || !Number.isFinite(brandId)) {
+      toast({
+        title: "入力を確認してください",
+        description: "フレーバー名とブランドを入力してください。",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const tags = editForm.tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0);
+
+    setIsSaving(true);
+    const { error } = await supabase
+      .from("flavors")
+      .update({
+        name,
+        brand_id: brandId,
+        tags: tags.length ? tags : null
+      })
+      .eq("id", editFlavor.id);
+    setIsSaving(false);
+
+    if (error) {
+      toast({
+        title: "更新に失敗しました",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const nextBrand = brands.find((brand) => brand.id === brandId) ?? editFlavor.brand ?? null;
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === editFlavor.id
+          ? { ...item, name, brand_id: brandId, tags: tags.length ? tags : null, brand: nextBrand }
+          : item
+      )
+    );
+    toast({ title: "フレーバーを更新しました" });
+    setEditOpen(false);
+  };
+
   const renderFlavorGridCard = (flavor: FlavorWithBrand) => {
     const imageUrl = imageUrls.get(flavor.id);
     return (
       <div key={flavor.id} className="space-y-3 rounded-lg border p-4">
         {imageUrl ? (
-          <div className="overflow-hidden rounded-md border">
+          <div className="flex h-40 items-center justify-center overflow-hidden rounded-md border bg-muted/10">
             <img
               src={imageUrl}
               alt={`${flavor.name} の画像`}
-              className="h-40 w-full object-cover"
+              className="h-full w-full object-contain"
               loading="lazy"
             />
           </div>
@@ -303,6 +395,11 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
             <p className="text-lg font-semibold">{flavor.name}</p>
           </div>
           <div className="flex items-center gap-2">
+            {canEditFlavor(flavor) ? (
+              <Button type="button" size="sm" variant="outline" onClick={() => handleOpenEdit(flavor)}>
+                編集
+              </Button>
+            ) : null}
             {canDeleteFlavor(flavor) ? (
               <Button type="button" size="sm" variant="ghost" onClick={() => handleDeleteFlavor(flavor)}>
                 削除
@@ -330,11 +427,11 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
     return (
       <div key={flavor.id} className="flex flex-col gap-4 rounded-lg border p-4 md:flex-row">
         {imageUrl ? (
-          <div className="w-full overflow-hidden rounded-md border md:w-40">
+          <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-md border bg-muted/10 md:w-40">
             <img
               src={imageUrl}
               alt={`${flavor.name} の画像`}
-              className="h-28 w-full object-cover"
+              className="h-full w-full object-contain"
               loading="lazy"
             />
           </div>
@@ -350,6 +447,11 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
             <p className="text-lg font-semibold">{flavor.name}</p>
           </div>
           <div className="flex items-center gap-2">
+            {canEditFlavor(flavor) ? (
+              <Button type="button" size="sm" variant="outline" onClick={() => handleOpenEdit(flavor)}>
+                編集
+              </Button>
+            ) : null}
             {canDeleteFlavor(flavor) ? (
               <Button type="button" size="sm" variant="ghost" onClick={() => handleDeleteFlavor(flavor)}>
                 削除
@@ -500,7 +602,7 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
                 <Badge variant="secondary">{brandFlavors.length}</Badge>
               </div>
               {viewMode === "grid" ? (
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 [grid-template-columns:repeat(1,minmax(0,1fr))] sm:[grid-template-columns:repeat(4,minmax(0,1fr))]">
                   {brandFlavors.map((flavor) => renderFlavorGridCard(flavor))}
                 </div>
               ) : (
@@ -512,10 +614,67 @@ export function FlavorsExplorer({ flavors, initialQuery, initialTag, initialSort
           ))}
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid gap-4 md:grid-cols-3">{filteredFlavors.map((flavor) => renderFlavorGridCard(flavor))}</div>
+        <div className="grid gap-4 [grid-template-columns:repeat(1,minmax(0,1fr))] sm:[grid-template-columns:repeat(4,minmax(0,1fr))]">
+          {filteredFlavors.map((flavor) => renderFlavorGridCard(flavor))}
+        </div>
       ) : (
         <div className="space-y-4">{filteredFlavors.map((flavor) => renderFlavorListCard(flavor))}</div>
       )}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>フレーバーを編集</DialogTitle>
+            <DialogDescription>既存フレーバーの名称やブランド、タグを更新します。</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleUpdateFlavor}>
+            <div className="space-y-2">
+              <Label htmlFor="edit-flavor-name">フレーバー名</Label>
+              <Input
+                id="edit-flavor-name"
+                value={editForm.name}
+                onChange={(event) => handleEditChange("name", event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-flavor-brand">ブランド</Label>
+              <select
+                id="edit-flavor-brand"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={editForm.brandId}
+                onChange={(event) => handleEditChange("brandId", event.target.value)}
+                required
+              >
+                <option value="" disabled>
+                  ブランドを選択してください
+                </option>
+                {brands.map((brand) => (
+                  <option key={brand.id} value={brand.id}>
+                    {brand.name} {brand.jp_available ? "(国内)" : "(海外)"}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-flavor-tags">タグ</Label>
+              <Input
+                id="edit-flavor-tags"
+                value={editForm.tags}
+                onChange={(event) => handleEditChange("tags", event.target.value)}
+                placeholder="例: フルーツ, ミント"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setEditOpen(false)} disabled={isSaving}>
+                キャンセル
+              </Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? "更新中..." : "更新する"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

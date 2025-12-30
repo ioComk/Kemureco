@@ -104,6 +104,13 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
       if (formState.imageFile) {
         const file = formState.imageFile;
         const fileExt = file.name.split(".").pop()?.toLowerCase() || "png";
+        const mimeByExt: Record<string, string> = {
+          png: "image/png",
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          webp: "image/webp"
+        };
+        const contentType = file.type || mimeByExt[fileExt] || "image/png";
         const normalizedName = formState.flavorName
           .trim()
           .toLowerCase()
@@ -115,7 +122,7 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
         const { error: uploadError } = await supabase.storage.from("flavor-images").upload(imagePath, file, {
           cacheControl: "3600",
           upsert: false,
-          contentType: file.type || "image/png"
+          contentType
         });
 
         if (uploadError) {

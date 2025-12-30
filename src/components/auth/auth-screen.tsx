@@ -31,6 +31,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
   const [isTwitterSigningIn, setIsTwitterSigningIn] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [notifiedSignedIn, setNotifiedSignedIn] = useState(false);
+  
 
   useEffect(() => {
     if (user?.email && onSignedIn && !notifiedSignedIn) {
@@ -79,6 +80,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
       }
     });
     setIsGoogleSigningIn(false);
+    console.log(redirectTo);
 
     if (error) {
       toast({
@@ -106,7 +108,9 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
         description: error.message,
         variant: "destructive"
       });
+      return;
     }
+
   };
 
   const handleSignOut = async () => {

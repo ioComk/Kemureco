@@ -4,6 +4,15 @@
 - **目的**: シーシャ利用者がフレーバーの記録・管理・共有・おすすめを受けられるプラットフォーム
 - **体制**: 個人開発（将来的にOSS化・拡張）
 
+## 開発ルール
+- 実装した機能やロジックについてはcodexのセッションが切れた場合でもわかるようにLOG.mdに記述していく
+- codexはLOG.mdを読み取り、現在の進捗状況を把握する
+- 新しいトピックを実装する場合はブランチを切ること
+- ブランチを切るときはmainブランチから切ること、他のブランチにいる場合はmainブランチに切り替えてからブランチを切ること
+- 実装が完了し、mainブランチにマージし終わったブランチは削除すること
+- 冪等性のあるプログラムロジックであること
+- プログラムに変更を加えた際、http://localhost:3000にアクセスし、HTTPS 200が返ってきているかを確認することで、エラーが発生していないか検証すること。
+
 ## 技術スタック / 構成
 - **Frontend**: Next.js 14 (App Router) + TypeScript + shadcn/ui
 - **Backend**: Supabase (PostgREST + Auth + RLS + Edge Functions)
@@ -49,15 +58,6 @@
 - 人気トレンド
 - Supabase Edge Function `recommend` から JSON 返却
 
-## 開発ルール
-- 実装した機能やロジックについてはcodexのセッションが切れた場合でもわかるようにLOG.mdに記述していく
-- codexはLOG.mdを読み取り、現在の進捗状況を把握する
-- 新しいトピックを実装する場合はブランチを切ること
-- ブランチを切るときはmainブランチから切ること、他のブランチにいる場合はmainブランチに切り替えてからブランチを切ること
-- 実装が完了し、mainブランチにマージし終わったブランチは削除すること
-- 冪等性のあるプログラムロジックであること
-- プログラムに変更を加えた際、http://localhost:3000にアクセスし、HTTPS 200が返ってきているかを確認することで、エラーが発生していないか検証すること。
-
 ### UI/UX
 - shadcn/ui（Button, Dialog, Toast, Table, Select, Slider など）
 - ライト/ダーク切替（Tailwind class）
@@ -80,7 +80,7 @@
 - `mix_components`（mix_id, flavor_id, ratio_percent）
 - `sessions`（id, user_id, started_at, location_text）
 
-主なリレーション:
+## 主なリレーション:
 - users -> mixes (1:N)
 - mixes -> mix_components (1:N)
 - brands -> flavors (1:N)
