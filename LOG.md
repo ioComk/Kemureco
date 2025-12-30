@@ -11,6 +11,8 @@
 - ユーザーメニューのサインイン/サインアウトボタン幅を統一し、Signed in with表示をボタン内に移しました。
 - サインアウトボタンのアイコンをakar-iconsのsign-outに差し替えました。
 - サインイン済み表示を中央テキストに変更し、問い合わせボタンの下に赤字のサインアウトボタンを配置しました。
+- ユーザーメニューをホバーで展開するようにし、フッターにGitHubリンクを追加しました。
+- favicon.icoを白背景に差し替えました。
 - AL Fakherのclassic SIGNATURE FLAVORSを既存データとして追加するマイグレーションを用意しました。
 - AL Fakher classicのWebP画像をSupabase Storageへアップロードし、image_pathを未設定分のみ紐付けしました。
 - DARKSIDE（ASLAJ掲載分）を登録し、WebP画像をStorageへアップロードしてimage_pathを紐付けました。

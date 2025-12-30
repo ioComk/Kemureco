@@ -63,7 +63,12 @@ export function UserMenu() {
   }, []);
 
   return (
-    <div className="relative" ref={ref}>
+    <div
+      className="relative"
+      ref={ref}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
       <Button
         variant="ghost"
         size="sm"
