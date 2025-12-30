@@ -8,13 +8,23 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, LogOut, Mail, Twitter } from "lucide-react";
+import { Loader2, LogOut, Mail } from "lucide-react";
 import { GoogleFill } from "akar-icons";
 import { useAuth } from "@/components/auth/auth-provider";
 
 type AuthScreenProps = {
   onSignedIn?: () => void;
 };
+
+const XIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 1024 1024" aria-hidden="true">
+    <path
+      fill="currentColor"
+      fillRule="evenodd"
+      d="M921 912L601.11 445.745l.546.437L890.084 112h-96.385L558.738 384L372.15 112H119.367l298.648 435.31l-.036-.037L103 912h96.385l261.222-302.618L668.217 912zM333.96 184.727l448.827 654.546h-76.38l-449.19-654.546z"
+    />
+  </svg>
+);
 
 export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
   const supabase = useMemo(() => createSupabaseClient(), []);
@@ -201,7 +211,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
               disabled={isTwitterSigningIn}
               className="w-full sm:w-auto gap-2 shadow-sm"
             >
-              {isTwitterSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <Twitter className="h-4 w-4" />}
+              {isTwitterSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <XIcon className="h-4 w-4" />}
               {isTwitterSigningIn ? "リダイレクト中..." : "X でサインイン"}
             </Button>
           </div>
