@@ -5,6 +5,7 @@
 - apple-touch-icon.pngを追加しました。
 - 未ログイン時のホームにロゴを表示しました。
 - Xログインボタンのアイコンをant-design-x-outlinedに置き換えました。
+- PWA用のmanifestとホーム画面アイコン（192/512）を追加しました。
 - AL Fakherのclassic SIGNATURE FLAVORSを既存データとして追加するマイグレーションを用意しました。
 - AL Fakher classicのWebP画像をSupabase Storageへアップロードし、image_pathを未設定分のみ紐付けしました。
 - DARKSIDE（ASLAJ掲載分）を登録し、WebP画像をStorageへアップロードしてimage_pathを紐付けました。
