@@ -34,6 +34,7 @@
 - 未ログイン時のホームからロゴ表示を削除しました。
 - サインインにEmail+Passwordを追加し、Magic Linkと切り替えられるようにしました。
 - サインアップ時のName入力を削除しました。
+- ルート進捗バーをSuspenseで包み、/authのビルドエラーを解消しました。
 - AL Fakherのclassic SIGNATURE FLAVORSを既存データとして追加するマイグレーションを用意しました。
 - AL Fakher classicのWebP画像をSupabase Storageへアップロードし、image_pathを未設定分のみ紐付けしました。
 - DARKSIDE（ASLAJ掲載分）を登録し、WebP画像をStorageへアップロードしてimage_pathを紐付けました。
