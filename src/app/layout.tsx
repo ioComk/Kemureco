@@ -22,7 +22,12 @@ export const metadata: Metadata = {
     default: "Kemureco",
     template: "%s | Kemureco"
   },
-  description: "Kemureco"
+  description: "Kemureco",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png"
+  }
 };
 
 export default function RootLayout({
