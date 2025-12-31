@@ -3,6 +3,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import type { Brand, FlavorWithBrand } from "@/lib/types";
 import { createSupabaseClient } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowUp, LayoutGrid, List, X } from "lucide-react";
+import { ArrowUp, LayoutGrid, List, RotateCcw, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -135,6 +136,8 @@ export function FlavorsExplorer({
   const [editForm, setEditForm] = useState({ name: "", brandId: "", tags: "" });
   const [isSaving, setIsSaving] = useState(false);
   const [previewFlavor, setPreviewFlavor] = useState<FlavorWithBrand | null>(null);
+  const [selectedFlavorIds, setSelectedFlavorIds] = useState<number[]>([]);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -170,6 +173,42 @@ export function FlavorsExplorer({
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (selectedFlavorIds.length === 0) {
+      setSelectionMode(false);
+    }
+  }, [selectedFlavorIds.length]);
+
+  const scrollToTop = () => {
+    const start = window.scrollY;
+    if (start <= 0) return;
+    const duration = 450;
+    const startTime = performance.now();
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const next = start * (1 - easeOutCubic(progress));
+      window.scrollTo(0, next);
+      if (progress < 1) {
+        window.requestAnimationFrame(tick);
+      }
+    };
+    window.requestAnimationFrame(tick);
+  };
+
+  const toggleSelectedFlavor = (flavorId: number) => {
+    const alreadySelected = selectedFlavorIds.includes(flavorId);
+    if (!alreadySelected && selectedFlavorIds.length >= 4) {
+      toast({ title: "フレーバーは最大4つまで選択できます", variant: "destructive" });
+      return;
+    }
+    setSelectedFlavorIds((prev) =>
+      prev.includes(flavorId) ? prev.filter((id) => id !== flavorId) : [...prev, flavorId]
+    );
+  };
 
   useEffect(() => {
     if (authLoading) {
@@ -449,17 +488,20 @@ export function FlavorsExplorer({
 
   const renderFlavorGridCard = (flavor: FlavorWithBrand) => {
     const imageUrl = imageUrls.get(flavor.id);
+    const isSelected = selectedFlavorIds.includes(flavor.id);
     return (
       <div
         key={flavor.id}
-        className="space-y-3 rounded-lg border p-4 transition hover:border-primary/40 hover:shadow-sm"
+        className={`space-y-3 rounded-lg border p-4 transition hover:border-primary/40 hover:shadow-sm ${
+          isSelected ? "border-primary/60 bg-primary/5 ring-2 ring-primary/30" : ""
+        }`}
         role="button"
         tabIndex={0}
-        onClick={() => setPreviewFlavor(flavor)}
+        onClick={() => (selectionMode ? toggleSelectedFlavor(flavor.id) : setPreviewFlavor(flavor))}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            setPreviewFlavor(flavor);
+            selectionMode ? toggleSelectedFlavor(flavor.id) : setPreviewFlavor(flavor);
           }
         }}
       >
@@ -547,17 +589,20 @@ export function FlavorsExplorer({
 
   const renderFlavorListCard = (flavor: FlavorWithBrand) => {
     const imageUrl = imageUrls.get(flavor.id);
+    const isSelected = selectedFlavorIds.includes(flavor.id);
     return (
       <div
         key={flavor.id}
-        className="flex flex-col gap-4 rounded-lg border p-4 transition hover:border-primary/40 hover:shadow-sm md:flex-row"
+        className={`flex flex-col gap-4 rounded-lg border p-4 transition hover:border-primary/40 hover:shadow-sm md:flex-row ${
+          isSelected ? "border-primary/60 bg-primary/5 ring-2 ring-primary/30" : ""
+        }`}
         role="button"
         tabIndex={0}
-        onClick={() => setPreviewFlavor(flavor)}
+        onClick={() => (selectionMode ? toggleSelectedFlavor(flavor.id) : setPreviewFlavor(flavor))}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            setPreviewFlavor(flavor);
+            selectionMode ? toggleSelectedFlavor(flavor.id) : setPreviewFlavor(flavor);
           }
         }}
       >
@@ -869,11 +914,33 @@ export function FlavorsExplorer({
         className={`fixed right-4 top-2/3 z-50 h-9 w-9 -translate-y-1/2 shadow-lg transition-all duration-300 sm:right-6 ${
           showScrollTop ? "scale-100 opacity-100" : "pointer-events-none scale-90 opacity-0"
         }`}
-        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        onClick={scrollToTop}
         aria-label="ページ上部へ戻る"
       >
         <ArrowUp className="h-4 w-4" />
       </Button>
+
+      {selectedFlavorIds.length > 0 ? (
+        <div className="fixed left-1/2 top-16 z-50 flex -translate-x-1/2 items-center gap-2">
+          <Button
+            type="button"
+            className="rounded-full shadow-lg"
+            onClick={() => router.push(`/sessions/new?flavorIds=${selectedFlavorIds.join(",")}`)}
+          >
+            選択したフレーバーで記録する ({selectedFlavorIds.length})
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-10 w-10 rounded-full shadow-lg"
+            onClick={() => setSelectedFlavorIds([])}
+            aria-label="選択をリセット"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : null}
 
       <Dialog open={Boolean(previewFlavor)} onOpenChange={(open) => (open ? null : setPreviewFlavor(null))}>
         <DialogContent className="max-w-lg rounded-2xl bg-background dark:bg-neutral-900">
@@ -906,6 +973,35 @@ export function FlavorsExplorer({
                 画像なし
               </div>
             )
+          ) : null}
+          {previewFlavor ? (
+            <Button asChild size="sm">
+              <Link
+                href={`/sessions/new?flavorId=${previewFlavor.id}`}
+                onClick={() => setPreviewFlavor(null)}
+              >
+                このフレーバーの記録を作成
+              </Link>
+            </Button>
+          ) : null}
+          {previewFlavor ? (
+            <div className="space-y-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={selectedFlavorIds.includes(previewFlavor.id) ? "default" : "outline"}
+                onClick={() => {
+                  setSelectionMode(true);
+                  setPreviewFlavor(null);
+                  toggleSelectedFlavor(previewFlavor.id);
+                }}
+              >
+                {selectedFlavorIds.includes(previewFlavor.id) ? "選択から外す" : "フレーバーミックスの記録を作成"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                複数選択した後、画面上部のボタンから記録作成へ進めます。
+              </p>
+            </div>
           ) : null}
         </DialogContent>
       </Dialog>
