@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { Session } from "@/lib/types";
-import type { MixOption, SessionItem } from "@/components/sessions/types";
+import type { SessionItem } from "@/components/sessions/types";
 import { SessionOverviewCard } from "@/components/sessions/session-overview-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -14,8 +14,8 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth/auth-provider";
+import { HomeSessionsCalendar } from "@/components/sessions/home-sessions-calendar";
 
 export function SessionsDashboard() {
   const supabase = useMemo(() => createSupabaseClient(), []);
@@ -25,24 +25,18 @@ export function SessionsDashboard() {
 
   const [sessionState, setSessionState] = useState<{ loading: boolean; userId?: string }>({ loading: true });
   const [mixColumnAvailable, setMixColumnAvailable] = useState(true);
-  const [mixes, setMixes] = useState<MixOption[]>([]);
+  const [flavors, setFlavors] = useState<Array<{ id: number; name: string; brandName?: string | null }>>([]);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedSessions, setSelectedSessions] = useState<SessionItem[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingComponents, setEditingComponents] = useState<Array<{ flavorId: string }>>([]);
   const [editingForm, setEditingForm] = useState<{
-    mixId: string;
     startedAt: string;
     location: string;
     satisfaction: number;
     notes: string;
-  }>({ mixId: "", startedAt: "", location: "", satisfaction: 3, notes: "" });
+  }>({ startedAt: "", location: "", satisfaction: 3, notes: "" });
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const maxComponents = 4;
 
   useEffect(() => {
     if (authLoading) {
@@ -52,25 +46,32 @@ export function SessionsDashboard() {
     const userId = user?.id;
     setSessionState({ loading: false, userId });
     if (userId) {
-      void fetchMixes();
+      void fetchFlavors();
       void fetchSessions(userId);
     } else {
       setSessions([]);
     }
   }, [authLoading, user?.id]);
 
-  useEffect(() => {
-    if (!selectedDate) return;
-    const filtered = sessions.filter((session) => {
-      if (!session.started_at) return false;
-      return session.started_at.slice(0, 10) === selectedDate;
-    });
-    setSelectedSessions(filtered);
-  }, [selectedDate, sessions]);
 
-  const fetchMixes = async () => {
-    const { data } = await supabase.from("mixes").select("id,title").order("created_at", { ascending: false });
-    setMixes(data ?? []);
+  const fetchFlavors = async () => {
+    const { data, error } = await supabase
+      .from("flavors")
+      .select("id,name,brands(name)")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) {
+      console.error("fetch flavors error", error);
+      return;
+    }
+    const rows = Array.isArray(data) ? data : [];
+    setFlavors(
+      rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        brandName: row.brands?.name ?? null
+      }))
+    );
   };
 
   const fetchSessions = async (userId: string) => {
@@ -172,35 +173,130 @@ export function SessionsDashboard() {
   const startEdit = (item: SessionItem) => {
     setEditingId(item.id);
     setEditingForm({
-      mixId: item.mix_id ? String(item.mix_id) : "",
       startedAt: item.started_at ? new Date(item.started_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
       location: item.location_text ?? "",
       satisfaction: item.satisfaction ?? 3,
       notes: item.notes ?? ""
     });
+    setEditingComponents(
+      item.mix?.components?.length
+        ? item.mix.components.map((component) => ({ flavorId: String(component.flavorId) }))
+        : []
+    );
   };
 
   const cancelEdit = () => {
     setEditingId(null);
+    setEditingComponents([]);
   };
 
   const handleEditChange = <K extends keyof typeof editingForm>(key: K, value: (typeof editingForm)[K]) => {
     setEditingForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleComponentChange = (index: number, flavorId: string) => {
+    setEditingComponents((prev) => {
+      const next = [...prev];
+      next[index] = { flavorId };
+      return next;
+    });
+  };
+
+  const handleAddComponent = () => {
+    setEditingComponents((prev) => (prev.length >= maxComponents ? prev : [...prev, { flavorId: "" }]));
+  };
+
+  const handleRemoveComponent = (index: number) => {
+    setEditingComponents((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   const handleUpdate = async (sessionId: number) => {
     if (!sessionState.userId || editingId !== sessionId) return;
+    if (mixColumnAvailable && editingComponents.length > 0 && editingComponents.some((component) => !component.flavorId)) {
+      toast({ title: "フレーバーを選択してください", variant: "destructive" });
+      return;
+    }
+
     const basePayload = {
       location_text: editingForm.location.trim() || null,
       notes: editingForm.notes.trim() || null,
       satisfaction: editingForm.satisfaction,
       started_at: new Date(editingForm.startedAt).toISOString()
     };
-    const fullPayload = mixColumnAvailable
-      ? { ...basePayload, mix_id: editingForm.mixId ? Number(editingForm.mixId) : null }
-      : basePayload;
+    const sessionItem = sessions.find((item) => item.id === sessionId);
 
     startTransition(async () => {
+      let mixIdToUse: number | null = mixColumnAvailable ? sessionItem?.mix_id ?? null : null;
+      if (mixColumnAvailable) {
+        const flavorIds = editingComponents.map((component) => Number(component.flavorId)).filter((id) => id > 0);
+        if (flavorIds.length > 0) {
+          const canUpdateExisting = sessionItem?.mix?.title?.startsWith("記録フレーバー");
+          if (!canUpdateExisting) {
+            mixIdToUse = null;
+          }
+          if (!mixIdToUse) {
+            const title = `記録フレーバー ${new Date(editingForm.startedAt).toLocaleString("ja-JP", {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit"
+            })}`;
+            const { data: mixData, error: mixError } = await supabase
+              .from("mixes")
+              .insert({ title, description: null, user_id: sessionState.userId })
+              .select("id")
+              .single();
+            if (mixError || !mixData) {
+              console.error("insert mix error", mixError);
+              toast({
+                title: "ミックス作成に失敗しました",
+                description: "フレーバー構成の保存に失敗しました。",
+                variant: "destructive"
+              });
+              return;
+            }
+            mixIdToUse = mixData.id;
+          }
+
+          if (mixIdToUse) {
+            const { error: deleteError } = await supabase.from("mix_components").delete().eq("mix_id", mixIdToUse);
+            if (deleteError) {
+              console.error("delete mix components error", deleteError);
+              toast({
+                title: "フレーバー更新に失敗しました",
+                description: deleteError.message,
+                variant: "destructive"
+              });
+              return;
+            }
+
+            const equal = Math.floor(100 / flavorIds.length);
+            let remainder = 100 - equal * flavorIds.length;
+            const ratios = flavorIds.map(() => equal + (remainder-- > 0 ? 1 : 0));
+            const componentsPayload = flavorIds.map((flavorId, index) => ({
+              mix_id: mixIdToUse,
+              flavor_id: flavorId,
+              ratio_percent: ratios[index] ?? 0,
+              layer_order: index + 1
+            }));
+
+            const { error: compError } = await supabase.from("mix_components").insert(componentsPayload);
+            if (compError) {
+              console.error("insert mix components error", compError);
+              toast({
+                title: "フレーバー更新に失敗しました",
+                description: compError.message,
+                variant: "destructive"
+              });
+              return;
+            }
+          }
+        } else {
+          mixIdToUse = null;
+        }
+      }
+
+      const fullPayload = mixColumnAvailable ? { ...basePayload, mix_id: mixIdToUse } : basePayload;
       const attemptUpdate = async (payload: Record<string, unknown>, allowRetry: boolean): Promise<boolean> => {
         const { error } = await supabase.from("sessions").update(payload).eq("id", sessionId);
         if (error) {
@@ -257,55 +353,6 @@ export function SessionsDashboard() {
     }
   };
 
-  const calendarSessions = useMemo(() => {
-    const map = new Map<string, SessionItem[]>();
-    const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-
-    sessions.forEach((session) => {
-      if (!session.started_at) return;
-      const date = new Date(session.started_at);
-      if (date < monthStart || date > monthEnd) return;
-      const key = date.toISOString().slice(0, 10);
-      const current = map.get(key) ?? [];
-      current.push(session);
-      map.set(key, current);
-    });
-
-    return map;
-  }, [sessions, currentMonth]);
-
-  const calendarCells = useMemo(() => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const startWeekDay = firstDay.getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    const cells: { date?: Date }[] = [];
-
-    for (let i = 0; i < startWeekDay; i += 1) {
-      cells.push({ date: undefined });
-    }
-
-    for (let day = 1; day <= daysInMonth; day += 1) {
-      cells.push({ date: new Date(year, month, day) });
-    }
-
-    while (cells.length % 7 !== 0) {
-      cells.push({ date: undefined });
-    }
-
-    return cells;
-  }, [currentMonth]);
-
-  const handleSelectDate = (date: Date | undefined, daySessions: SessionItem[]) => {
-    if (!date || daySessions.length === 0) return;
-    const key = date.toISOString().slice(0, 10);
-    setSelectedDate(key);
-    setSelectedSessions(daySessions);
-    setDialogOpen(true);
-  };
 
   if (sessionState.loading) {
     return <p className="text-sm text-muted-foreground">認証状態を確認しています...</p>;
@@ -332,75 +379,7 @@ export function SessionsDashboard() {
     <div className="space-y-6">
       <SessionOverviewCard sessions={sessions} />
 
-      <Card className="border-0 shadow-none">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">カレンダー</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-3xl bg-card/80 p-5 shadow-lg">
-            <div className="mb-4 flex items-center justify-between text-sm font-semibold text-foreground/80">
-              <button
-                type="button"
-                className="rounded-full p-2 text-muted-foreground transition hover:bg-muted"
-                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-                aria-label="前の月"
-              >
-                ←
-              </button>
-              <p className="text-sm font-semibold tracking-wide">
-                {currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月
-              </p>
-              <button
-                type="button"
-                className="rounded-full p-2 text-muted-foreground transition hover:bg-muted"
-                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-                aria-label="次の月"
-              >
-                →
-              </button>
-            </div>
-            <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-semibold tracking-[0.2em] text-muted-foreground/70">
-              {["日", "月", "火", "水", "木", "金", "土"].map((w) => (
-                <div key={w}>{w}</div>
-              ))}
-            </div>
-            <div className="mt-3 grid grid-cols-7 gap-2 text-center">
-              {calendarCells.map((cell, index) => {
-                const date = cell.date;
-                const key = date ? date.toISOString().slice(0, 10) : `blank-${index}`;
-                const daySessions = date ? calendarSessions.get(key) ?? [] : [];
-                const hasSessions = daySessions.length > 0;
-                const highlightAlpha = Math.min(0.25 + daySessions.length * 0.18, 0.85);
-                const highlightStyle = hasSessions
-                  ? { backgroundColor: `rgba(56, 189, 248, ${highlightAlpha})` }
-                  : undefined;
-                return (
-                  <div
-                    key={key}
-                    className="flex h-10 items-center justify-center"
-                    onClick={() => handleSelectDate(date, daySessions)}
-                    role={hasSessions ? "button" : undefined}
-                    tabIndex={hasSessions ? 0 : -1}
-                  >
-                    {date ? (
-                      <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition ${
-                          hasSessions
-                            ? "border-transparent text-white"
-                            : "border-transparent text-muted-foreground"
-                        }`}
-                        style={highlightStyle}
-                      >
-                        {date.getDate()}
-                      </span>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <HomeSessionsCalendar />
 
       <Card>
         <CardHeader>
@@ -430,20 +409,49 @@ export function SessionsDashboard() {
                       </div>
                       {mixColumnAvailable ? (
                         <div className="space-y-2">
-                          <Label htmlFor={`mix-${item.id}`}>ミックス</Label>
-                          <select
-                            id={`mix-${item.id}`}
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            value={editingForm.mixId}
-                            onChange={(event) => handleEditChange("mixId", event.target.value)}
-                          >
-                            <option value="">選択しない</option>
-                            {mixes.map((mix) => (
-                              <option key={mix.id} value={mix.id}>
-                                {mix.title}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="flex items-center justify-between">
+                            <Label>フレーバー</Label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleAddComponent}
+                              disabled={editingComponents.length >= maxComponents}
+                            >
+                              追加
+                            </Button>
+                          </div>
+                          {editingComponents.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">フレーバー未設定</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {editingComponents.map((component, index) => (
+                                <div key={`edit-flavor-${item.id}-${index}`} className="flex items-center gap-2">
+                                  <select
+                                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    value={component.flavorId}
+                                    onChange={(event) => handleComponentChange(index, event.target.value)}
+                                  >
+                                    <option value="">フレーバーを選択</option>
+                                    {flavors.map((flavor) => (
+                                      <option key={flavor.id} value={flavor.id}>
+                                        {flavor.brandName ? `${flavor.brandName} ` : ""}
+                                        {flavor.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveComponent(index)}
+                                  >
+                                    削除
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ) : null}
                       <div className="space-y-2">
@@ -546,59 +554,6 @@ export function SessionsDashboard() {
         </CardContent>
       </Card>
     </div>
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{selectedDate ? new Date(selectedDate).toLocaleDateString("ja-JP") : "記録"}</DialogTitle>
-          </DialogHeader>
-          {selectedSessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">この日に記録はありません。</p>
-          ) : (
-            <div className="space-y-3">
-              {selectedSessions.map((session) => (
-                <div key={session.id} className="rounded-md border p-3">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-medium">{session.mix?.title ?? "ミックス未選択"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {session.started_at
-                            ? new Date(session.started_at).toLocaleTimeString("ja-JP", {
-                                hour: "2-digit",
-                                minute: "2-digit"
-                              })
-                            : "時間不明"}
-                        </p>
-                      </div>
-                      <Badge variant="secondary" className="text-xs">
-                        満足度 {session.satisfaction ?? "-"} / 5
-                      </Badge>
-                    </div>
-                    {session.mix?.components && session.mix.components.length > 0 ? (
-                      <div className="mt-2 space-y-1">
-                        <p className="text-[11px] text-muted-foreground">使用フレーバー</p>
-                        <div className="flex flex-wrap gap-2">
-                          {session.mix.components.map((component) => (
-                            <Badge key={`${session.id}-${component.flavorId}`} variant="outline" className="text-[11px]">
-                              {component.brandName ? `${component.brandName} ` : ""}
-                              {component.flavorName}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    {session.location_text ? (
-                      <p className="mt-2 text-sm text-muted-foreground">場所: {session.location_text}</p>
-                    ) : null}
-                    {session.notes ? <p className="mt-2 whitespace-pre-wrap text-sm">{session.notes}</p> : null}
-                    <p className="mt-2 text-[11px] text-muted-foreground">記録ID: {session.id}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { Database, Flavor } from "@/lib/types";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +27,7 @@ type FormState = {
 
 type ComponentState = {
   flavorId: string;
-  grams: number;
+  grams: number | "";
   mode: "existing" | "custom";
   customName: string;
   customBrand: string;
@@ -117,9 +117,11 @@ function createDefaultComponents(count: number): ComponentState[] {
   }));
 }
 
+const getGramsValue = (grams: ComponentState["grams"]) => (typeof grams === "number" ? grams : 0);
+
 function evenDistribution(list: ComponentState[], totalOverride?: number): ComponentState[] {
   if (list.length === 0) return list;
-  const currentTotal = list.reduce((sum, component) => sum + component.grams, 0);
+  const currentTotal = list.reduce((sum, component) => sum + getGramsValue(component.grams), 0);
   const total = totalOverride ?? (currentTotal > 0 ? currentTotal : DEFAULT_COMPONENT_GRAMS * list.length);
   const equal = Math.floor(total / list.length);
   let remainder = total - equal * list.length;
@@ -133,6 +135,7 @@ export function SessionForm() {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const { user, loading: authLoading } = useAuth();
 
@@ -146,6 +149,7 @@ export function SessionForm() {
   const [useCustomRatio, setUseCustomRatio] = useState(false);
   const [flavorModalIndex, setFlavorModalIndex] = useState<number | null>(null);
   const [flavorQuery, setFlavorQuery] = useState("");
+  const flavorById = useMemo(() => new Map(flavors.map((flavor) => [String(flavor.id), flavor])), [flavors]);
 
   useEffect(() => {
     if (authLoading) {
@@ -166,6 +170,46 @@ export function SessionForm() {
   useEffect(() => {
     setFormState((prev) => ({ ...prev, startedAt: toJstDatetimeValue(new Date()) }));
   }, []);
+
+  useEffect(() => {
+    const flavorIdsParam = searchParams.get("flavorIds");
+    const flavorIdParam = searchParams.get("flavorId");
+    if (!flavorIdsParam && !flavorIdParam) return;
+    const ids = (flavorIdsParam ? flavorIdsParam.split(",") : [flavorIdParam])
+      .map((value) => value.trim())
+      .filter((value): value is string => Boolean(value))
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0)
+      .slice(0, 4);
+    if (ids.length === 0) return;
+    setComponents(() => {
+      const targetLength = Math.max(1, ids.length);
+      const next = createDefaultComponents(targetLength);
+      ids.forEach((id, index) => {
+        next[index] = { ...next[index], flavorId: String(id), mode: "existing", customName: "", customBrand: "" };
+      });
+      return next;
+    });
+
+    const ensureSelectedFlavors = async () => {
+      const missing = ids.filter((id) => !flavorById.has(String(id)));
+      if (missing.length === 0) return;
+      const { data, error } = await supabase
+        .from("flavors")
+        .select("id,name,brand_id,created_at,created_by,tags,image_path,brands(id,name,jp_available)")
+        .in("id", missing);
+      if (error || !data) return;
+      type FlavorQuery = Flavor & { brands?: { id: number; name: string; jp_available: boolean } | null };
+      const rows = data as FlavorQuery[];
+      const mapped = rows.map((row) => ({ ...row, brand: row.brands ?? null, brands: undefined }));
+      setFlavors((prev) => {
+        const map = new Map(prev.map((flavor) => [flavor.id, flavor]));
+        mapped.forEach((flavor) => map.set(flavor.id, flavor));
+        return Array.from(map.values());
+      });
+    };
+    void ensureSelectedFlavors();
+  }, [searchParams, flavorById, supabase]);
 
   const fetchMixes = async () => {
     const { data } = await supabase.from("mixes").select("id,title").order("created_at", { ascending: false });
@@ -222,7 +266,6 @@ export function SessionForm() {
       .slice(0, max);
   };
 
-  const flavorById = useMemo(() => new Map(flavors.map((flavor) => [String(flavor.id), flavor])), [flavors]);
 
   const filteredFlavors = useMemo(() => {
     const tokenList = getFlavorSearchTokens(flavorQuery);
@@ -258,11 +301,11 @@ export function SessionForm() {
     });
   };
 
-  const totalGrams = components.reduce((sum, c) => sum + c.grams, 0);
+  const totalGrams = components.reduce((sum, c) => sum + getGramsValue(c.grams), 0);
   const canSubmitFlavors =
     components.length > 0 &&
     components.every((c) => (c.mode === "existing" ? c.flavorId !== "" : c.customName.trim().length > 0)) &&
-    (!useCustomRatio || (totalGrams > 0 && components.every((c) => c.grams > 0))) &&
+    (!useCustomRatio || (totalGrams > 0 && components.every((c) => getGramsValue(c.grams) > 0))) &&
     !!authUserId;
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -277,7 +320,7 @@ export function SessionForm() {
       .map((component) => {
         const name = component.customName.trim();
         const brand = component.customBrand.trim();
-        const grams = component.grams > 0 ? ` (${component.grams}g)` : "";
+        const grams = getGramsValue(component.grams) > 0 ? ` (${getGramsValue(component.grams)}g)` : "";
         return `${brand ? `${brand} ` : ""}${name}${grams}`;
       });
     const notesPayload = [formState.notes.trim(), customFlavorNotes.length ? `自由入力フレーバー: ${customFlavorNotes.join(", ")}` : ""]
@@ -336,8 +379,10 @@ export function SessionForm() {
             return components.map(() => equal + (remainder-- > 0 ? 1 : 0));
           }
 
-          const total = components.reduce((sum, component) => sum + component.grams, 0);
-          const rawRatios = components.map((component) => (total > 0 ? (component.grams / total) * 100 : 0));
+          const total = components.reduce((sum, component) => sum + getGramsValue(component.grams), 0);
+          const rawRatios = components.map((component) =>
+            total > 0 ? (getGramsValue(component.grams) / total) * 100 : 0
+          );
           const floored = rawRatios.map((value) => Math.floor(value));
           let remainder = 100 - floored.reduce((sum, value) => sum + value, 0);
           const order = rawRatios
@@ -471,6 +516,9 @@ export function SessionForm() {
                         </Button>
                       ) : null}
                     </div>
+                        {useCustomRatio && getGramsValue(component.grams) <= 0 ? (
+                          <p className="text-xs text-destructive">0gのフレーバーは保存できません。</p>
+                        ) : null}
                     <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
@@ -490,77 +538,112 @@ export function SessionForm() {
                       </Button>
                     </div>
                     {component.mode === "existing" ? (
-                      <Dialog
-                        open={flavorModalIndex === index}
-                        onOpenChange={(open) => {
-                          setFlavorModalIndex(open ? index : null);
-                          if (!open) {
-                            setFlavorQuery("");
-                          }
-                        }}
-                      >
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full justify-between text-left"
-                          onClick={() => {
-                            setFlavorModalIndex(index);
-                            setFlavorQuery("");
+                      <div className="flex items-center gap-2">
+                        <Dialog
+                          open={flavorModalIndex === index}
+                          onOpenChange={(open) => {
+                            setFlavorModalIndex(open ? index : null);
+                            if (!open) {
+                              setFlavorQuery("");
+                            }
                           }}
                         >
-                          <span className="truncate">
-                            {component.flavorId
-                              ? (() => {
-                                  const selected = flavorById.get(component.flavorId);
-                                  if (!selected) return "フレーバーを選択";
-                                  return selected.brand?.name ? `${selected.brand.name} / ${selected.name}` : selected.name;
-                                })()
-                              : "フレーバーを選択"}
-                          </span>
-                          <span className="text-xs text-muted-foreground">変更</span>
-                        </Button>
-                        <DialogContent className="max-w-lg">
-                          <DialogHeader>
-                            <DialogTitle>既存フレーバーを選択</DialogTitle>
-                            <DialogDescription>ブランド名やフレーバー名で絞り込めます。</DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-3">
-                            <Input
-                              placeholder="検索 (例: Mint, レモン)"
-                              value={flavorQuery}
-                              onChange={(event) => setFlavorQuery(event.target.value)}
-                            />
-                            <div className="max-h-72 overflow-auto rounded-md border">
-                              {filteredFlavors.length === 0 ? (
-                                <p className="px-3 py-6 text-center text-sm text-muted-foreground">候補が見つかりませんでした。</p>
-                              ) : (
-                                <div className="divide-y">
-                                  {filteredFlavors.map((flavor) => (
-                                    <button
-                                      key={flavor.id}
-                                      type="button"
-                                      className="flex w-full items-center justify-between px-3 py-3 text-left text-sm transition hover:bg-accent"
-                                      onClick={() => {
-                                        handleComponentChange(index, {
-                                          flavorId: String(flavor.id),
-                                          mode: "existing",
-                                          customName: "",
-                                          customBrand: ""
-                                        });
-                                        setFlavorModalIndex(null);
-                                        setFlavorQuery("");
-                                      }}
-                                    >
-                                      <span>{flavor.name}</span>
-                                      <span className="text-xs text-muted-foreground">{flavor.brand?.name ?? "ブランド未設定"}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full justify-between text-left"
+                            onClick={() => {
+                              setFlavorModalIndex(index);
+                              setFlavorQuery("");
+                            }}
+                          >
+                            <span className="truncate">
+                              {component.flavorId
+                                ? (() => {
+                                    const selected = flavorById.get(component.flavorId);
+                                    if (!selected) return "フレーバーを選択";
+                                    return (
+                                      <span className="flex items-center gap-1 truncate">
+                                        <span className="truncate">{selected.name}</span>
+                                        {selected.brand?.name ? (
+                                          <>
+                                            <span className="text-xs text-muted-foreground">/</span>
+                                            <span className="truncate text-xs text-muted-foreground">{selected.brand.name}</span>
+                                          </>
+                                        ) : null}
+                                      </span>
+                                    );
+                                  })()
+                                : "フレーバーを選択"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">変更</span>
+                          </Button>
+                          <DialogContent className="max-w-lg">
+                            <DialogHeader>
+                              <DialogTitle>既存フレーバーを選択</DialogTitle>
+                              <DialogDescription>ブランド名やフレーバー名で絞り込めます。</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-3">
+                              <Input
+                                placeholder="検索 (例: Mint, レモン)"
+                                value={flavorQuery}
+                                onChange={(event) => setFlavorQuery(event.target.value)}
+                              />
+                              <div className="max-h-72 overflow-auto rounded-md border">
+                                {filteredFlavors.length === 0 ? (
+                                  <p className="px-3 py-6 text-center text-sm text-muted-foreground">候補が見つかりませんでした。</p>
+                                ) : (
+                                  <div className="divide-y">
+                                    {filteredFlavors.map((flavor) => (
+                                      <button
+                                        key={flavor.id}
+                                        type="button"
+                                        className="flex w-full items-center justify-between px-3 py-3 text-left text-sm transition hover:bg-accent"
+                                        onClick={() => {
+                                          handleComponentChange(index, {
+                                            flavorId: String(flavor.id),
+                                            mode: "existing",
+                                            customName: "",
+                                            customBrand: ""
+                                          });
+                                          setFlavorModalIndex(null);
+                                          setFlavorQuery("");
+                                        }}
+                                      >
+                                        <span>{flavor.name}</span>
+                                        <span className="text-xs text-muted-foreground">{flavor.brand?.name ?? "ブランド未設定"}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </div>
+                          </DialogContent>
+                        </Dialog>
+                        {useCustomRatio ? (
+                          <div className="flex items-center gap-1 rounded-md border bg-background px-2 py-1">
+                            <Input
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={component.grams === "" ? "" : component.grams}
+                              onChange={(event) => {
+                                const raw = event.target.value;
+                                if (raw === "") {
+                                  handleComponentChange(index, { grams: "" });
+                                  return;
+                                }
+                                const nextValue = Number(raw);
+                                handleComponentChange(index, {
+                                  grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0
+                                });
+                              }}
+                              className="h-6 w-14 border-0 p-0 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                            />
+                            <span className="text-xs text-muted-foreground">g</span>
                           </div>
-                        </DialogContent>
-                      </Dialog>
+                        ) : null}
+                      </div>
                     ) : (
                       <div className="space-y-2">
                         <Input
@@ -608,26 +691,6 @@ export function SessionForm() {
                         />
                       </div>
                     )}
-                    {useCustomRatio ? (
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">グラム数</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          step={1}
-                          value={component.grams}
-                          onChange={(event) => {
-                            const nextValue = Number(event.target.value);
-                            handleComponentChange(index, { grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0 });
-                          }}
-                        />
-                        {component.grams <= 0 ? (
-                          <p className="text-xs text-destructive">0gのフレーバーは保存できません。</p>
-                        ) : null}
-                      </div>
-                    ) : (
-                      null
-                    )}
                   </div>
                 ))}
               </div>
@@ -665,7 +728,10 @@ export function SessionForm() {
                     key={score}
                     type="button"
                     onClick={() => handleChange("satisfaction", score)}
-                    onMouseEnter={() => setHoverSatisfaction(score)}
+                    onMouseEnter={() => {
+                      setHoverSatisfaction(score);
+                      handleChange("satisfaction", score);
+                    }}
                     onMouseLeave={() => setHoverSatisfaction(null)}
                     className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
                       active ? "border-primary bg-primary/10 text-primary" : "border-input bg-background text-muted-foreground"
@@ -689,7 +755,11 @@ export function SessionForm() {
           </div>
         </CardContent>
         <CardFooter className="sticky bottom-0 z-10 flex justify-end border-t bg-background/95 py-4 backdrop-blur">
-          <Button type="submit" disabled={isPending || (mixColumnAvailable && !canSubmitFlavors)} className="text-black">
+          <Button
+            type="submit"
+            disabled={isPending || (mixColumnAvailable && !canSubmitFlavors)}
+            className="text-white dark:bg-muted dark:text-white"
+          >
             {isPending ? "保存中..." : "記録する"}
           </Button>
         </CardFooter>
