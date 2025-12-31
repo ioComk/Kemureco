@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { Tooltip as RechartsTooltip } from "recharts";
-import type { TooltipProps } from "recharts";
 
 import { cn } from "@/lib/utils";
 
@@ -33,7 +32,10 @@ ChartContainer.displayName = "ChartContainer";
 
 const ChartTooltip = RechartsTooltip;
 
-type ChartTooltipContentProps = TooltipProps<number, string> & {
+type ChartTooltipContentProps = {
+  active?: boolean;
+  payload?: Array<{ dataKey?: string | number; name?: string; value?: number }>;
+  label?: string | number;
   valueSuffix?: string;
 };
 

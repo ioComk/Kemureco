@@ -236,6 +236,15 @@ export function SessionsDashboard() {
             mixIdToUse = null;
           }
           if (!mixIdToUse) {
+            const userId = sessionState.userId;
+            if (!userId) {
+              toast({
+                title: "ユーザー情報の取得に失敗しました",
+                description: "再読み込み後にもう一度お試しください。",
+                variant: "destructive"
+              });
+              return;
+            }
             const title = `記録フレーバー ${new Date(editingForm.startedAt).toLocaleString("ja-JP", {
               month: "short",
               day: "numeric",
@@ -244,7 +253,7 @@ export function SessionsDashboard() {
             })}`;
             const { data: mixData, error: mixError } = await supabase
               .from("mixes")
-              .insert({ title, description: null, user_id: sessionState.userId })
+              .insert({ title, description: null, user_id: userId })
               .select("id")
               .single();
             if (mixError || !mixData) {
@@ -259,8 +268,9 @@ export function SessionsDashboard() {
             mixIdToUse = mixData.id;
           }
 
-          if (mixIdToUse) {
-            const { error: deleteError } = await supabase.from("mix_components").delete().eq("mix_id", mixIdToUse);
+          if (mixIdToUse != null) {
+            const mixId = mixIdToUse;
+            const { error: deleteError } = await supabase.from("mix_components").delete().eq("mix_id", mixId);
             if (deleteError) {
               console.error("delete mix components error", deleteError);
               toast({
@@ -275,7 +285,7 @@ export function SessionsDashboard() {
             let remainder = 100 - equal * flavorIds.length;
             const ratios = flavorIds.map(() => equal + (remainder-- > 0 ? 1 : 0));
             const componentsPayload = flavorIds.map((flavorId, index) => ({
-              mix_id: mixIdToUse,
+              mix_id: mixId,
               flavor_id: flavorId,
               ratio_percent: ratios[index] ?? 0,
               layer_order: index + 1

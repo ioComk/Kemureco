@@ -176,8 +176,9 @@ export function SessionForm() {
     const flavorIdParam = searchParams.get("flavorId");
     if (!flavorIdsParam && !flavorIdParam) return;
     const ids = (flavorIdsParam ? flavorIdsParam.split(",") : [flavorIdParam])
+      .filter((value): value is string => typeof value === "string")
       .map((value) => value.trim())
-      .filter((value): value is string => Boolean(value))
+      .filter((value): value is string => value.length > 0)
       .map((value) => Number(value))
       .filter((value) => Number.isFinite(value) && value > 0)
       .slice(0, 4);

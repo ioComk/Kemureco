@@ -414,8 +414,9 @@ export function HomeSessionsCalendar() {
           mixIdToUse = mixData.id;
         }
 
-        if (mixIdToUse) {
-          const { error: deleteError } = await supabase.from("mix_components").delete().eq("mix_id", mixIdToUse);
+        if (mixIdToUse != null) {
+          const mixId = mixIdToUse;
+          const { error: deleteError } = await supabase.from("mix_components").delete().eq("mix_id", mixId);
           if (deleteError) {
             setSavingId(null);
             toast({
@@ -430,7 +431,7 @@ export function HomeSessionsCalendar() {
           let remainder = 100 - equal * flavorIds.length;
           const ratios = flavorIds.map(() => equal + (remainder-- > 0 ? 1 : 0));
           const componentsPayload = flavorIds.map((flavorId, index) => ({
-            mix_id: mixIdToUse,
+            mix_id: mixId,
             flavor_id: flavorId,
             ratio_percent: ratios[index] ?? 0,
             layer_order: index + 1
@@ -860,9 +861,9 @@ export function HomeSessionsCalendar() {
                                           const isFirst = index === 0;
                                           const isLast = index === chartData.keys.length - 1;
                                           const radius = isFirst
-                                            ? [6, 0, 0, 6]
+                                            ? ([6, 0, 0, 6] as [number, number, number, number])
                                             : isLast
-                                              ? [0, 6, 6, 0]
+                                              ? ([0, 6, 6, 0] as [number, number, number, number])
                                               : 0;
                                           const fill = chartData.items[index]?.fill;
                                           const name = chartData.items[index]?.name;
