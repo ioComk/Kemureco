@@ -16,7 +16,11 @@ const XIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export function AuthStatus() {
+type AuthStatusProps = {
+  onSignInClick?: () => void;
+};
+
+export function AuthStatus({ onSignInClick }: AuthStatusProps) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -30,7 +34,9 @@ export function AuthStatus() {
   if (!user?.email) {
     return (
       <Button asChild size="sm" className="w-full justify-center">
-        <Link href="/auth">サインイン</Link>
+        <Link href="/auth" onClick={onSignInClick}>
+          サインイン
+        </Link>
       </Button>
     );
   }

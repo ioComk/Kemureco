@@ -90,7 +90,7 @@ export function UserMenu() {
       {open ? (
         <div className="absolute right-0 z-50 mt-2 w-64 rounded-md border bg-background p-3 shadow-lg dark:bg-neutral-900">
           <div className="space-y-3">
-            <AuthStatus />
+            <AuthStatus onSignInClick={() => setOpen(false)} />
             <Button asChild variant="outline" size="sm" className="w-full">
               <a
                 href="https://docs.google.com/forms/d/e/1FAIpQLSdkXvLIgi0GBFE9s5rCg_PO2EvPjJTEObG184eXXiKMtR8W5w/viewform?usp=header"

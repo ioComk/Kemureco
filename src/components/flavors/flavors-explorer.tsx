@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LayoutGrid, List, X } from "lucide-react";
+import { ArrowUp, LayoutGrid, List, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -118,6 +118,7 @@ export function FlavorsExplorer({
   const [, startTransition] = useTransition();
 
   const [items, setItems] = useState<FlavorWithBrand[]>(flavors);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [query, setQuery] = useState(initialQuery);
   const deferredQuery = useDeferredValue(query);
   const [activeTags, setActiveTags] = useState<string[]>(initialTags);
@@ -162,6 +163,13 @@ export function FlavorsExplorer({
   useEffect(() => {
     setItems(flavors);
   }, [flavors]);
+
+  useEffect(() => {
+    const handleScroll = () => setShowScrollTop(window.scrollY > 500);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     if (authLoading) {
@@ -787,7 +795,13 @@ export function FlavorsExplorer({
                   ) : null}
                 </div>
               </div>
-              <div className={tagsOpen ? "flex flex-wrap gap-2" : "flex items-center gap-2 overflow-hidden"}>
+              <div
+                className={
+                  tagsOpen
+                    ? "flex flex-wrap gap-2"
+                    : "flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] sm:pb-0"
+                }
+              >
                 {(tagsOpen ? availableTags : availableTags.slice(0, maxCollapsedTags)).map((tag) => (
                   <Button
                     key={tag}
@@ -795,6 +809,7 @@ export function FlavorsExplorer({
                     size="sm"
                     variant={activeTags.includes(tag) ? "default" : "outline"}
                     onClick={() => handleTagToggle(tag)}
+                    className="shrink-0"
                   >
                     {tag}
                   </Button>
@@ -802,7 +817,7 @@ export function FlavorsExplorer({
                 {availableTags.length > maxCollapsedTags ? (
                   <button
                     type="button"
-                    className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                    className="shrink-0 text-xs text-muted-foreground underline-offset-4 hover:underline"
                     onClick={() => setTagsOpen((prev) => !prev)}
                   >
                     {tagsOpen ? "show less" : "show more..."}
@@ -847,6 +862,18 @@ export function FlavorsExplorer({
       ) : (
         <div className="space-y-4">{filteredFlavors.map((flavor) => renderFlavorListCard(flavor))}</div>
       )}
+
+      <Button
+        type="button"
+        size="icon"
+        className={`fixed right-4 top-2/3 z-50 h-9 w-9 -translate-y-1/2 shadow-lg transition-all duration-300 sm:right-6 ${
+          showScrollTop ? "scale-100 opacity-100" : "pointer-events-none scale-90 opacity-0"
+        }`}
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        aria-label="ページ上部へ戻る"
+      >
+        <ArrowUp className="h-4 w-4" />
+      </Button>
 
       <Dialog open={Boolean(previewFlavor)} onOpenChange={(open) => (open ? null : setPreviewFlavor(null))}>
         <DialogContent className="max-w-lg rounded-2xl bg-background dark:bg-neutral-900">

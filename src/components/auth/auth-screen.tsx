@@ -51,6 +51,12 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
     }
   }, [user?.email, onSignedIn, notifiedSignedIn]);
 
+  useEffect(() => {
+    if (mode === "sign-up") {
+      setAuthMethod("password");
+    }
+  }, [mode]);
+
   const handleOtpSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!email) return;
@@ -179,55 +185,59 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
           </h1>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleGoogleSignIn}
-            disabled={isGoogleSigningIn}
-            className="h-12 gap-2 rounded-full"
-          >
-            {isGoogleSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleFill size={18} />}
-            Google
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleTwitterSignIn}
-            disabled={isTwitterSigningIn}
-            className="h-12 gap-2 rounded-full"
-          >
-            {isTwitterSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <XIcon className="h-4 w-4" />}
-            X
-          </Button>
-        </div>
+        {mode === "sign-in" ? (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGoogleSignIn}
+                disabled={isGoogleSigningIn}
+                className="h-12 gap-2 rounded-full"
+              >
+                {isGoogleSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleFill size={18} />}
+                Google
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleTwitterSignIn}
+                disabled={isTwitterSigningIn}
+                className="h-12 gap-2 rounded-full"
+              >
+                {isTwitterSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <XIcon className="h-4 w-4" />}
+                X account
+              </Button>
+            </div>
 
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="h-px flex-1 bg-border" />
-          OR CONTINUE WITH EMAIL
-          <span className="h-px flex-1 bg-border" />
-        </div>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              OR CONTINUE WITH EMAIL
+              <span className="h-px flex-1 bg-border" />
+            </div>
 
-        <div className="grid grid-cols-2 rounded-full border bg-muted/30 p-1 text-sm">
-          <button
-            type="button"
-            className={`rounded-full px-3 py-2 font-medium transition ${
-              authMethod === "magic" ? "bg-background shadow-sm" : "text-muted-foreground"
-            }`}
-            onClick={() => setAuthMethod("magic")}
-          >
-            Magic Link
-          </button>
-          <button
-            type="button"
-            className={`rounded-full px-3 py-2 font-medium transition ${
-              authMethod === "password" ? "bg-background shadow-sm" : "text-muted-foreground"
-            }`}
-            onClick={() => setAuthMethod("password")}
-          >
-            Password
-          </button>
-        </div>
+            <div className="grid grid-cols-2 rounded-full border bg-muted/30 p-1 text-sm">
+              <button
+                type="button"
+                className={`rounded-full px-3 py-2 font-medium transition ${
+                  authMethod === "magic" ? "bg-background shadow-sm" : "text-muted-foreground"
+                }`}
+                onClick={() => setAuthMethod("magic")}
+              >
+                Magic Link
+              </button>
+              <button
+                type="button"
+                className={`rounded-full px-3 py-2 font-medium transition ${
+                  authMethod === "password" ? "bg-background shadow-sm" : "text-muted-foreground"
+                }`}
+                onClick={() => setAuthMethod("password")}
+              >
+                Password
+              </button>
+            </div>
+          </>
+        ) : null}
 
         <form
           className="space-y-4"
