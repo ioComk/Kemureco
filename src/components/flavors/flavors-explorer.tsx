@@ -975,7 +975,7 @@ export function FlavorsExplorer({
             )
           ) : null}
           {previewFlavor ? (
-            <Button asChild>
+            <Button asChild size="sm">
               <Link
                 href={`/sessions/new?flavorId=${previewFlavor.id}`}
                 onClick={() => setPreviewFlavor(null)}
@@ -988,6 +988,7 @@ export function FlavorsExplorer({
             <div className="space-y-2">
               <Button
                 type="button"
+                size="sm"
                 variant={selectedFlavorIds.includes(previewFlavor.id) ? "default" : "outline"}
                 onClick={() => {
                   setSelectionMode(true);

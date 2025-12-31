@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { Session } from "@/lib/types";
 import type { SessionItem } from "./types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +12,19 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useAuth } from "@/components/auth/auth-provider";
+import { MapPin, MoreHorizontal, Pencil, Share2, ThumbsUp, Trash2 } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import {
+  type CarouselApi,
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious
+} from "@/components/ui/carousel";
 
 export function HomeSessionsCalendar() {
   const supabase = useMemo(() => createSupabaseClient(), []);
@@ -30,8 +41,12 @@ export function HomeSessionsCalendar() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSessions, setSelectedSessions] = useState<SessionItem[]>([]);
+  const [selectedSessionIndex, setSelectedSessionIndex] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingComponents, setEditingComponents] = useState<Array<{ flavorId: string }>>([]);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [editingForm, setEditingForm] = useState<{
     startedAt: string;
     satisfaction: number;
@@ -41,6 +56,8 @@ export function HomeSessionsCalendar() {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const maxComponents = 4;
+  const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
+  const chartColors = ["#f59e0b", "#34d399", "#60a5fa", "#f472b6", "#f97316"];
 
   const toLocalDateKey = (value: Date) => {
     const year = value.getFullYear();
@@ -56,6 +73,47 @@ export function HomeSessionsCalendar() {
     const tzOffset = date.getTimezoneOffset() * 60000;
     const localISO = new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
     return localISO;
+  };
+
+  const formatSessionDateLabel = (value?: string | Date | null) => {
+    if (!value) return "";
+    const date = typeof value === "string" ? new Date(value) : value;
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
+  };
+
+  const buildMixChartData = (
+    components: { flavorName: string; brandName?: string | null; ratioPercent?: number | null }[] | undefined
+  ) => {
+    if (!components || components.length === 0) {
+      return { items: [], stackedData: { label: "配合" }, keys: [] as string[] };
+    }
+    const ratios = components.map((component) => component.ratioPercent ?? 0);
+    const total = ratios.reduce((sum, value) => sum + value, 0);
+    const resolvedRatios =
+      total > 0
+        ? ratios
+        : ratios.map((_, index) => {
+            const equal = Math.floor(100 / ratios.length);
+            const remainder = 100 - equal * ratios.length;
+            return equal + (index < remainder ? 1 : 0);
+          });
+
+    const items = components.map((component, index) => ({
+      key: `flavor${index}`,
+      name: `${component.brandName ? `${component.brandName} ` : ""}${component.flavorName}`,
+      ratio: resolvedRatios[index] ?? 0,
+      fill: chartColors[index % chartColors.length]
+    }));
+    const stackedData = items.reduce<Record<string, number | string>>(
+      (acc, item) => {
+        acc[item.key] = item.ratio;
+        return acc;
+      },
+      { label: "配合" }
+    );
+
+    return { items, stackedData, keys: items.map((item) => item.key) };
   };
 
   useEffect(() => {
@@ -88,8 +146,40 @@ export function HomeSessionsCalendar() {
       setEditingId(null);
       setEditingForm({ startedAt: "", satisfaction: 3, location: "", notes: "" });
       setEditingComponents([]);
+      setSelectedSessionIndex(0);
+      setOpenMenuId(null);
+      setDeleteDialogOpen(false);
+      setPendingDeleteId(null);
     }
   }, [dialogOpen]);
+
+  useEffect(() => {
+    if (selectedSessionIndex >= selectedSessions.length) {
+      setSelectedSessionIndex(0);
+    }
+  }, [selectedSessionIndex, selectedSessions.length]);
+
+  useEffect(() => {
+    if (!carouselApi) return;
+    const handleSelect = () => {
+      const nextIndex = carouselApi.selectedScrollSnap();
+      setSelectedSessionIndex(nextIndex);
+      setEditingId(null);
+      setEditingForm({ startedAt: "", satisfaction: 3, location: "", notes: "" });
+      setEditingComponents([]);
+    };
+    handleSelect();
+    carouselApi.on("select", handleSelect);
+    return () => {
+      carouselApi.off("select", handleSelect);
+    };
+  }, [carouselApi]);
+
+  useEffect(() => {
+    if (!carouselApi) return;
+    carouselApi.scrollTo(0, true);
+    setSelectedSessionIndex(0);
+  }, [carouselApi, selectedSessions]);
 
   const fetchSessions = async (userId: string) => {
     try {
@@ -229,6 +319,7 @@ export function HomeSessionsCalendar() {
     const key = toLocalDateKey(date);
     setSelectedDate(key);
     setSelectedSessions(daySessions);
+    setSelectedSessionIndex(0);
     setEditingId(null);
     setEditingForm({ startedAt: "", satisfaction: 3, location: "", notes: "" });
     setEditingComponents([]);
@@ -304,12 +395,8 @@ export function HomeSessionsCalendar() {
           mixIdToUse = null;
         }
         if (!mixIdToUse) {
-          const title = `記録フレーバー ${new Date(editingForm.startedAt).toLocaleString("ja-JP", {
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit"
-          })}`;
+          const dateLabel = formatSessionDateLabel(parsedDate ?? editingForm.startedAt);
+          const title = dateLabel || "記録";
           const { data: mixData, error: mixError } = await supabase
             .from("mixes")
             .insert({ title, description: null, user_id: sessionState.userId })
@@ -456,6 +543,7 @@ export function HomeSessionsCalendar() {
     return map;
   }, [sessions, currentMonth]);
 
+
   return (
     <>
       <Card className="border-0 shadow-none">
@@ -531,186 +619,347 @@ export function HomeSessionsCalendar() {
         </CardContent>
       </Card>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{selectedDate ? new Date(selectedDate).toLocaleDateString("ja-JP") : "記録"}</DialogTitle>
-        </DialogHeader>
-        {selectedSessions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">この日に記録はありません。</p>
-        ) : (
-          <div className="space-y-3">
-            {selectedSessions.map((session) => (
-              <div key={session.id} className="rounded-md border p-3">
-                {editingId === session.id ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-medium">編集モード</p>
-                      <Badge variant="secondary" className="text-xs">
-                        ID {session.id}
-                      </Badge>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`started-at-${session.id}`}>開始日時</Label>
-                      <Input
-                        id={`started-at-${session.id}`}
-                        type="datetime-local"
-                        value={editingForm.startedAt}
-                        onChange={(event) => handleEditChange("startedAt", event.target.value)}
-                      />
-                    </div>
-                    {mixColumnAvailable ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label>フレーバー</Label>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={handleAddComponent}
-                            disabled={editingComponents.length >= maxComponents}
-                          >
-                            追加
-                          </Button>
-                        </div>
-                        {editingComponents.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">フレーバー未設定</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {editingComponents.map((component, index) => (
-                              <div key={`edit-flavor-${session.id}-${index}`} className="flex items-center gap-2">
-                                <select
-                                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                  value={component.flavorId}
-                                  onChange={(event) => handleComponentChange(index, event.target.value)}
-                                >
-                                  <option value="">フレーバーを選択</option>
-                                  {flavors.map((flavor) => (
-                                    <option key={flavor.id} value={flavor.id}>
-                                      {flavor.brandName ? `${flavor.brandName} ` : ""}
-                                      {flavor.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleRemoveComponent(index)}
-                                >
-                                  削除
-                                </Button>
+        <DialogContent className="max-w-xl rounded-2xl bg-background dark:bg-neutral-900">
+          <DialogHeader className="sr-only">
+            <DialogTitle>記録</DialogTitle>
+          </DialogHeader>
+          {selectedSessions.length === 0 ? (
+            <>
+              <p className="text-sm text-muted-foreground">この日に記録はありません。</p>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <Carousel setApi={setCarouselApi} className="w-full">
+                <CarouselContent>
+                  {selectedSessions.map((item) => {
+                    const chartData = buildMixChartData(item.mix?.components);
+
+                    return (
+                      <CarouselItem key={item.id}>
+                      <Card className="w-full border-0 shadow-none rounded-2xl bg-background dark:bg-neutral-900">
+                        {editingId === item.id ? (
+                          <>
+                            <CardHeader className="px-5 pb-3 pt-4">
+                              <CardTitle className="text-base">編集モード</CardTitle>
+                              <CardDescription>
+                                <span className="sr-only">{item.id}</span>
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                              <div className="space-y-2">
+                                <Label htmlFor={`started-at-${item.id}`}>開始日時</Label>
+                                <Input
+                                  id={`started-at-${item.id}`}
+                                  type="datetime-local"
+                                  value={editingForm.startedAt}
+                                  onChange={(event) => handleEditChange("startedAt", event.target.value)}
+                                />
                               </div>
-                            ))}
-                          </div>
+                              {mixColumnAvailable ? (
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <Label>フレーバー</Label>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={handleAddComponent}
+                                      disabled={editingComponents.length >= maxComponents}
+                                    >
+                                      追加
+                                    </Button>
+                                  </div>
+                                  {editingComponents.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground">フレーバー未設定</p>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      {editingComponents.map((component, index) => (
+                                        <div key={`edit-flavor-${item.id}-${index}`} className="flex items-center gap-2">
+                                          <select
+                                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            value={component.flavorId}
+                                            onChange={(event) => handleComponentChange(index, event.target.value)}
+                                          >
+                                            <option value="">フレーバーを選択</option>
+                                            {flavors.map((flavor) => (
+                                              <option key={flavor.id} value={flavor.id}>
+                                                {flavor.brandName ? `${flavor.brandName} ` : ""}
+                                                {flavor.name}
+                                              </option>
+                                            ))}
+                                          </select>
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleRemoveComponent(index)}
+                                          >
+                                            削除
+                                          </Button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : null}
+                            <div className="space-y-2">
+                              <Label>満足度</Label>
+                              <div className="flex items-center gap-2">
+                                {[1, 2, 3, 4, 5].map((score) => (
+                                  <button
+                                    key={`${item.id}-edit-score-${score}`}
+                                    type="button"
+                                    onClick={() => handleEditChange("satisfaction", score)}
+                                    className="rounded-full"
+                                    aria-label={`満足度 ${score}`}
+                                  >
+                                    <ThumbsUp
+                                      className={`h-4 w-4 ${
+                                        editingForm.satisfaction >= score
+                                          ? score <= 2
+                                            ? "text-primary/70 dark:text-white/70"
+                                            : score <= 4
+                                              ? "text-primary/85 dark:text-white/85"
+                                              : "text-primary dark:text-white"
+                                          : "text-muted-foreground/40 dark:text-white/25"
+                                      }`}
+                                    />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`location-${item.id}`}>場所</Label>
+                                <Input
+                                  id={`location-${item.id}`}
+                                  placeholder="自宅 / ラウンジ名など"
+                                  value={editingForm.location}
+                                  onChange={(event) => handleEditChange("location", event.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`notes-${item.id}`}>メモ</Label>
+                                <Textarea
+                                  id={`notes-${item.id}`}
+                                  placeholder="設定や感想をメモ"
+                                  value={editingForm.notes}
+                                  onChange={(event) => handleEditChange("notes", event.target.value)}
+                                  rows={3}
+                                />
+                              </div>
+                            </CardContent>
+                            <CardFooter className="flex justify-end gap-2">
+                              <Button variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={savingId === item.id}>
+                                キャンセル
+                              </Button>
+                              <Button size="sm" onClick={() => handleUpdate(item.id)} disabled={savingId === item.id}>
+                                {savingId === item.id ? "更新中..." : "更新する"}
+                              </Button>
+                            </CardFooter>
+                          </>
+                        ) : (
+                          <>
+                            <CardHeader className="px-5 pb-3 pt-4">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="space-y-2">
+                                  <p className="text-xs text-muted-foreground">
+                                    {item.started_at ? formatSessionDateLabel(item.started_at) : "日付不明"}
+                                    {item.started_at
+                                      ? ` ・ ${new Date(item.started_at).toLocaleTimeString("ja-JP", {
+                                          hour: "2-digit",
+                                          minute: "2-digit"
+                                        })}`
+                                      : ""}
+                                  </p>
+                                  <div className="flex items-center gap-1">
+                                    {[1, 2, 3, 4, 5].map((score) => (
+                                      <ThumbsUp
+                                        key={`${item.id}-score-${score}`}
+                                        className={`h-3.5 w-3.5 ${
+                                          (item.satisfaction ?? 0) >= score
+                                            ? score <= 2
+                                              ? "text-primary/70 dark:text-white/70"
+                                              : score <= 4
+                                                ? "text-primary/85 dark:text-white/85"
+                                                : "text-primary dark:text-white"
+                                            : "text-muted-foreground/40 dark:text-white/25"
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <MapPin className="h-4 w-4" />
+                                    {item.location_text ? (
+                                      <span className="text-foreground/80">{item.location_text}</span>
+                                    ) : (
+                                      <span>未設定</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Popover
+                                    open={openMenuId === item.id}
+                                    onOpenChange={(open) => setOpenMenuId(open ? item.id : null)}
+                                  >
+                                    <PopoverTrigger asChild>
+                                      <Button variant="ghost" size="icon" aria-label="メニュー">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent align="end" className="w-40 p-1">
+                                      <div className="flex flex-col">
+                                        <Button
+                                          variant="ghost"
+                                          className="justify-start gap-2"
+                                          onClick={() => {
+                                            setOpenMenuId(null);
+                                            startEdit(item);
+                                          }}
+                                        >
+                                          <Pencil className="h-4 w-4" />
+                                          編集
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          className="justify-start gap-2 text-destructive hover:text-destructive"
+                                          onClick={() => {
+                                            setOpenMenuId(null);
+                                            setPendingDeleteId(item.id);
+                                            setDeleteDialogOpen(true);
+                                          }}
+                                          disabled={deletingId === item.id}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                          削除
+                                        </Button>
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3 px-5 pb-4 pt-0">
+                              {item.mix?.components && item.mix.components.length > 0 ? (
+                                <div className="space-y-2">
+                                  <p className="text-[11px] text-muted-foreground">フレーバー配合</p>
+                                  <ChartContainer className="w-full" style={{ height: 56 }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                      <BarChart data={[chartData.stackedData]} layout="vertical" margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
+                                        <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                                        <XAxis type="number" domain={[0, 100]} hide />
+                                        <YAxis
+                                          type="category"
+                                          dataKey="label"
+                                          tickLine={false}
+                                          axisLine={false}
+                                          width={0}
+                                          tick={false}
+                                        />
+                                        <ChartTooltip cursor={false} content={<ChartTooltipContent valueSuffix="%" />} />
+                                        {chartData.keys.map((key, index) => {
+                                          const isFirst = index === 0;
+                                          const isLast = index === chartData.keys.length - 1;
+                                          const radius = isFirst
+                                            ? [6, 0, 0, 6]
+                                            : isLast
+                                              ? [0, 6, 6, 0]
+                                              : 0;
+                                          const fill = chartData.items[index]?.fill;
+                                          const name = chartData.items[index]?.name;
+                                          return (
+                                            <Bar
+                                              key={`${item.id}-${key}`}
+                                              dataKey={key}
+                                              stackId="mix"
+                                              radius={radius}
+                                              barSize={12}
+                                              fill={fill}
+                                              name={name}
+                                            />
+                                          );
+                                        })}
+                                      </BarChart>
+                                    </ResponsiveContainer>
+                                  </ChartContainer>
+                                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                                    {chartData.items.map((entry) => (
+                                      <div key={`${item.id}-legend-${entry.key}`} className="flex items-center gap-1">
+                                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.fill }} />
+                                        <span>{entry.name}</span>
+                                        <span>{entry.ratio}%</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">フレーバー未設定</p>
+                              )}
+                              {item.notes ? <p className="whitespace-pre-wrap text-sm">{item.notes}</p> : null}
+                            </CardContent>
+                            <CardFooter className="flex justify-end px-5 pb-4 pt-0">
+                              <Button size="sm" asChild className="gap-2">
+                                <a href={buildShareUrl(item)} target="_blank" rel="noreferrer">
+                                  <Share2 className="h-4 w-4" />
+                                  Xに投稿
+                                </a>
+                              </Button>
+                            </CardFooter>
+                          </>
                         )}
-                      </div>
-                    ) : null}
-                    <div className="space-y-2">
-                      <Label>満足度 {editingForm.satisfaction}/5</Label>
-                      <Slider
-                        value={[editingForm.satisfaction]}
-                        min={1}
-                        max={5}
-                        step={1}
-                        onValueChange={(value) => handleEditChange("satisfaction", value[0] ?? editingForm.satisfaction)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`location-${session.id}`}>場所</Label>
-                      <Input
-                        id={`location-${session.id}`}
-                        placeholder="自宅 / ラウンジ名など"
-                        value={editingForm.location}
-                        onChange={(event) => handleEditChange("location", event.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`notes-${session.id}`}>メモ</Label>
-                      <Textarea
-                        id={`notes-${session.id}`}
-                        placeholder="設定や感想をメモ"
-                        value={editingForm.notes}
-                        onChange={(event) => handleEditChange("notes", event.target.value)}
-                        rows={3}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => setEditingId(null)} disabled={savingId === session.id}>
-                        キャンセル
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleUpdate(session.id)}
-                        disabled={savingId === session.id}
-                      >
-                        {savingId === session.id ? "更新中..." : "更新する"}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-medium">{session.mix?.title ?? "ミックス未選択"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {session.started_at
-                            ? new Date(session.started_at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })
-                            : "時間不明"}
-                        </p>
-                      </div>
-                      <Badge variant="secondary" className="text-xs">
-                        満足度 {session.satisfaction ?? "-"} / 5
-                      </Badge>
-                    </div>
-                    {session.mix?.components && session.mix.components.length > 0 ? (
-                      <div className="mt-2 space-y-1">
-                        <p className="text-[11px] text-muted-foreground">使用フレーバー</p>
-                        <div className="flex flex-wrap gap-2">
-                          {session.mix.components.map((component) => (
-                            <Badge key={`${session.id}-${component.flavorId}`} variant="outline" className="text-[11px]">
-                              {component.brandName ? `${component.brandName} ` : ""}
-                              {component.flavorName}
-                              {component.ratioPercent != null ? ` (${component.ratioPercent}%)` : ""}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    {session.location_text ? (
-                      <p className="mt-2 text-sm text-muted-foreground">場所: {session.location_text}</p>
-                    ) : null}
-                    {session.notes ? <p className="mt-2 whitespace-pre-wrap text-sm">{session.notes}</p> : null}
-                    <p className="mt-2 text-[11px] text-muted-foreground">記録ID: {session.id}</p>
-                    <div className="flex flex-wrap justify-end gap-2 pt-1">
-                      <Button variant="outline" size="sm" onClick={() => startEdit(session)}>
-                        編集
-                      </Button>
-                      <Button variant="secondary" size="sm" asChild>
-                        <a
-                          href={buildShareUrl(session)}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Xに投稿
-                        </a>
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(session.id)}
-                        disabled={deletingId === session.id}
-                      >
-                        {deletingId === session.id ? "削除中..." : "削除"}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                      </Card>
+                    </CarouselItem>
+                  );
+                })}
+                </CarouselContent>
+                {selectedSessions.length > 1 ? (
+                  <>
+                    <CarouselPrevious className="absolute left-[-4rem] top-1/2 -translate-y-1/2 rounded-full" />
+                    <CarouselNext className="absolute right-[-4rem] top-1/2 -translate-y-1/2 rounded-full" />
+                  </>
+                ) : null}
+              </Carousel>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) {
+            setPendingDeleteId(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>削除してもよろしいですか？</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setPendingDeleteId(null);
+              }}
+            >
+              キャンセル
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (pendingDeleteId == null) return;
+                handleDelete(pendingDeleteId);
+                setDeleteDialogOpen(false);
+                setPendingDeleteId(null);
+              }}
+              disabled={pendingDeleteId == null || deletingId === pendingDeleteId}
+            >
+              {deletingId === pendingDeleteId ? "削除中..." : "削除"}
+            </Button>
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

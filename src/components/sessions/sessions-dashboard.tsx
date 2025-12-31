@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
+import { Trash2 } from "lucide-react";
 import { HomeSessionsCalendar } from "@/components/sessions/home-sessions-calendar";
 
 export function SessionsDashboard() {
@@ -542,7 +543,7 @@ export function SessionsDashboard() {
                           onClick={() => handleDelete(item.id)}
                           disabled={deletingId === item.id}
                         >
-                          {deletingId === item.id ? "削除中..." : "削除"}
+                          {deletingId === item.id ? "削除中..." : <Trash2 className="h-4 w-4" />}
                         </Button>
                       </div>
                     </div>
