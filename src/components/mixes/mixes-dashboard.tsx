@@ -204,6 +204,7 @@ export function MixesDashboard({ flavors }: MixesDashboardProps) {
       mix_id: editForm.id,
       flavor_id: Number(component.flavorId),
       ratio_percent: component.ratio,
+      grams: null,
       layer_order: index + 1
     }));
 

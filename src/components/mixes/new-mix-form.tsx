@@ -198,6 +198,7 @@ export function NewMixForm({ flavors }: NewMixFormProps) {
         mix_id: mixData.id,
         flavor_id: Number(component.flavorId),
         ratio_percent: component.ratio,
+        grams: null,
         layer_order: index + 1
       }));
 

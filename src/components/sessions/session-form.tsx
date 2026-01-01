@@ -407,6 +407,7 @@ export function SessionForm() {
           mix_id: mixData.id,
           flavor_id: Number(component.flavorId),
           ratio_percent: ratios[index] ?? 0,
+          grams: typeof component.grams === "number" ? component.grams : null,
           layer_order: index + 1
         }));
 

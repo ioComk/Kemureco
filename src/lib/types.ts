@@ -29,6 +29,7 @@ export type MixComponent = {
   mix_id: number;
   flavor_id: number;
   ratio_percent: number;
+  grams: number | null;
   layer_order: number;
 };
 

@@ -477,6 +477,7 @@ export function HomeSessionsCalendar() {
             mix_id: mixId,
             flavor_id: flavorId,
             ratio_percent: ratios[index] ?? 0,
+            grams: null,
             layer_order: index + 1
           }));
 
