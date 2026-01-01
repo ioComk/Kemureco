@@ -71,6 +71,8 @@ const JP_QUERY_MAP: Array<{ jp: string; en: string }> = [
   { jp: "ピーチ", en: "peach" },
   { jp: "ぱいなっぷる", en: "pineapple" },
   { jp: "パイナップル", en: "pineapple" },
+  { jp: "ばなな", en: "banana" },
+  { jp: "バナナ", en: "banana" },
   { jp: "ばにら", en: "vanilla" },
   { jp: "バニラ", en: "vanilla" },
   { jp: "ちょこ", en: "chocolate" },

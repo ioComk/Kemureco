@@ -6,6 +6,8 @@ export type MixComponentInfo = {
   flavorId: number;
   flavorName: string;
   brandName?: string | null;
+  imageUrl?: string | null;
+  grams?: number | null;
   ratioPercent?: number | null;
 };
 

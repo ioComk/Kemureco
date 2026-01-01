@@ -45,8 +45,8 @@ export function HomeDashboard() {
 
   return (
     <>
-      <HomeSessionOverview />
       <HomeSessionsCalendar />
+      <HomeSessionOverview />
     </>
   );
 }

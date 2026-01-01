@@ -83,28 +83,51 @@ export function HomeSessionsCalendar() {
   };
 
   const buildMixChartData = (
-    components: { flavorName: string; brandName?: string | null; ratioPercent?: number | null }[] | undefined
+    components: {
+      flavorName: string;
+      brandName?: string | null;
+      imageUrl?: string | null;
+      grams?: number | null;
+      ratioPercent?: number | null;
+    }[] | undefined
   ) => {
     if (!components || components.length === 0) {
-      return { items: [], stackedData: { label: "配合" }, keys: [] as string[] };
+      return { items: [], stackedData: { label: "配合" }, keys: [] as string[], mode: "ratio" as const, totalGrams: 0 };
     }
-    const ratios = components.map((component) => component.ratioPercent ?? 0);
-    const total = ratios.reduce((sum, value) => sum + value, 0);
-    const resolvedRatios =
-      total > 0
-        ? ratios
-        : ratios.map((_, index) => {
-            const equal = Math.floor(100 / ratios.length);
-            const remainder = 100 - equal * ratios.length;
-            return equal + (index < remainder ? 1 : 0);
-          });
+    const hasAnyGrams = components.some((component) => typeof component.grams === "number" && component.grams > 0);
+    const hasAllGrams = components.every((component) => typeof component.grams === "number" && component.grams > 0);
+    const totalGrams = hasAllGrams
+      ? components.reduce((sum, component) => sum + (component.grams ?? 0), 0)
+      : 0;
 
-    const items = components.map((component, index) => ({
-      key: `flavor${index}`,
-      name: `${component.brandName ? `${component.brandName} ` : ""}${component.flavorName}`,
-      ratio: resolvedRatios[index] ?? 0,
-      fill: chartColors[index % chartColors.length]
-    }));
+    const resolvedRatios = hasAllGrams
+      ? components.map((component) => Math.round(((component.grams ?? 0) / totalGrams) * 100))
+      : components.map((component) => component.ratioPercent ?? 0);
+    if (hasAllGrams) {
+      const diff = 100 - resolvedRatios.reduce((sum, value) => sum + value, 0);
+      if (diff !== 0 && resolvedRatios.length > 0) {
+        resolvedRatios[resolvedRatios.length - 1] += diff;
+      }
+    }
+
+    const items = components.map((component, index) => {
+      const rawName = component.flavorName;
+      const firstSpaceIndex = rawName.indexOf(" ");
+      const brandFromName = firstSpaceIndex > 0 ? rawName.slice(0, firstSpaceIndex) : "";
+      const flavorFromName = firstSpaceIndex > 0 ? rawName.slice(firstSpaceIndex + 1).trim() : "";
+      const displayName = flavorFromName || rawName;
+      const displayBrand = flavorFromName ? brandFromName : "";
+
+      return {
+        key: `flavor${index}`,
+        name: displayName,
+        brand: displayBrand,
+        imageUrl: component.imageUrl ?? null,
+        grams: component.grams ?? null,
+        ratio: resolvedRatios[index] ?? 0,
+        fill: chartColors[index % chartColors.length]
+      };
+    });
     const stackedData = items.reduce<Record<string, number | string>>(
       (acc, item) => {
         acc[item.key] = item.ratio;
@@ -113,7 +136,13 @@ export function HomeSessionsCalendar() {
       { label: "配合" }
     );
 
-    return { items, stackedData, keys: items.map((item) => item.key) };
+    return {
+      items,
+      stackedData,
+      keys: items.map((item) => item.key),
+      mode: hasAllGrams ? "grams" : "ratio",
+      totalGrams
+    };
   };
 
   useEffect(() => {
@@ -206,7 +235,17 @@ export function HomeSessionsCalendar() {
 
       let mixMap = new Map<
         number,
-        { id: number; title: string; components: { flavorId: number; flavorName: string; brandName?: string | null; ratioPercent?: number | null }[] }
+        {
+          id: number;
+          title: string;
+          components: {
+            flavorId: number;
+            flavorName: string;
+            brandName?: string | null;
+            imageUrl?: string | null;
+            ratioPercent?: number | null;
+          }[];
+        }
       >();
 
       if (uniqueMixIds.length > 0) {
@@ -214,7 +253,7 @@ export function HomeSessionsCalendar() {
           const { data: mixData, error: mixError } = await supabase
             .from("mixes")
             .select(
-              "id,title,mix_components:mix_components(flavor_id,ratio_percent,layer_order,flavors(name,brands(name)))"
+              "id,title,mix_components:mix_components(flavor_id,ratio_percent,grams,layer_order,flavors(name,image_path,brands(name)))"
             )
             .in("id", uniqueMixIds);
 
@@ -234,6 +273,10 @@ export function HomeSessionsCalendar() {
                     flavorId: component.flavor_id,
                     flavorName: component.flavors?.name ?? "不明なフレーバー",
                     brandName: component.flavors?.brands?.name ?? null,
+                    imageUrl: component.flavors?.image_path
+                      ? supabase.storage.from("flavor-images").getPublicUrl(component.flavors.image_path).data.publicUrl
+                      : null,
+                    grams: component.grams ?? null,
                     ratioPercent: component.ratio_percent ?? null
                   })) ?? []
               }
@@ -496,27 +539,27 @@ export function HomeSessionsCalendar() {
 
   const buildShareText = (session: SessionItem) => {
     const date = session.started_at
-      ? new Date(session.started_at).toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric" })
+      ? new Date(session.started_at).toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" })
       : "日時不明";
-    const mixTitle = session.mix?.title ?? "ミックス未選択";
-    const satisfaction = session.satisfaction ? `${session.satisfaction}/5` : "-/5";
     const flavors =
       session.mix?.components && session.mix.components.length > 0
-        ? session.mix.components
-            .map((component) => {
-              const ratio = component.ratioPercent != null ? ` ${component.ratioPercent}%` : "";
-              return `${component.brandName ? `${component.brandName} ` : ""}${component.flavorName}${ratio}`;
-            })
-            .join(" / ")
-        : null;
+        ? session.mix.components.map((component) => {
+            const brand = component.brandName ? ` (${component.brandName})` : "";
+            const gramsValue =
+              typeof (component as { grams?: number | null }).grams === "number"
+                ? (component as { grams?: number | null }).grams
+                : null;
+            const gramsText = gramsValue && gramsValue > 0 ? ` ${gramsValue}g` : "";
+            return `- ${component.flavorName}${brand}${gramsText}`;
+          })
+        : [];
+
     const lines = [
-      "シーシャ記録をつけました",
-      `${date} ｜ 満足度 ${satisfaction}`,
-      `ミックス: ${mixTitle}`,
-      flavors ? `フレーバー: ${flavors}` : null,
-      session.notes ? `メモ: ${session.notes}` : null,
-      "#Kemureco #シーシャ"
-    ].filter(Boolean);
+      date,
+      "フレーバー:",
+      ...(flavors.length ? flavors : ["- 記録なし"]),
+      "#Kemureco #Sisha"
+    ];
 
     return lines.join("\n");
   };
@@ -842,7 +885,14 @@ export function HomeSessionsCalendar() {
                             <CardContent className="space-y-3 px-5 pb-4 pt-0">
                               {item.mix?.components && item.mix.components.length > 0 ? (
                                 <div className="space-y-2">
-                                  <p className="text-[11px] text-muted-foreground">フレーバー配合</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-[11px] text-muted-foreground">フレーバー配合</p>
+                                    {chartData.mode === "ratio" ? (
+                                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                                        割合のみ
+                                      </span>
+                                    ) : null}
+                                  </div>
                                   <ChartContainer className="w-full" style={{ height: 56 }}>
                                     <ResponsiveContainer width="100%" height="100%">
                                       <BarChart data={[chartData.stackedData]} layout="vertical" margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
@@ -882,12 +932,36 @@ export function HomeSessionsCalendar() {
                                       </BarChart>
                                     </ResponsiveContainer>
                                   </ChartContainer>
+                                  {chartData.mode === "grams" ? (
+                                    <p className="text-[11px] text-muted-foreground">合計 {chartData.totalGrams}g</p>
+                                  ) : null}
                                   <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                                     {chartData.items.map((entry) => (
-                                      <div key={`${item.id}-legend-${entry.key}`} className="flex items-center gap-1">
-                                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.fill }} />
-                                        <span>{entry.name}</span>
-                                        <span>{entry.ratio}%</span>
+                                      <div key={`${item.id}-legend-${entry.key}`} className="flex items-center gap-2">
+                                        <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full">
+                                          <span className="absolute inset-0 rounded-full" style={{ backgroundColor: entry.fill }} />
+                                          {entry.imageUrl ? (
+                                            <img
+                                              src={entry.imageUrl}
+                                              alt={entry.name}
+                                              className="relative h-full w-full object-cover"
+                                              onError={(event) => {
+                                                event.currentTarget.style.display = "none";
+                                              }}
+                                            />
+                                          ) : null}
+                                        </span>
+                                        <div className="flex flex-col">
+                                          <span className="text-foreground">{entry.name}</span>
+                                          {entry.brand ? <span className="text-[10px] text-muted-foreground">{entry.brand}</span> : null}
+                                        </div>
+                                        <span>
+                                          {chartData.mode === "grams"
+                                            ? entry.grams
+                                              ? `${entry.grams}g (${entry.ratio}%)`
+                                              : "未入力"
+                                            : `${entry.ratio}%`}
+                                        </span>
                                       </div>
                                     ))}
                                   </div>
