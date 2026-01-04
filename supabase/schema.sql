@@ -26,6 +26,7 @@ create table if not exists public.mix_components (
   mix_id integer not null references public.mixes(id) on delete cascade,
   flavor_id integer not null references public.flavors(id) on delete cascade,
   ratio_percent integer not null check (ratio_percent between 1 and 100),
+  grams numeric(10,2) default null,
   layer_order integer not null,
   constraint mix_components_pkey primary key (mix_id, flavor_id)
 );

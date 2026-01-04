@@ -15,8 +15,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useAuth } from "@/components/auth/auth-provider";
-import { MapPin, MoreHorizontal, Pencil, Share2, ThumbsUp, Trash2 } from "lucide-react";
+import { ExternalLink, MapPin, MoreHorizontal, Pencil, Share2, ThumbsUp, Trash2 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { LocationPlacesCombobox, type PlaceValue, getGoogleMapsLink } from "@/components/sessions/location-places-combobox";
 import {
   type CarouselApi,
   Carousel,
@@ -43,6 +44,7 @@ export function HomeSessionsCalendar() {
   const [selectedSessions, setSelectedSessions] = useState<SessionItem[]>([]);
   const [selectedSessionIndex, setSelectedSessionIndex] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingLocationPlace, setEditingLocationPlace] = useState<PlaceValue | null>(null);
   const [editingComponents, setEditingComponents] = useState<Array<{ flavorId: string }>>([]);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -175,6 +177,7 @@ export function HomeSessionsCalendar() {
       setEditingId(null);
       setEditingForm({ startedAt: "", satisfaction: 3, location: "", notes: "" });
       setEditingComponents([]);
+      setEditingLocationPlace(null);
       setSelectedSessionIndex(0);
       setOpenMenuId(null);
       setDeleteDialogOpen(false);
@@ -196,6 +199,7 @@ export function HomeSessionsCalendar() {
       setEditingId(null);
       setEditingForm({ startedAt: "", satisfaction: 3, location: "", notes: "" });
       setEditingComponents([]);
+      setEditingLocationPlace(null);
     };
     handleSelect();
     carouselApi.on("select", handleSelect);
@@ -213,7 +217,8 @@ export function HomeSessionsCalendar() {
   const fetchSessions = async (userId: string) => {
     try {
       const baseSelect =
-        "id, started_at, satisfaction, user_id, location_text, notes" + (mixColumnAvailable ? ", mix_id" : "");
+        "id, started_at, satisfaction, user_id, location_text, location_place_id, location_name, location_address, location_lat, location_lng, location_distance_km, notes" +
+        (mixColumnAvailable ? ", mix_id" : "");
       const { data, error } = await supabase
         .from("sessions")
         .select(baseSelect)
@@ -294,6 +299,12 @@ export function HomeSessionsCalendar() {
           user_id: userId,
           started_at: item.started_at,
           location_text: item.location_text,
+          location_place_id: item.location_place_id ?? null,
+          location_name: item.location_name ?? null,
+          location_address: item.location_address ?? null,
+          location_lat: item.location_lat ?? null,
+          location_lng: item.location_lng ?? null,
+          location_distance_km: item.location_distance_km ?? null,
           satisfaction: item.satisfaction,
           notes: item.notes,
           mix_id: mixColumnAvailable ? item.mix_id : null,
@@ -366,6 +377,7 @@ export function HomeSessionsCalendar() {
     setEditingId(null);
     setEditingForm({ startedAt: "", satisfaction: 3, location: "", notes: "" });
     setEditingComponents([]);
+    setEditingLocationPlace(null);
     setDialogOpen(true);
   };
 
@@ -374,9 +386,21 @@ export function HomeSessionsCalendar() {
     setEditingForm({
       startedAt: formatDateInput(session.started_at),
       satisfaction: session.satisfaction ?? 3,
-      location: session.location_text ?? "",
+      location: session.location_name ?? session.location_text ?? "",
       notes: session.notes ?? ""
     });
+    setEditingLocationPlace(
+      session.location_place_id || session.location_name || session.location_address
+        ? {
+            placeId: session.location_place_id ?? "",
+            name: session.location_name ?? session.location_text ?? "",
+            formattedAddress: session.location_address ?? "",
+            lat: session.location_lat ?? null,
+            lng: session.location_lng ?? null,
+            distanceKm: session.location_distance_km ?? null
+          }
+        : null
+    );
     setEditingComponents(
       session.mix?.components?.length
         ? session.mix.components.map((component) => ({ flavorId: String(component.flavorId) }))
@@ -423,7 +447,13 @@ export function HomeSessionsCalendar() {
     const payload: Record<string, unknown> = {
       started_at: startedAt,
       satisfaction: editingForm.satisfaction,
-      location_text: editingForm.location.trim() || null,
+      location_text: (editingLocationPlace?.name ?? editingForm.location.trim()) || null,
+      location_place_id: editingLocationPlace?.placeId ?? null,
+      location_name: editingLocationPlace?.name ?? null,
+      location_address: editingLocationPlace?.formattedAddress ?? null,
+      location_lat: editingLocationPlace?.lat ?? null,
+      location_lng: editingLocationPlace?.lng ?? null,
+      location_distance_km: editingLocationPlace?.distanceKm ?? null,
       notes: editingForm.notes.trim() || null
     };
 
@@ -775,11 +805,13 @@ export function HomeSessionsCalendar() {
                             </div>
                               <div className="space-y-2">
                                 <Label htmlFor={`location-${item.id}`}>場所</Label>
-                                <Input
-                                  id={`location-${item.id}`}
-                                  placeholder="自宅 / ラウンジ名など"
-                                  value={editingForm.location}
-                                  onChange={(event) => handleEditChange("location", event.target.value)}
+                                <LocationPlacesCombobox
+                                  value={editingLocationPlace}
+                                  onChange={(nextValue) => {
+                                    setEditingLocationPlace(nextValue);
+                                    handleEditChange("location", nextValue?.name ?? "");
+                                  }}
+                                  placeholder="店舗名で検索"
                                 />
                               </div>
                               <div className="space-y-2">
@@ -834,8 +866,26 @@ export function HomeSessionsCalendar() {
                                   </div>
                                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <MapPin className="h-4 w-4" />
-                                    {item.location_text ? (
-                                      <span className="text-foreground/80">{item.location_text}</span>
+                                    {item.location_name || item.location_text ? (
+                                      <>
+                                        <span className="text-foreground/80">{item.location_name ?? item.location_text}</span>
+                                        {item.location_lat !== null && item.location_lng !== null && (
+                                          <a
+                                            href={getGoogleMapsLink(
+                                              item.location_lat,
+                                              item.location_lng,
+                                              item.location_name,
+                                              item.location_address
+                                            )}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-3 w-3" />
+                                          </a>
+                                        )}
+                                      </>
                                     ) : (
                                       <span>未設定</span>
                                     )}

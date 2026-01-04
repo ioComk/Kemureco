@@ -15,8 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
-import { Trash2 } from "lucide-react";
+import { ExternalLink, Trash2 } from "lucide-react";
 import { HomeSessionsCalendar } from "@/components/sessions/home-sessions-calendar";
+import { LocationPlacesCombobox, type PlaceValue, getGoogleMapsLink } from "@/components/sessions/location-places-combobox";
 
 export function SessionsDashboard() {
   const supabase = useMemo(() => createSupabaseClient(), []);
@@ -29,6 +30,7 @@ export function SessionsDashboard() {
   const [flavors, setFlavors] = useState<Array<{ id: number; name: string; brandName?: string | null }>>([]);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingLocationPlace, setEditingLocationPlace] = useState<PlaceValue | null>(null);
   const [editingComponents, setEditingComponents] = useState<Array<{ flavorId: string }>>([]);
   const [editingForm, setEditingForm] = useState<{
     startedAt: string;
@@ -78,7 +80,8 @@ export function SessionsDashboard() {
   const fetchSessions = async (userId: string) => {
     try {
       const baseSelect =
-        "id, started_at, location_text, satisfaction, notes" + (mixColumnAvailable ? ", mix_id" : "");
+        "id, started_at, location_text, location_place_id, location_name, location_address, location_lat, location_lng, location_distance_km, satisfaction, notes" +
+        (mixColumnAvailable ? ", mix_id" : "");
       const { data, error } = await supabase
         .from("sessions")
         .select(baseSelect)
@@ -140,6 +143,12 @@ export function SessionsDashboard() {
           user_id: userId,
           started_at: item.started_at,
           location_text: item.location_text,
+          location_place_id: item.location_place_id ?? null,
+          location_name: item.location_name ?? null,
+          location_address: item.location_address ?? null,
+          location_lat: item.location_lat ?? null,
+          location_lng: item.location_lng ?? null,
+          location_distance_km: item.location_distance_km ?? null,
           satisfaction: item.satisfaction,
           notes: item.notes,
           mix_id: mixColumnAvailable ? item.mix_id : null,
@@ -175,10 +184,22 @@ export function SessionsDashboard() {
     setEditingId(item.id);
     setEditingForm({
       startedAt: item.started_at ? new Date(item.started_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-      location: item.location_text ?? "",
+      location: item.location_name ?? item.location_text ?? "",
       satisfaction: item.satisfaction ?? 3,
       notes: item.notes ?? ""
     });
+    setEditingLocationPlace(
+      item.location_place_id || item.location_name || item.location_address
+        ? {
+            placeId: item.location_place_id ?? "",
+            name: item.location_name ?? item.location_text ?? "",
+            formattedAddress: item.location_address ?? "",
+            lat: item.location_lat ?? null,
+            lng: item.location_lng ?? null,
+            distanceKm: item.location_distance_km ?? null
+          }
+        : null
+    );
     setEditingComponents(
       item.mix?.components?.length
         ? item.mix.components.map((component) => ({ flavorId: String(component.flavorId) }))
@@ -189,6 +210,7 @@ export function SessionsDashboard() {
   const cancelEdit = () => {
     setEditingId(null);
     setEditingComponents([]);
+    setEditingLocationPlace(null);
   };
 
   const handleEditChange = <K extends keyof typeof editingForm>(key: K, value: (typeof editingForm)[K]) => {
@@ -219,7 +241,13 @@ export function SessionsDashboard() {
     }
 
     const basePayload = {
-      location_text: editingForm.location.trim() || null,
+      location_text: (editingLocationPlace?.name ?? editingForm.location.trim()) || null,
+      location_place_id: editingLocationPlace?.placeId ?? null,
+      location_name: editingLocationPlace?.name ?? null,
+      location_address: editingLocationPlace?.formattedAddress ?? null,
+      location_lat: editingLocationPlace?.lat ?? null,
+      location_lng: editingLocationPlace?.lng ?? null,
+      location_distance_km: editingLocationPlace?.distanceKm ?? null,
       notes: editingForm.notes.trim() || null,
       satisfaction: editingForm.satisfaction,
       started_at: new Date(editingForm.startedAt).toISOString()
@@ -477,11 +505,13 @@ export function SessionsDashboard() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor={`location-${item.id}`}>場所</Label>
-                        <Input
-                          id={`location-${item.id}`}
-                          placeholder="自宅 / ラウンジ名など"
-                          value={editingForm.location}
-                          onChange={(event) => handleEditChange("location", event.target.value)}
+                        <LocationPlacesCombobox
+                          value={editingLocationPlace}
+                          onChange={(nextValue) => {
+                            setEditingLocationPlace(nextValue);
+                            handleEditChange("location", nextValue?.name ?? "");
+                          }}
+                          placeholder="店舗名で検索"
                         />
                       </div>
                       <div className="space-y-2">
@@ -528,8 +558,27 @@ export function SessionsDashboard() {
                         </div>
                         <Badge variant="secondary">満足度 {item.satisfaction ?? 0}/5</Badge>
                       </div>
-                      {item.location_text ? (
-                        <p className="text-sm text-muted-foreground">場所: {item.location_text}</p>
+                      {item.location_name || item.location_text ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span>場所: {item.location_name ?? item.location_text}</span>
+                          {item.location_lat !== null && item.location_lng !== null && (
+                            <a
+                              href={getGoogleMapsLink(
+                                item.location_lat,
+                                item.location_lng,
+                                item.location_name,
+                                item.location_address
+                              )}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-primary hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              <span className="text-xs">地図</span>
+                            </a>
+                          )}
+                        </div>
                       ) : null}
                       {item.notes ? <p className="text-sm">{item.notes}</p> : null}
                       {item.mix?.components && item.mix.components.length > 0 ? (

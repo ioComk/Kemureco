@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Droplets, Plus, ShieldAlert, ThumbsUp, Trash2 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { LocationPlacesCombobox, type PlaceValue } from "@/components/sessions/location-places-combobox";
 
 type MixOption = Pick<Database["public"]["Tables"]["mixes"]["Row"], "id" | "title">;
 type FlavorOption = Flavor & { brand?: { id: number; name: string } | null };
@@ -144,6 +145,7 @@ export function SessionForm() {
   const [mixes, setMixes] = useState<MixOption[]>([]);
   const [flavors, setFlavors] = useState<FlavorOption[]>([]);
   const [formState, setFormState] = useState<FormState>(DEFAULT_FORM_STATE);
+  const [locationPlace, setLocationPlace] = useState<PlaceValue | null>(null);
   const [hoverSatisfaction, setHoverSatisfaction] = useState<number | null>(null);
   const [components, setComponents] = useState<ComponentState[]>(() => createDefaultComponents(2));
   const [useCustomRatio, setUseCustomRatio] = useState(false);
@@ -330,7 +332,13 @@ export function SessionForm() {
 
     const basePayload: SessionInsert = {
       user_id: authUserId,
-      location_text: formState.location.trim() || null,
+      location_text: (locationPlace?.name ?? formState.location.trim()) || null,
+      location_place_id: locationPlace?.placeId ?? null,
+      location_name: locationPlace?.name ?? null,
+      location_address: locationPlace?.formattedAddress ?? null,
+      location_lat: locationPlace?.lat ?? null,
+      location_lng: locationPlace?.lng ?? null,
+      location_distance_km: locationPlace?.distanceKm ?? null,
       notes: notesPayload || null,
       satisfaction: formState.satisfaction,
       started_at: new Date(formState.startedAt).toISOString(),
@@ -403,20 +411,35 @@ export function SessionForm() {
 
         const ratios = deriveRatios();
 
-        const componentsPayload: MixComponentInsert[] = components.map((component, index) => ({
-          mix_id: mixData.id,
-          flavor_id: Number(component.flavorId),
-          ratio_percent: ratios[index] ?? 0,
-          grams: typeof component.grams === "number" ? component.grams : null,
-          layer_order: index + 1
-        }));
+        const componentsPayload: MixComponentInsert[] = components
+          .filter((c) => c.flavorId !== "" && !isNaN(Number(c.flavorId)))
+          .map((component, index) => ({
+            mix_id: mixData.id,
+            flavor_id: Number(component.flavorId),
+            ratio_percent: ratios[index] ?? 0,
+            grams: typeof component.grams === "number" ? component.grams : null,
+            layer_order: index + 1
+          }));
+
+        console.log("mix_components insert payload:", componentsPayload);
+
+        if (componentsPayload.length === 0) {
+          console.error("No valid flavor components to insert");
+          toast({
+            title: "ミックス作成に失敗しました",
+            description: "有効なフレーバーが選択されていません。",
+            variant: "destructive"
+          });
+          return;
+        }
 
         const { error: compError } = await supabase.from("mix_components").insert(componentsPayload);
         if (compError) {
-          console.error("insert mix components error", compError);
+          const errorDetail = JSON.stringify(compError, Object.getOwnPropertyNames(compError));
+          console.error("insert mix components error", errorDetail, "payload", componentsPayload);
           toast({
             title: "ミックス作成に失敗しました",
-            description: "フレーバー構成の保存に失敗しました。",
+            description: compError.message || "フレーバー構成の保存に失敗しました。",
             variant: "destructive"
           });
           return;
@@ -463,6 +486,7 @@ export function SessionForm() {
       toast({ title: "記録しました" });
       setFormState({ ...DEFAULT_FORM_STATE, startedAt: toJstDatetimeValue(new Date()) });
       setComponents(createDefaultComponents(2));
+      setLocationPlace(null);
       router.push("/sessions");
     });
   };
@@ -710,11 +734,13 @@ export function SessionForm() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="location">場所</Label>
-              <Input
-                id="location"
-                placeholder="自宅 / ラウンジ名など"
-                value={formState.location}
-                onChange={(event) => handleChange("location", event.target.value)}
+              <LocationPlacesCombobox
+                value={locationPlace}
+                onChange={(nextValue) => {
+                  setLocationPlace(nextValue);
+                  handleChange("location", nextValue?.name ?? "");
+                }}
+                placeholder="店舗名で検索"
               />
             </div>
           </div>

@@ -39,6 +39,12 @@ export type Session = {
   mix_id: number | null;
   started_at: string | null;
   location_text: string | null;
+  location_place_id: string | null;
+  location_name: string | null;
+  location_address: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
+  location_distance_km: number | null;
   satisfaction: number | null;
   notes: string | null;
 };
