@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { Database, Flavor } from "@/lib/types";
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { Droplets, Plus, ShieldAlert, ThumbsUp, Trash2 } from "lucide-react";
+import { Droplets, Plus, ShieldAlert, ThumbsUp, Trash2, Sparkles, Package } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { LocationPlacesCombobox, type PlaceValue } from "@/components/sessions/location-places-combobox";
@@ -43,6 +43,7 @@ const JP_QUERY_MAP: Array<{ jp: string; en: string }> = [
   { jp: "オレンジ", en: "orange" },
   { jp: "あっぷる", en: "apple" },
   { jp: "アップル", en: "apple" },
+  { jp: "りんご", en: "apple" },
   { jp: "だぶるあっぷる", en: "two apples" },
   { jp: "ダブルアップル", en: "two apples" },
   { jp: "ぐれーぷ", en: "grape" },
@@ -144,6 +145,7 @@ export function SessionForm() {
   const [mixColumnAvailable, setMixColumnAvailable] = useState(true);
   const [mixes, setMixes] = useState<MixOption[]>([]);
   const [flavors, setFlavors] = useState<FlavorOption[]>([]);
+  const dataFetchedRef = useRef<string | null>(null); // データ取得済みユーザーID
   const [formState, setFormState] = useState<FormState>(DEFAULT_FORM_STATE);
   const [locationPlace, setLocationPlace] = useState<PlaceValue | null>(null);
   const [hoverSatisfaction, setHoverSatisfaction] = useState<number | null>(null);
@@ -153,6 +155,19 @@ export function SessionForm() {
   const [flavorQuery, setFlavorQuery] = useState("");
   const flavorById = useMemo(() => new Map(flavors.map((flavor) => [String(flavor.id), flavor])), [flavors]);
 
+  // image_pathからSupabase StorageのPublic URLへのマッピングをキャッシュ
+  const flavorImageUrls = useMemo(() => {
+    const map = new Map<number, string>();
+    flavors.forEach((flavor) => {
+      if (!flavor.image_path) return;
+      const { data } = supabase.storage.from("flavor-images").getPublicUrl(flavor.image_path);
+      if (data.publicUrl) {
+        map.set(flavor.id, data.publicUrl);
+      }
+    });
+    return map;
+  }, [flavors, supabase]);
+
   useEffect(() => {
     if (authLoading) {
       setAuthUserId(null);
@@ -161,9 +176,13 @@ export function SessionForm() {
     const userId = user?.id ?? null;
     setAuthUserId(userId);
     if (userId) {
+      // 同じユーザーIDで既に取得済みなら再取得しない
+      if (dataFetchedRef.current === userId) return;
+      dataFetchedRef.current = userId;
       void fetchMixes();
       void fetchFlavors();
     } else {
+      dataFetchedRef.current = null;
       setMixes([]);
       setFlavors([]);
     }
@@ -532,39 +551,106 @@ export function SessionForm() {
                 グラム数を自分で設定する
               </label>
               <div className="grid gap-4 md:grid-cols-2">
-                {components.map((component, index) => (
-                  <div key={index} className="rounded-md border p-3 space-y-3 bg-muted/40">
-                    <div className="flex items-center justify-between gap-2">
-                      <Label className="text-sm">フレーバー #{index + 1}</Label>
+                {components.map((component, index) => {
+                  const selectedFlavor = component.flavorId ? flavorById.get(component.flavorId) : null;
+                  const isSelected = component.mode === "existing" ? !!selectedFlavor : component.customName.trim().length > 0;
+                  
+                  return (
+                  <div 
+                    key={index} 
+                    className={`relative rounded-xl border p-4 space-y-4 transition-all duration-300 hover:shadow-md ${
+                      isSelected 
+                        ? "border-foreground/30 bg-gray-100 dark:bg-zinc-800" 
+                        : "border-border bg-white dark:bg-zinc-900 hover:border-border/80"
+                    }`}
+                  >
+                    {/* カード番号バッジ */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-full font-bold text-sm transition-colors ${
+                          isSelected 
+                            ? "bg-foreground text-background" 
+                            : "bg-muted-foreground/20 text-muted-foreground"
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <Label className="text-sm font-semibold">フレーバー #{index + 1}</Label>
+                          {isSelected && selectedFlavor && (
+                            <p className="text-xs text-muted-foreground truncate max-w-[150px]">{selectedFlavor.brand?.name ?? "ブランド未設定"}</p>
+                          )}
+                        </div>
+                      </div>
                       {components.length > MIN_COMPONENTS ? (
-                        <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveComponent(index)} aria-label="削除">
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleRemoveComponent(index)} 
+                          aria-label="削除"
+                          className="h-8 w-8 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       ) : null}
                     </div>
-                        {useCustomRatio && getGramsValue(component.grams) <= 0 ? (
-                          <p className="text-xs text-destructive">0gのフレーバーは保存できません。</p>
-                        ) : null}
-                    <div className="flex flex-wrap gap-2">
-                      <Button
+
+                    {/* 選択されたフレーバー表示エリア */}
+                    {isSelected && component.mode === "existing" && selectedFlavor && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-zinc-800 border border-border">
+                        {flavorImageUrls.get(selectedFlavor.id) ? (
+                          <img 
+                            src={flavorImageUrls.get(selectedFlavor.id)} 
+                            alt={selectedFlavor.name}
+                            className="h-12 w-12 rounded-lg object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                            <Package className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{selectedFlavor.name}</p>
+                          {useCustomRatio && (
+                            <p className="text-sm text-muted-foreground">{getGramsValue(component.grams)}g</p>
+                          )}
+                        </div>
+                        <Sparkles className="h-4 w-4 text-muted-foreground/50" />
+                      </div>
+                    )}
+
+                    {useCustomRatio && getGramsValue(component.grams) <= 0 ? (
+                      <p className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded">0gのフレーバーは保存できません。</p>
+                    ) : null}
+
+                    {/* モード切替タブ */}
+                    <div className="flex rounded-lg bg-muted/50 p-1">
+                      <button
                         type="button"
-                        variant={component.mode === "existing" ? "default" : "outline"}
-                        size="sm"
+                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                          component.mode === "existing" 
+                            ? "bg-background shadow-sm text-foreground" 
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
                         onClick={() => handleComponentChange(index, { mode: "existing" })}
                       >
                         既存から選ぶ
-                      </Button>
-                      <Button
+                      </button>
+                      <button
                         type="button"
-                        variant={component.mode === "custom" ? "default" : "outline"}
-                        size="sm"
+                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                          component.mode === "custom" 
+                            ? "bg-background shadow-sm text-foreground" 
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
                         onClick={() => handleComponentChange(index, { mode: "custom" })}
                       >
                         自由入力
-                      </Button>
+                      </button>
                     </div>
                     {component.mode === "existing" ? (
-                      <div className="flex items-center gap-2">
+                      <div className="space-y-2">
                         <Dialog
                           open={flavorModalIndex === index}
                           onOpenChange={(open) => {
@@ -576,35 +662,29 @@ export function SessionForm() {
                         >
                           <Button
                             type="button"
-                            variant="outline"
-                            className="w-full justify-between text-left"
+                            variant={selectedFlavor ? "outline" : "default"}
+                            className={`w-full justify-center gap-2 h-11 ${
+                              !selectedFlavor 
+                                ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200" 
+                                : "border-dashed hover:bg-muted/50"
+                            }`}
                             onClick={() => {
                               setFlavorModalIndex(index);
                               setFlavorQuery("");
                             }}
                           >
-                            <span className="truncate">
-                              {component.flavorId
-                                ? (() => {
-                                    const selected = flavorById.get(component.flavorId);
-                                    if (!selected) return "フレーバーを選択";
-                                    return (
-                                      <span className="flex items-center gap-1 truncate">
-                                        <span className="truncate">{selected.name}</span>
-                                        {selected.brand?.name ? (
-                                          <>
-                                            <span className="text-xs text-muted-foreground">/</span>
-                                            <span className="truncate text-xs text-muted-foreground">{selected.brand.name}</span>
-                                          </>
-                                        ) : null}
-                                      </span>
-                                    );
-                                  })()
-                                : "フレーバーを選択"}
-                            </span>
-                            <span className="text-xs text-muted-foreground">変更</span>
+                            {selectedFlavor ? (
+                              <>
+                                <span className="text-sm">フレーバーを変更</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-4 w-4" />
+                                <span>フレーバーを選択</span>
+                              </>
+                            )}
                           </Button>
-                          <DialogContent className="max-w-lg">
+                          <DialogContent className="max-w-lg bg-white dark:bg-zinc-900">
                             <DialogHeader>
                               <DialogTitle>既存フレーバーを選択</DialogTitle>
                               <DialogDescription>ブランド名やフレーバー名で絞り込めます。</DialogDescription>
@@ -615,16 +695,16 @@ export function SessionForm() {
                                 value={flavorQuery}
                                 onChange={(event) => setFlavorQuery(event.target.value)}
                               />
-                              <div className="max-h-72 overflow-auto rounded-md border">
+                              <div className="max-h-80 overflow-auto rounded-md border border-border bg-white dark:bg-zinc-800">
                                 {filteredFlavors.length === 0 ? (
                                   <p className="px-3 py-6 text-center text-sm text-muted-foreground">候補が見つかりませんでした。</p>
                                 ) : (
-                                  <div className="divide-y">
+                                  <div className="divide-y divide-border">
                                     {filteredFlavors.map((flavor) => (
                                       <button
                                         key={flavor.id}
                                         type="button"
-                                        className="flex w-full items-center justify-between px-3 py-3 text-left text-sm transition hover:bg-accent"
+                                        className="flex w-full items-start gap-3 px-3 py-3 text-left text-sm transition hover:bg-accent/50"
                                         onClick={() => {
                                           handleComponentChange(index, {
                                             flavorId: String(flavor.id),
@@ -636,8 +716,37 @@ export function SessionForm() {
                                           setFlavorQuery("");
                                         }}
                                       >
-                                        <span>{flavor.name}</span>
-                                        <span className="text-xs text-muted-foreground">{flavor.brand?.name ?? "ブランド未設定"}</span>
+                                        {flavorImageUrls.get(flavor.id) ? (
+                                          <img 
+                                            src={flavorImageUrls.get(flavor.id)} 
+                                            alt={flavor.name}
+                                            className="h-12 w-12 rounded-md object-cover flex-shrink-0"
+                                            loading="lazy"
+                                          />
+                                        ) : (
+                                          <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                                            <Package className="h-5 w-5 text-muted-foreground" />
+                                          </div>
+                                        )}
+                                        <div className="flex-1 min-w-0 space-y-1">
+                                          <p className="font-medium truncate">{flavor.name}</p>
+                                          <p className="text-xs text-muted-foreground truncate">{flavor.brand?.name ?? "ブランド未設定"}</p>
+                                          {flavor.tags && flavor.tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                              {flavor.tags.slice(0, 5).map((tag) => (
+                                                <span
+                                                  key={tag}
+                                                  className="inline-flex items-center rounded-full bg-muted/80 dark:bg-muted px-2 py-0.5 text-[10px] text-foreground/70"
+                                                >
+                                                  {tag}
+                                                </span>
+                                              ))}
+                                              {flavor.tags.length > 5 && (
+                                                <span className="text-[10px] text-muted-foreground">+{flavor.tags.length - 5}</span>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
                                       </button>
                                     ))}
                                   </div>
@@ -646,79 +755,110 @@ export function SessionForm() {
                             </div>
                           </DialogContent>
                         </Dialog>
-                        {useCustomRatio ? (
-                          <div className="flex items-center gap-1 rounded-md border bg-background px-2 py-1">
-                            <Input
-                              type="number"
-                              min={0}
-                              step={1}
-                              value={component.grams === "" ? "" : component.grams}
-                              onChange={(event) => {
-                                const raw = event.target.value;
-                                if (raw === "") {
-                                  handleComponentChange(index, { grams: "" });
-                                  return;
-                                }
-                                const nextValue = Number(raw);
-                                handleComponentChange(index, {
-                                  grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0
-                                });
-                              }}
-                              className="h-6 w-14 border-0 p-0 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-                            />
-                            <span className="text-xs text-muted-foreground">g</span>
+                        {useCustomRatio && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <Label className="text-xs text-muted-foreground whitespace-nowrap">グラム数:</Label>
+                            <div className="flex items-center gap-1 rounded-lg border bg-background px-3 py-1.5 shadow-sm">
+                              <Input
+                                type="number"
+                                min={0}
+                                step={1}
+                                value={component.grams === "" ? "" : component.grams}
+                                onChange={(event) => {
+                                  const raw = event.target.value;
+                                  if (raw === "") {
+                                    handleComponentChange(index, { grams: "" });
+                                    return;
+                                  }
+                                  const nextValue = Number(raw);
+                                  handleComponentChange(index, {
+                                    grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0
+                                  });
+                                }}
+                                className="h-7 w-16 border-0 p-0 text-center font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
+                              />
+                              <span className="text-sm text-muted-foreground font-medium">g</span>
+                            </div>
                           </div>
-                        ) : null}
+                        )}
                       </div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
+                        {/* 自由入力選択時の表示エリア */}
+                        {component.customName.trim().length > 0 && (
+                          <div className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-zinc-800 border border-border">
+                            <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                              <Sparkles className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{component.customName}</p>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {component.customBrand || "ブランド未設定"}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                         <Input
                           placeholder="フレーバー名 (例: Unknown Mint)"
                           value={component.customName}
                           onChange={(event) => handleComponentChange(index, { customName: event.target.value })}
+                          className="h-11"
                         />
                         {component.customName.trim().length > 0 ? (
-                          <div className="rounded-md border bg-background">
-                            <div className="px-3 py-2 text-xs font-medium text-muted-foreground">サジェスト</div>
+                          <div className="rounded-lg border bg-background/90 overflow-hidden">
+                            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">
+                              💡 もしかして...
+                            </div>
                             {(() => {
                               const suggestions = getFlavorSuggestions(component.customName);
                               if (!suggestions.length) {
-                                return <p className="px-3 pb-3 text-sm text-muted-foreground">候補が見つかりませんでした。</p>;
+                                return <p className="px-3 py-4 text-sm text-muted-foreground text-center">候補が見つかりませんでした</p>;
                               }
                               return (
-                                <div className="max-h-40 overflow-auto">
+                                <div className="max-h-40 overflow-auto divide-y">
                                   {suggestions.map((flavor) => (
                                     <button
                                       key={flavor.id}
                                       type="button"
-                                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent"
+                                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-accent/50 transition-colors"
                                       onClick={() =>
                                         handleComponentChange(index, {
-                                          customName: flavor.name,
-                                          customBrand: flavor.brand?.name ?? ""
+                                          flavorId: String(flavor.id),
+                                          mode: "existing",
+                                          customName: "",
+                                          customBrand: ""
                                         })
                                       }
                                     >
-                                      <span>{flavor.name}</span>
+                                      {flavorImageUrls.get(flavor.id) ? (
+                                        <img src={flavorImageUrls.get(flavor.id)} alt="" className="h-8 w-8 rounded object-cover" loading="lazy" />
+                                      ) : (
+                                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                                          <Package className="h-4 w-4 text-muted-foreground" />
+                                        </div>
+                                      )}
+                                      <span className="flex-1 truncate font-medium">{flavor.name}</span>
                                       <span className="text-xs text-muted-foreground">
                                         {flavor.brand?.name ?? "ブランド未設定"}
                                       </span>
                                     </button>
                                   ))}
                                 </div>
-                              );
-                            })()}
-                          </div>
-                        ) : null}
-                        <Input
-                          placeholder="ブランド名 (任意: 例 Unknown Brand)"
-                          value={component.customBrand}
-                          onChange={(event) => handleComponentChange(index, { customBrand: event.target.value })}
-                        />
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
-                ))}
+                ) : null}
+                <Input
+                  placeholder="ブランド名 (任意: 例 Unknown Brand)"
+                  value={component.customBrand}
+                  onChange={(event) => handleComponentChange(index, { customBrand: event.target.value })}
+                  className="border-dashed"
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
               </div>
             </div>
           ) : null}
@@ -761,8 +901,10 @@ export function SessionForm() {
                       handleChange("satisfaction", score);
                     }}
                     onMouseLeave={() => setHoverSatisfaction(null)}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
-                      active ? "border-primary bg-primary/10 text-primary" : "border-input bg-background text-muted-foreground"
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${
+                      active 
+                        ? "border-amber-500 bg-amber-500/20 text-amber-500 dark:border-amber-400 dark:bg-amber-400/20 dark:text-amber-400" 
+                        : "border-gray-300 dark:border-gray-600 bg-transparent text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-500"
                     }`}
                     aria-label={`満足度 ${score}`}
                   >

@@ -2,15 +2,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
+
+// フローティングボタンを非表示にするパス
+const HIDDEN_PATHS = ["/sessions/new", "/flavors/new"];
 
 export function FloatingRecordButton() {
   const { user, loading: authLoading } = useAuth();
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   const handleSelect = () => setOpen(false);
 
-  if (authLoading || !user) {
+  // 記録・登録ページでは非表示
+  if (authLoading || !user || HIDDEN_PATHS.includes(pathname)) {
     return null;
   }
 

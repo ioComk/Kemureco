@@ -561,23 +561,26 @@ export function SessionsDashboard() {
                       {item.location_name || item.location_text ? (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <span>場所: {item.location_name ?? item.location_text}</span>
-                          {item.location_lat !== null && item.location_lng !== null && (
-                            <a
-                              href={getGoogleMapsLink(
-                                item.location_lat,
-                                item.location_lng,
-                                item.location_name,
-                                item.location_address
-                              )}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-primary hover:underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              <span className="text-xs">地図</span>
-                            </a>
-                          )}
+                          {(() => {
+                            const mapLink = getGoogleMapsLink(
+                              item.location_lat,
+                              item.location_lng,
+                              item.location_name ?? item.location_text,
+                              item.location_address
+                            );
+                            return mapLink ? (
+                              <a
+                                href={mapLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-primary hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                <span className="text-xs">地図</span>
+                              </a>
+                            ) : null;
+                          })()}
                         </div>
                       ) : null}
                       {item.notes ? <p className="text-sm">{item.notes}</p> : null}

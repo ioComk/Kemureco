@@ -869,22 +869,25 @@ export function HomeSessionsCalendar() {
                                     {item.location_name || item.location_text ? (
                                       <>
                                         <span className="text-foreground/80">{item.location_name ?? item.location_text}</span>
-                                        {item.location_lat !== null && item.location_lng !== null && (
-                                          <a
-                                            href={getGoogleMapsLink(
-                                              item.location_lat,
-                                              item.location_lng,
-                                              item.location_name,
-                                              item.location_address
-                                            )}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1 text-primary hover:underline"
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            <ExternalLink className="h-3 w-3" />
-                                          </a>
-                                        )}
+                                        {(() => {
+                                          const mapLink = getGoogleMapsLink(
+                                            item.location_lat,
+                                            item.location_lng,
+                                            item.location_name ?? item.location_text,
+                                            item.location_address
+                                          );
+                                          return mapLink ? (
+                                            <a
+                                              href={mapLink}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center gap-1 text-primary hover:underline"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <ExternalLink className="h-3 w-3" />
+                                            </a>
+                                          ) : null;
+                                        })()}
                                       </>
                                     ) : (
                                       <span>未設定</span>

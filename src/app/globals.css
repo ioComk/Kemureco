@@ -34,8 +34,18 @@
   }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 .dark {
   --background: oklch(14.1% .005 285.823);
+  /* --background: oklch(14.1% .005 285.823); */
   --foreground: 210 40% 98%;
   --card: oklch(14.1% .005 285.823);
   --card-foreground: 210 40% 98%;

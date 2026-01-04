@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ArrowUp, LayoutGrid, List, RotateCcw, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
+import { LazyImage } from "@/components/ui/lazy-image";
 
 type SortOption = "name" | "brand" | "popular";
 type ViewMode = "grid" | "list";
@@ -382,7 +383,7 @@ export function FlavorsExplorer({
 
       return a.name.localeCompare(b.name, "ja");
     });
-  }, [activeBrand, activeTags, items, query, sort]);
+  }, [activeBrand, activeTags, deferredQuery, items, sort]);
 
   const groupedFlavors = useMemo(() => {
     if (group !== "brand") return [];
@@ -497,6 +498,7 @@ export function FlavorsExplorer({
         className={`space-y-3 rounded-lg border p-4 transition hover:border-primary/40 hover:shadow-sm ${
           isSelected ? "border-primary/60 bg-primary/5 ring-2 ring-primary/30" : ""
         }`}
+        style={{ contentVisibility: "auto", containIntrinsicSize: "auto 280px" }}
         role="button"
         tabIndex={0}
         onClick={() => (selectionMode ? toggleSelectedFlavor(flavor.id) : setPreviewFlavor(flavor))}
@@ -508,14 +510,12 @@ export function FlavorsExplorer({
         }}
       >
         {imageUrl ? (
-          <div className="flex h-40 items-center justify-center overflow-hidden rounded-md bg-muted/10">
-            <img
-              src={imageUrl}
-              alt={`${flavor.name} の画像`}
-              className="h-full w-full object-contain"
-              loading="lazy"
-            />
-          </div>
+          <LazyImage
+            src={imageUrl}
+            alt={`${flavor.name} の画像`}
+            containerClassName="h-40 rounded-md bg-muted/10"
+            className="h-full w-full object-contain"
+          />
         ) : (
           <div className="flex h-40 items-center justify-center rounded-md bg-muted/30 text-xs text-muted-foreground">
             画像なし
@@ -598,6 +598,7 @@ export function FlavorsExplorer({
         className={`flex flex-col gap-4 rounded-lg border p-4 transition hover:border-primary/40 hover:shadow-sm md:flex-row ${
           isSelected ? "border-primary/60 bg-primary/5 ring-2 ring-primary/30" : ""
         }`}
+        style={{ contentVisibility: "auto", containIntrinsicSize: "auto 120px" }}
         role="button"
         tabIndex={0}
         onClick={() => (selectionMode ? toggleSelectedFlavor(flavor.id) : setPreviewFlavor(flavor))}
@@ -609,14 +610,12 @@ export function FlavorsExplorer({
         }}
       >
         {imageUrl ? (
-          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted/10">
-            <img
-              src={imageUrl}
-              alt={`${flavor.name} の画像`}
-              className="h-full w-full object-cover"
-              loading="lazy"
-            />
-          </div>
+          <LazyImage
+            src={imageUrl}
+            alt={`${flavor.name} の画像`}
+            containerClassName="h-16 w-16 flex-shrink-0 rounded-full bg-muted/10"
+            className="h-full w-full object-cover"
+          />
         ) : (
           <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-muted/30 text-[10px] text-muted-foreground">
             画像なし
