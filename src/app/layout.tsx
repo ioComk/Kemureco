@@ -10,6 +10,7 @@ import FloatingRecordButton from "@/components/sessions/floating-record-button";
 import { UserMenu } from "@/components/header/user-menu";
 import { NavMenu } from "@/components/header/nav-menu";
 import { BrandLogo } from "@/components/header/brand-logo";
+import { BottomNav } from "@/components/navigation/bottom-nav";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,6 +18,7 @@ import { AuthScreen } from "@/components/auth/auth-screen";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { Github } from "lucide-react";
 import { RouteProgress } from "@/components/ui/route-progress";
+import { ConditionalAuthGuard } from "@/components/layout/conditional-auth-guard";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -42,12 +44,13 @@ export default function RootLayout({
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.className)}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <AuthProvider>
-            <Suspense fallback={null}>
-              <RouteProgress />
-            </Suspense>
-            <div className="flex min-h-screen flex-col">
-              <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-                <div className="container flex h-16 items-center justify-between gap-4">
+            <ConditionalAuthGuard>
+              <Suspense fallback={null}>
+                <RouteProgress />
+              </Suspense>
+              <div className="flex min-h-screen flex-col">
+                <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+                  <div className="container flex h-16 items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <Link href="/" className="flex items-center gap-3">
                       <BrandLogo />
@@ -62,15 +65,17 @@ export default function RootLayout({
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <NavMenu />
+                    <div className="hidden sm:block">
+                      <NavMenu />
+                    </div>
                     <ThemeToggle />
                     <UserMenu />
                   </div>
-                </div>
-              </header>
-              <main className="container flex-1 py-10">{children}</main>
-              <footer className="border-t bg-card">
-                <div className="container flex h-14 items-center justify-center gap-3 text-sm text-muted-foreground">
+                  </div>
+                </header>
+                <main className="container flex-1 py-10 pb-24 sm:pb-10">{children}</main>
+                <footer className="border-t bg-card sm:block hidden">
+                  <div className="container flex h-14 items-center justify-center gap-3 text-sm text-muted-foreground">
                   &copy; {new Date().getFullYear()} Kemureco
                   <a
                     href="https://github.com/ioComk/Kemureco"
@@ -79,13 +84,17 @@ export default function RootLayout({
                     aria-label="Kemureco GitHub repository"
                     className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
                   >
-                    <Github className="h-4 w-4" />
-                  </a>
-                </div>
-              </footer>
-            </div>
-            <FloatingRecordButton />
-            <Toaster />
+                      <Github className="h-4 w-4" />
+                    </a>
+                  </div>
+                </footer>
+              </div>
+              <div className="hidden sm:block">
+                <FloatingRecordButton />
+              </div>
+              <BottomNav />
+              <Toaster />
+          </ConditionalAuthGuard>
           </AuthProvider>
         </ThemeProvider>
       </body>

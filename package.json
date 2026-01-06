@@ -18,6 +18,7 @@
     "@radix-ui/react-slider": "^1.0.2",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-toast": "^1.1.5",
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.42.6",
     "@types/mapbox-gl": "^3.4.1",
     "akar-icons": "^1.9.31",
