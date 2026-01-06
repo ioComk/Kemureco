@@ -239,11 +239,18 @@ export function SessionForm() {
   };
 
   const fetchFlavors = async () => {
+    // #region agent log
+    const startTime = Date.now();
+    fetch('http://127.0.0.1:7242/ingest/627f6a83-0837-4204-a620-6f09c7612d3e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'session-form.tsx:fetchFlavors:start',message:'フレーバー取得開始',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     const { data, error } = await supabase
       .from("flavors")
       .select("id,name,brand_id,created_at,created_by,tags,image_path,brands(id,name,jp_available)")
       .order("created_at", { ascending: false })
       .limit(100);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/627f6a83-0837-4204-a620-6f09c7612d3e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'session-form.tsx:fetchFlavors:end',message:'フレーバー取得完了',data:{duration:Date.now()-startTime,count:data?.length??0,hasError:!!error},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     if (error) {
       console.error("fetch flavors error", error);
       return;
