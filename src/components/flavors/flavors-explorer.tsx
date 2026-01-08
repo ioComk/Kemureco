@@ -22,6 +22,48 @@ type SortOption = "name" | "brand" | "popular";
 type ViewMode = "grid" | "list";
 type GroupOption = "none" | "brand";
 
+const normalizeBrandName = (value: string) => value.trim().replace(/\s+/g, " ");
+const FLAVORS_CACHE_PREFIX = "kemureco:flavors:";
+
+type FlavorCache = {
+  userId: string | null;
+  items: FlavorWithBrand[];
+  updatedAt: number;
+};
+
+let cachedFlavors: FlavorCache | null = null;
+
+const readCachedFlavors = (userId: string | null): FlavorWithBrand[] | null => {
+  if (cachedFlavors && cachedFlavors.userId === userId) {
+    return cachedFlavors.items;
+  }
+  if (typeof window === "undefined") return null;
+  const key = `${FLAVORS_CACHE_PREFIX}${userId ?? "anon"}`;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as FlavorCache;
+    if (parsed?.items?.length) {
+      cachedFlavors = { ...parsed, userId };
+      return parsed.items;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+const writeCachedFlavors = (userId: string | null, items: FlavorWithBrand[]) => {
+  cachedFlavors = { userId, items, updatedAt: Date.now() };
+  if (typeof window === "undefined") return;
+  const key = `${FLAVORS_CACHE_PREFIX}${userId ?? "anon"}`;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(cachedFlavors));
+  } catch {
+    // ignore cache write failures
+  }
+};
+
 const JP_QUERY_MAP: Array<{ jp: string; en: string }> = [
   { jp: "たんじあ", en: "tangiers" },
   { jp: "タンジア", en: "tangiers" },
@@ -147,6 +189,7 @@ export function FlavorsExplorer({
   const [expandedTagIds, setExpandedTagIds] = useState<Set<number>>(new Set());
   const maxCollapsedTags = 8;
   const initialTagSync = useRef(true);
+  const hasClientData = useRef(false);
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -167,8 +210,37 @@ export function FlavorsExplorer({
   }, [initialSort]);
 
   useEffect(() => {
+    if (hasClientData.current) return;
     setItems(flavors);
   }, [flavors]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    let mounted = true;
+    const fetchFlavors = async () => {
+      const { data, error } = await supabase
+        .from("flavors")
+        .select("id,name,tags,image_path,brand_id,created_at,created_by,brands(id,name,jp_available)")
+        .limit(200);
+      if (error) {
+        console.warn("flavors fetch failed", error);
+        return;
+      }
+      if (!mounted) return;
+      type FlavorQuery = FlavorWithBrand & { brands?: Brand | null };
+      const normalized = ((data as FlavorQuery[]) ?? []).map((item) => ({
+        ...item,
+        brand: item.brands ?? null
+      }));
+      hasClientData.current = true;
+      setItems(normalized);
+      writeCachedFlavors(user?.id ?? null, normalized);
+    };
+    void fetchFlavors();
+    return () => {
+      mounted = false;
+    };
+  }, [authLoading, supabase, user?.id]);
 
   useEffect(() => {
     const handleScroll = () => setShowScrollTop(window.scrollY > 500);
@@ -221,6 +293,14 @@ export function FlavorsExplorer({
     setUserId(user?.id ?? null);
   }, [authLoading, user?.id]);
 
+  useEffect(() => {
+    if (authLoading) return;
+    const cached = readCachedFlavors(user?.id ?? null);
+    if (!cached) return;
+    hasClientData.current = true;
+    setItems(cached);
+  }, [authLoading, user?.id]);
+
   const isAdmin = user?.app_metadata?.role === "admin";
 
   useEffect(() => {
@@ -246,13 +326,14 @@ export function FlavorsExplorer({
   }, [items]);
 
   const availableBrands = useMemo(() => {
-    const brandsSet = new Set<string>();
+    const brandsMap = new Map<number, string>();
     items.forEach((flavor) => {
-      if (flavor.brand?.name) {
-        brandsSet.add(flavor.brand.name);
-      }
+      if (!flavor.brand?.name) return;
+      brandsMap.set(flavor.brand_id, flavor.brand.name);
     });
-    return Array.from(brandsSet).sort((a, b) => a.localeCompare(b, "ja"));
+    return Array.from(brandsMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "ja"));
   }, [items]);
 
   const updateSearchParam = useCallback(
@@ -297,8 +378,8 @@ export function FlavorsExplorer({
     });
   };
 
-  const handleBrandToggle = (brand: string) => {
-    const nextBrand = activeBrand === brand ? "" : brand;
+  const handleBrandToggle = (brandId: string) => {
+    const nextBrand = activeBrand === brandId ? "" : brandId;
     setActiveBrand(nextBrand);
     updateSearchParam("brand", nextBrand || undefined);
   };
@@ -345,7 +426,9 @@ export function FlavorsExplorer({
     // #endregion
     const normalizedQuery = deferredQuery.trim().toLowerCase();
     const normalizedTags = activeTags.map((tag) => tag.trim().toLowerCase()).filter((tag) => tag.length > 0);
-    const normalizedBrand = activeBrand.trim().toLowerCase();
+    const normalizedBrand = activeBrand.trim();
+    const normalizedBrandName = normalizeBrandName(normalizedBrand).toLowerCase();
+    const usesBrandId = /^\d+$/.test(normalizedBrand);
     const queryTokens = new Set([normalizedQuery]);
     JP_QUERY_MAP.forEach(({ jp, en }) => {
       if (normalizedQuery && normalizedQuery.includes(jp)) {
@@ -361,7 +444,9 @@ export function FlavorsExplorer({
         ? normalizedTags.every((tag) => flavor.tags?.some((item) => item.toLowerCase() === tag))
         : true;
       const matchesBrand = normalizedBrand
-        ? flavor.brand?.name?.toLowerCase() === normalizedBrand
+        ? usesBrandId
+          ? String(flavor.brand_id) === normalizedBrand
+          : normalizeBrandName(flavor.brand?.name ?? "").toLowerCase() === normalizedBrandName
         : true;
       return matchesQuery && matchesTag && matchesBrand;
     });
@@ -709,7 +794,7 @@ export function FlavorsExplorer({
               <CardDescription>ブランドやタグで絞り込んで、次のミックス候補を探しましょう。</CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <Badge variant="secondary">{totalCount}</Badge>
+              <Badge variant="secondary">{items.length || totalCount}</Badge>
               <span>件のフレーバーが登録されています。</span>
             </div>
           </div>
@@ -817,13 +902,13 @@ export function FlavorsExplorer({
               <div className="flex flex-wrap gap-2">
                 {availableBrands.map((brand) => (
                   <Button
-                    key={brand}
+                    key={brand.id}
                     type="button"
                     size="sm"
-                    variant={activeBrand === brand ? "default" : "outline"}
-                    onClick={() => handleBrandToggle(brand)}
+                    variant={activeBrand === String(brand.id) ? "default" : "outline"}
+                    onClick={() => handleBrandToggle(String(brand.id))}
                   >
-                    {brand}
+                    {brand.name}
                   </Button>
                 ))}
               </div>

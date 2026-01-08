@@ -19,7 +19,6 @@ type FormState = {
   brandMode: "select" | "new";
   selectedBrandId: string;
   newBrandName: string;
-  newBrandJpAvailable: boolean;
   flavorName: string;
   tagsInput: string;
   imageFile: File | null;
@@ -29,7 +28,6 @@ const INITIAL_STATE: FormState = {
   brandMode: "select",
   selectedBrandId: "",
   newBrandName: "",
-  newBrandJpAvailable: true,
   flavorName: "",
   tagsInput: "",
   imageFile: null
@@ -76,8 +74,7 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
         const { data, error } = await supabase
           .from("brands")
           .insert({
-            name: formState.newBrandName.trim(),
-            jp_available: formState.newBrandJpAvailable
+            name: formState.newBrandName.trim()
           })
           .select("id")
           .single();
@@ -211,7 +208,7 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
                   </option>
                   {brands.map((brand) => (
                     <option key={brand.id} value={brand.id}>
-                      {brand.name} {brand.jp_available ? "(国内)" : "(海外)"}
+                      {brand.name}
                     </option>
                   ))}
                 </select>
@@ -227,16 +224,6 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
                     onChange={(event) => handleChange("newBrandName", event.target.value)}
                   />
                 </div>
-                <label className="flex cursor-pointer items-center gap-3 text-sm">
-                  <input
-                    id="new-brand-jp"
-                    type="checkbox"
-                    className="h-4 w-4 accent-primary"
-                    checked={formState.newBrandJpAvailable}
-                    onChange={(event) => handleChange("newBrandJpAvailable", event.target.checked)}
-                  />
-                  <span>国内入手可</span>
-                </label>
               </div>
             )}
           </div>
