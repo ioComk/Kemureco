@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { Brand } from "@/lib/types";
+import type { Brand, Database } from "@/lib/types";
 import { createSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -71,11 +71,13 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
 
       let brandId: number | null = null;
       if (formState.brandMode === "new") {
+        const brandValues: Database["public"]["Tables"]["brands"]["Insert"] = {
+          name: formState.newBrandName.trim(),
+          jp_available: true
+        };
         const { data, error } = await supabase
           .from("brands")
-          .insert({
-            name: formState.newBrandName.trim()
-          })
+          .insert(brandValues)
           .select("id")
           .single();
 

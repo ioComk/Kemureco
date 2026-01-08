@@ -1,8 +1,9 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Package, Calendar, Plus } from "lucide-react";
+import { Home, Package, Calendar, Plus, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useState, useEffect, useRef } from "react";
@@ -41,7 +42,7 @@ export function BottomNav() {
     return null;
   }
 
-  const navItems = [
+  const navItems: Array<{ href: Route; label: string; icon: LucideIcon; exact: boolean }> = [
     {
       href: "/",
       label: "ホーム",
@@ -140,4 +141,3 @@ export function BottomNav() {
     </>
   );
 }
-
