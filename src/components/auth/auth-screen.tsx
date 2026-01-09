@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
@@ -28,6 +29,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
   const { user, loading } = useAuth();
+  const router = useRouter();
 
   const siteUrl =
     (typeof window === "undefined" ? process.env.NEXT_PUBLIC_SITE_URL : process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin) ??
@@ -45,11 +47,12 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
   
 
   useEffect(() => {
-    if (user?.email && onSignedIn && !notifiedSignedIn) {
+    if (user?.email && !notifiedSignedIn) {
       setNotifiedSignedIn(true);
-      onSignedIn();
+      onSignedIn?.();
+      router.replace("/");
     }
-  }, [user?.email, onSignedIn, notifiedSignedIn]);
+  }, [user?.email, onSignedIn, notifiedSignedIn, router]);
 
   useEffect(() => {
     if (mode === "sign-up") {
