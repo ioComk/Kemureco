@@ -1,123 +1,70 @@
-## 2026-01-08
-- フレーバー一覧でクライアント側の再取得を追加し、/flavors/new で登録したフレーバーが表示されるようにしました。
-- 一覧の件数・タグ・ブランド絞り込みが最新データに追従するようにしました。
-- フレーバー登録フォームから国内/国外の表示とチェックを削除しました。
-- 新規登録したメーカーでもブランド絞り込みが機能するように、メーカー絞り込みをIDベースで判定するようにしました。
-- ブランド絞り込み時にサーバー側データへ戻ってしまう問題を避けるため、クライアント取得済みの一覧を維持するようにしました。
-- フレーバー一覧のブランド絞り込み表示が遅れるため、クライアント取得結果をキャッシュして即時描画するようにしました。
-- 新規ブランド作成時のinsertが型定義に合うよう、必須カラムを明示してTypeScriptエラーを解消しました。
-- ボトムナビのリンク型をRoute型に揃え、Next.jsビルドの型エラーを解消しました。
-- サインイン完了後にホームへリダイレクトするようにしました。
+## LOG.md Summary
 
-## 2026-01-04
-- 場所検索でMapboxに登録されていない店舗を手動入力できる機能を追加しました。
-- 検索完了後に「〇〇で登録する」オプションを安定して表示するようにしました。
-- 手動入力した場所でも店名のみでGoogle Mapsリンクを生成するようにしました。
-- 記録・登録ページ（/sessions/new, /flavors/new）でフローティングボタンを非表示にしました。
-- 場所検索で過去に登録した場所を「履歴」セクションとしてサジェストに表示するようにしました。
-  - ユーザーのセッションから場所名を取得し、重複を排除して表示
-  - クエリに一致する履歴のみフィルタリング
-  - 履歴から選択すると、保存されていた住所・座標情報を復元
+### Project Overview
+Kemureco is a web platform for shisha users, focused on accurate session/flavor recording, strong filtering UX, and stable deployment using Next.js, Supabase, and Cloudflare Pages.
 
-## 2025-12-30
-- アセット/PWA周り（favicon/manifest/アイコン/ロゴ）を整理し、ダークモード対応を追加しました。
-- テーマ配色/ボーダー/ボタンを調整し、ライト/ダークの統一感を改善しました。
-- 認証UIを刷新し、Email+Password追加・サインアップ簡略化・OAuth表示の制御を行いました。
-- ユーザーメニューの導線/表示/背景/アイコンを整理し、UXを改善しました。
-- フレーバー検索/タグ/ブランド絞り込みの操作性を改善しました（複数選択・URL同期・展開表示など）。
-- フレーバー詳細モーダル/画像表示を刷新し、タグ・拡大表示・背景色を整理しました。
-- フレーバー追加データ/画像のマイグレーションを追加しました（AL Fakher/DARKSIDE/Adalya）。
-- フレーバー一覧にスクロールトップ、複数選択から記録作成への導線を追加しました。
-- セッション編集をフレーバー直接編集に変更し、記録フォームの初期セット/表示/グラム入力を改善しました。
-- カレンダー/記録反映の不具合を修正し、HomeとMy recordsの表示を統一しました。
-- カレンダーとセッション一覧の削除ボタンをゴミ箱アイコンに変更しました。
-- カレンダーモーダルをshadcn/uiのCarousel構成に合わせて整えました。
-- カレンダーモーダルのヘッダー日付を削除し、満足度アイコン表示と編集アイコンに変更しました。
-- カレンダーモーダルの詳細表示をCardレイアウトに刷新しました。
-- カレンダーモーダルの内側ボーダーを削除し、矢印をカード外側に配置しました。
-- カルーセル矢印の配置をコンポーネント内に戻し、実行時エラーを解消しました。
-- カルーセル矢印をカード左右の中央に配置しました。
-- カルーセル矢印のオフセットを2remに調整しました。
-- カレンダーモーダルに視覚非表示のタイトルを追加し、アクセシビリティ警告を解消しました。
-- 満足度アイコンの濃度に段階差をつけて視認性を上げました。
-- 満足度アイコンの色を元に戻しました。
-- カレンダーカードの角丸を強め、編集モードも満足度アイコンで操作できるようにしました。
-- カレンダーカードの背景を明示色に変更し、ダークモードでも透過しないようにしました。
-- モーダル外枠をカードと同色で塗りつぶし、角丸を追加しました。
-- 満足度のサムズアップをダークモードでは白系に調整しました。
-- 記録フレーバーのタイトル日付をYYYY/MM/DD表記に統一しました。
-- 記録フレーバーのタイトルからラベル文言を外し日付のみ表示にしました。
-- 記録IDのラベルを省略し数値のみ表示にしました。
-- 記録IDの数値も非表示にしました。
-- 記録詳細に場所アイコン付きの表示を追加しました。
-- 場所表示のラベルを削除し、ミックスの一覧を文字列でも表示するようにしました。
-- 場所未入力時は未設定とマップアイコンを表示するようにしました。
-- 記録カードの編集/削除を三点メニューに集約し、削除時の確認ダイアログを追加しました。
-- Xに投稿をカード右下の主要アクションとして配置しました。
-- 記録カードの時刻をセカンダリ情報にし、フレーバー配合をバー表示に変更しました。
-- 記録カードの上部に日付・満足度・場所をまとめて表示するレイアウトにしました。
-- フレーバー配合のチャートをスタック表示にしました。
-- Homeのカレンダーを先頭に配置し、セッション概要をカード+ミニチャートで可視化しました。
-- セッション概要のバー表示を1週間/1ヶ月/1年で切り替えられるようにしました。
-- 記録カードの配合凡例を画像サムネに戻し、ブランド名は弱く表示するようにしました。
-- X投稿フォーマットを日付/満足度とフレーバー箇条書き形式に変更しました。
-- X投稿フォーマットを日付とフレーバー箇条書きのみに変更しました。
-- 配合表示をg優先にし、gが無い場合は割合のみ表示するようにしました。
-- フレーバー検索でバナナ等のカタカナ入力から英語銘柄にマッチするようにしました。
-- 場所入力をGoogle Placesサジェストに切り替える準備として、セッションに場所詳細カラムを追加しました。
-- 場所保存のロジックでnull合体と論理演算子を分離し、ビルドエラーを解消しました。
-- Google Maps Loaderの新API（setOptions/importLibrary）に対応しました。
-- 位置バイアスでLatLngを使わず座標オブジェクトに変更しました。
-- 場所入力をMapbox Searchbox APIに切り替え、サジェスト機能を実装しました。
-- セッション一覧で場所にGoogle Mapsリンクを表示するようにしました。
-- セッション関連の型エラーを解消し、Cloudflareビルドを通過できるようにしました。
-- フレーバーミックス記録ボタンのサイズをフレーバー記録ボタンに揃えました。
-- フレーバー記録作成ボタンも小サイズに統一しました。
+---
 
-## 2025-12-28
-- X OAuthの遷移/ログを改善し、認証周りの診断を追加しました。
-- フレーバー画像アップロード/表示を改善し、admin編集・削除の権限を拡張しました。
-- フレーバー一覧のレイアウト（列数/スライダー）を調整しました。
-- ホームのゲスト/ログイン表示を切り替えるようにし、記録導線を整備しました。
-- セッション記録フォームをグラム入力/日時入力/レイアウト中心に改善しました。
-- ビルド/依存解決の安定化設定を追加しました（webpack/trace）。
-- カレンダー表示のレイアウト/ハイライトを見直し、表示をミニマルにしました。
+### Core Timeline
 
-## 2025-12-23
-- フレーバー一覧のグルーピング切替と検索精度を改善しました（日本語入力含む）。
-- セッション記録の自由入力サジェストを追加し、既存/自作フレーバーの扱いを整理しました。
-- フレーバー一覧UIを整理し、未ログイン時の導線を改善しました。
-- X（Twitter）サインインを追加しました。
+#### Initial Setup (Nov 2025)
+- Project initialized with Next.js + Supabase
+- Added Email/Google authentication
+- Implemented basic flavor list, mix creation, and session logging
+- Stabilized Cloudflare Pages builds
 
-## 2025-12-19
-- フレーバー一覧にグリッド/リスト切替を追加しました。
-- 画像アップロード/保存先を追加し、一覧表示に反映しました。
-- カレンダーモーダルで詳細表示・編集・削除・X投稿を対応しました。
-- dotenvx/Docker開発環境を追加し、実行コマンドを整理しました。
+#### Feature Expansion (Nov–Dec 2025)
+- Implemented mix dashboard, sliders, and theme switching
+- Added X (Twitter) OAuth authentication
+- Added grid/list toggle and image upload for flavors
+- Implemented calendar modal with view/edit/delete/X-post actions
+- Improved flavor search accuracy, including Japanese input
+- Added free-text suggestions for session flavor input
 
-## 2025-12-16
-- Cloudflare Pages 向けのビルドエラーを解消しました。
+#### UX & UI Refinement (Late Dec 2025)
+- Major UI/UX overhaul across Home, Calendar, Records, and Modals
+- Unified light/dark themes, buttons, borders, and icons
+- Refreshed authentication UI and user menu
+- Improved accessibility (ARIA titles, contrast, focus handling)
+- Refactored calendar modal to shadcn/ui Carousel layout
+- Enhanced satisfaction icons, card layouts, and visual hierarchy
+- Added session overview charts (weekly/monthly/yearly)
+- Standardized date formats and record card actions
+- Improved flavor mix visualization (stacked bars, grams-first display)
 
-## 2025-12-15
-- 認証モーダルのアクセシビリティ/UXを改善しました。
+#### Location & Maps
+- Migrated location input to Mapbox Searchbox API
+- Added manual location entry for unregistered shops
+- Generated Google Maps links from stored or manual locations
+- Added location history suggestions from past sessions
+- Prepared schema for future Google Places integration
 
-## 2025-12-12
-- サインインUIとナビゲーションを刷新し、認証更新の挙動を改善しました。
-- セッション周りのUIを改善しました。
+#### Flavor & Filtering
+- Improved flavor filtering by tags and brands (multi-select, URL sync)
+- Switched brand/manufacturer filtering to ID-based logic
+- Added client-side caching to avoid unnecessary refetching
+- Ensured newly created flavors and brands appear immediately
+- Improved kana-to-English flavor name matching
 
-## 2025-11-12
-- ミックス作成のスライダー同期とテーマ切替UIを改善しました。
-- セッションログ/サンプルデータ/ホーム周辺を整備しました。
+#### Stability & Build Fixes
+- Fixed multiple TypeScript and Next.js build errors
+- Resolved Supabase insert typing issues via explicit required columns
+- Unified route/link typing to prevent build failures
+- Stabilized Cloudflare Pages builds and dependencies
 
-## 2025-11-11
-- ミックスのダッシュボードを実装しました。
+#### Recent Updates (Jan 2026)
+- Synced flavor lists after creation without reload
+- Removed unnecessary fields from flavor creation form
+- Improved client-side caching for instant filter rendering
+- Fixed post-login redirect to Home
+- Prevented regressions by maintaining client-fetched data
+- Prevented location autocomplete from opening automatically when entering session edit mode
+- Applied the same card-style layout to the flavor section in the session list view
 
-## 2025-11-10
-- Email/Googleサインインを追加し、`/mixes/new` をEdge対応しました。
-- フレーバー一覧の検索・導線を追加し、Cloudflareビルドを安定化しました。
+---
 
-## 2025-11-06
-- Next.js + Supabase で初期構成を作成しました。
-
-## 2025-11-05
-- 初回コミット。
+### Key Principles
+- Prefer client-side state consistency over refetching
+- Enforce type safety aligned with Supabase schemas
+- Treat accessibility and dark mode as first-class concerns
+- Centralize decisions and progress in LOG.md for handover
