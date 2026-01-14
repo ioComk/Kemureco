@@ -68,3 +68,53 @@ Kemureco is a web platform for shisha users, focused on accurate session/flavor 
 - Enforce type safety aligned with Supabase schemas
 - Treat accessibility and dark mode as first-class concerns
 - Centralize decisions and progress in LOG.md for handover
+
+---
+
+### 2026-01-15 追加: Starline 50gフレーバー登録
+- ASLAJカテゴリ ct119（Starline 50g）掲載の10フレーバーをシード追加
+- ブランド `Starline` を登録し、同一ブランド・同名フレーバーは重複挿入しないSQLに統一
+
+---
+
+### 2026-01-15 追加: Starline 50g画像登録
+- ASLAJ ct119の画像を取得し、SquooshでWebP圧縮（quality 70 / effort 7）
+- `flavor-images` バケット直下に `<FLAVOR_NAME>.webp` でアップロード
+- Starlineフレーバーの `image_path` を `<FLAVOR_NAME>.webp` に更新するマイグレーションを追加
+
+---
+
+### 2026-01-15 追加: Starline画像マイグレーション適用
+- Supabaseプロジェクトをリンクし、Starlineフレーバー/画像のマイグレーションをリモートへ適用
+- `http://localhost:3000` のHTTP 200を確認
+
+---
+
+### 2026-01-15 追加: Starlineフレーバー公開対応
+- Starlineフレーバーの `created_by` をNULLに更新し、全ユーザーが参照可能な既存フレーバー扱いに統一
+- `image_path` を `flavors/Starline/<FLAVOR_NAME>.webp` に合わせてマイグレーションを更新
+
+---
+
+### 2026-01-15 追加: Starline公開・画像パス更新
+- 既存マイグレーションは変更せず、Starlineフレーバーの `created_by` をNULLに更新する追加入力を作成
+- `image_path` を `flavors/Starline/<FLAVOR_NAME>.webp` に更新する追加入力を作成
+
+---
+
+### 2026-01-15 追加: Starlineフレーバー再シード
+- Starlineフレーバーが一覧に表示されないため、画像パスとcreated_by=NULLを含めた再シードマイグレーションを追加
+
+---
+
+### 2026-01-15 追加: DOZAJフレーバー登録
+- NEWEMO SHISHAのdozajページから40種を抽出し、DOZAJブランドでシード登録
+- フレーバー名から推測したタグを付与し、`image_path` を `flavors/DOZAJ/<FLAVOR_NAME>.webp` に統一
+- 画像をSquooshでWebP圧縮後、`flavor-images` バケットにアップロード
+
+---
+
+### 2026-01-15 追加: Afzalフレーバー登録
+- CLOUD SHOPのafzalコレクション（1-2ページ）から29種を抽出し、Afzalブランドでシード登録
+- フレーバー名から推測したタグを付与し、`image_path` を `flavors/Afzal/<FLAVOR_NAME>.webp` に統一
+- 画像をSquooshでWebP圧縮後、`flavor-images` バケットにアップロード

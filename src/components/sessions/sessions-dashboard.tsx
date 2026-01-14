@@ -585,15 +585,19 @@ export function SessionsDashboard() {
                       ) : null}
                       {item.notes ? <p className="text-sm">{item.notes}</p> : null}
                       {item.mix?.components && item.mix.components.length > 0 ? (
-                        <p className="text-xs text-muted-foreground">
-                          使用フレーバー:{" "}
-                          {item.mix.components
-                            .filter((component) => !!component.flavorName)
-                            .map((component) =>
-                              component.brandName ? `${component.brandName} ${component.flavorName}` : component.flavorName
-                            )
-                            .join(", ")}
-                        </p>
+                        <Card>
+                          <CardContent className="space-y-1 py-3">
+                            <p className="text-xs font-medium text-muted-foreground">使用フレーバー</p>
+                            <p className="text-sm text-foreground/90">
+                              {item.mix.components
+                                .filter((component) => !!component.flavorName)
+                                .map((component) =>
+                                  component.brandName ? `${component.brandName} ${component.flavorName}` : component.flavorName
+                                )
+                                .join(", ")}
+                            </p>
+                          </CardContent>
+                        </Card>
                       ) : null}
                       <div className="flex justify-end gap-2 pt-2">
                         <Button type="button" variant="outline" size="sm" onClick={() => startEdit(item)}>

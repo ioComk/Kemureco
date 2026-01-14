@@ -93,6 +93,7 @@ export function LocationPlacesCombobox({ value, onChange, className, placeholder
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userClosedRef = useRef<boolean>(false);
   const historyFetchedRef = useRef<boolean>(false); // 履歴取得済みフラグ
+  const suppressAutoOpenRef = useRef<boolean>(false);
 
   // 過去のセッションから場所を取得
   useEffect(() => {
@@ -148,8 +149,10 @@ export function LocationPlacesCombobox({ value, onChange, className, placeholder
   // 値が変更されたらクエリを更新
   useEffect(() => {
     if (!value) {
+      suppressAutoOpenRef.current = true;
       setQuery("");
     } else {
+      suppressAutoOpenRef.current = true;
       setQuery(value.name);
     }
   }, [value]);
@@ -293,6 +296,10 @@ export function LocationPlacesCombobox({ value, onChange, className, placeholder
 
   // 入力があると自動的にPopoverを開く
   useEffect(() => {
+    if (suppressAutoOpenRef.current) {
+      suppressAutoOpenRef.current = false;
+      return;
+    }
     if (query.trim() && !open && !userClosedRef.current) {
       setOpen(true);
       userClosedRef.current = false;
@@ -475,7 +482,10 @@ export function LocationPlacesCombobox({ value, onChange, className, placeholder
         <Command shouldFilter={false}>
           <CommandInput
             value={query}
-            onValueChange={(value) => setQuery(value)}
+            onValueChange={(value) => {
+              suppressAutoOpenRef.current = false;
+              setQuery(value);
+            }}
             placeholder="シーシャ店名で検索..."
             autoFocus
           />
