@@ -77,3 +77,29 @@ body {
 main {
   @apply flex-1;
 }
+
+.scroll-fade {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+  transition-delay: var(--scroll-delay, 0ms);
+}
+
+html[data-scroll-animate="true"] .scroll-fade {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+html[data-scroll-animate="true"] .scroll-fade.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-fade,
+  html[data-scroll-animate="true"] .scroll-fade {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

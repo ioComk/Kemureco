@@ -10,7 +10,6 @@ import FloatingRecordButton from "@/components/sessions/floating-record-button";
 import { UserMenu } from "@/components/header/user-menu";
 import { NavMenu } from "@/components/header/nav-menu";
 import { BrandLogo } from "@/components/header/brand-logo";
-import { BottomNav } from "@/components/navigation/bottom-nav";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -92,7 +91,6 @@ export default function RootLayout({
               <div className="hidden sm:block">
                 <FloatingRecordButton />
               </div>
-              <BottomNav />
               <Toaster />
           </ConditionalAuthGuard>
           </AuthProvider>
