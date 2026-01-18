@@ -73,16 +73,22 @@ export default function RootLayout({
                   </div>
                 </header>
                 <main className="container flex-1 py-10 pb-24 sm:pb-10">{children}</main>
-                <footer className="border-t bg-card sm:block hidden">
-                  <div className="container flex h-14 items-center justify-center gap-3 text-sm text-muted-foreground">
-                  &copy; {new Date().getFullYear()} Kemureco
-                  <a
-                    href="https://github.com/ioComk/Kemureco"
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Kemureco GitHub repository"
-                    className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
-                  >
+                <footer className="hidden border-t bg-card sm:block">
+                  <div className="container flex h-14 items-center justify-center gap-4 text-sm text-muted-foreground">
+                    <span>&copy; {new Date().getFullYear()} Kemureco</span>
+                    <Link className="underline-offset-4 hover:underline" href="/terms">
+                      利用規約
+                    </Link>
+                    <Link className="underline-offset-4 hover:underline" href="/privacy">
+                      プライバシー
+                    </Link>
+                    <a
+                      href="https://github.com/ioComk/Kemureco"
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="Kemureco GitHub repository"
+                      className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+                    >
                       <Github className="h-4 w-4" />
                     </a>
                   </div>

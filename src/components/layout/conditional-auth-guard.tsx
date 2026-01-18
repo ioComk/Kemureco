@@ -10,8 +10,14 @@ type ConditionalAuthGuardProps = {
 export function ConditionalAuthGuard({ children }: ConditionalAuthGuardProps) {
   const pathname = usePathname();
 
-  // ランディングと認証ページは認証ガードを適用しない
-  if (!pathname || pathname === "/" || pathname.startsWith("/auth")) {
+  // ランディングと公開ページは認証ガードを適用しない
+  if (
+    !pathname ||
+    pathname === "/" ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/terms") ||
+    pathname.startsWith("/privacy")
+  ) {
     return <>{children}</>;
   }
 

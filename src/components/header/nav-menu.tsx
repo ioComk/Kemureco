@@ -48,6 +48,20 @@ export function NavMenu() {
             >
               My records
             </Link>
+            <Link
+              href="/terms"
+              className="rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+              onClick={() => setOpen(false)}
+            >
+              利用規約
+            </Link>
+            <Link
+              href="/privacy"
+              className="rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+              onClick={() => setOpen(false)}
+            >
+              プライバシー
+            </Link>
           </nav>
         </div>
       ) : null}

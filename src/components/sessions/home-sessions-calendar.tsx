@@ -8,24 +8,17 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/components/auth/auth-provider";
-import { ExternalLink, MapPin, MoreHorizontal, Pencil, Share2, ThumbsUp, Trash2 } from "lucide-react";
+import { Ellipsis, ExternalLink, MapPin, Pencil, Plus, ThumbsUp, Trash2 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { LocationPlacesCombobox, type PlaceValue, getGoogleMapsLink } from "@/components/sessions/location-places-combobox";
-import {
-  type CarouselApi,
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious
-} from "@/components/ui/carousel";
+import Link from "next/link";
 
 export function HomeSessionsCalendar() {
   const supabase = useMemo(() => createSupabaseClient(), []);
@@ -42,7 +35,6 @@ export function HomeSessionsCalendar() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSessions, setSelectedSessions] = useState<SessionItem[]>([]);
-  const [selectedSessionIndex, setSelectedSessionIndex] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingLocationPlace, setEditingLocationPlace] = useState<PlaceValue | null>(null);
   const [editingComponents, setEditingComponents] = useState<Array<{ flavorId: string }>>([]);
@@ -58,7 +50,6 @@ export function HomeSessionsCalendar() {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const maxComponents = 4;
-  const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
   const chartColors = ["#f59e0b", "#34d399", "#60a5fa", "#f472b6", "#f97316"];
 
   const toLocalDateKey = (value: Date) => {
@@ -82,6 +73,26 @@ export function HomeSessionsCalendar() {
     const date = typeof value === "string" ? new Date(value) : value;
     if (Number.isNaN(date.getTime())) return "";
     return date.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
+  };
+
+  const parseDateKey = (value?: string | null) => {
+    if (!value) return null;
+    const [year, month, day] = value.split("-").map((item) => Number(item));
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+  };
+
+  const formatDayHeader = (value?: string | null) => {
+    const date = parseDateKey(value);
+    if (!date) return "";
+    return date.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
+  };
+
+  const formatTimeLabel = (value?: string | null) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
   };
 
   const buildMixChartData = (
@@ -147,6 +158,38 @@ export function HomeSessionsCalendar() {
     };
   };
 
+  const daySummary = useMemo(() => {
+    const count = selectedSessions.length;
+    const satisfactionValues = selectedSessions
+      .map((session) => session.satisfaction ?? 0)
+      .filter((value) => value > 0);
+    const avgSatisfaction =
+      satisfactionValues.length > 0
+        ? satisfactionValues.reduce((sum, value) => sum + value, 0) / satisfactionValues.length
+        : null;
+    let totalGrams = 0;
+    let hasGrams = false;
+    selectedSessions.forEach((session) => {
+      session.mix?.components?.forEach((component) => {
+        if (typeof component.grams === "number" && component.grams > 0) {
+          totalGrams += component.grams;
+          hasGrams = true;
+        }
+      });
+    });
+    const times = selectedSessions
+      .map((session) => (session.started_at ? new Date(session.started_at) : null))
+      .filter((value): value is Date => !!value && !Number.isNaN(value.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime());
+    const timeRange =
+      times.length > 0
+        ? `${times[0].toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}〜${times[
+            times.length - 1
+          ].toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}`
+        : "";
+    return { count, avgSatisfaction, totalGrams, hasGrams, timeRange };
+  }, [selectedSessions]);
+
   useEffect(() => {
     if (authLoading) {
       setSessionState({ loading: true, userId: undefined });
@@ -178,41 +221,11 @@ export function HomeSessionsCalendar() {
       setEditingForm({ startedAt: "", satisfaction: 3, location: "", notes: "" });
       setEditingComponents([]);
       setEditingLocationPlace(null);
-      setSelectedSessionIndex(0);
       setOpenMenuId(null);
       setDeleteDialogOpen(false);
       setPendingDeleteId(null);
     }
   }, [dialogOpen]);
-
-  useEffect(() => {
-    if (selectedSessionIndex >= selectedSessions.length) {
-      setSelectedSessionIndex(0);
-    }
-  }, [selectedSessionIndex, selectedSessions.length]);
-
-  useEffect(() => {
-    if (!carouselApi) return;
-    const handleSelect = () => {
-      const nextIndex = carouselApi.selectedScrollSnap();
-      setSelectedSessionIndex(nextIndex);
-      setEditingId(null);
-      setEditingForm({ startedAt: "", satisfaction: 3, location: "", notes: "" });
-      setEditingComponents([]);
-      setEditingLocationPlace(null);
-    };
-    handleSelect();
-    carouselApi.on("select", handleSelect);
-    return () => {
-      carouselApi.off("select", handleSelect);
-    };
-  }, [carouselApi]);
-
-  useEffect(() => {
-    if (!carouselApi) return;
-    carouselApi.scrollTo(0, true);
-    setSelectedSessionIndex(0);
-  }, [carouselApi, selectedSessions]);
 
   const fetchSessions = async (userId: string) => {
     try {
@@ -369,11 +382,10 @@ export function HomeSessionsCalendar() {
   }, [currentMonth]);
 
   const handleSelectDate = (date: Date | undefined, daySessions: SessionItem[]) => {
-    if (!date || daySessions.length === 0) return;
+    if (!date) return;
     const key = toLocalDateKey(date);
     setSelectedDate(key);
     setSelectedSessions(daySessions);
-    setSelectedSessionIndex(0);
     setEditingId(null);
     setEditingForm({ startedAt: "", satisfaction: 3, location: "", notes: "" });
     setEditingComponents([]);
@@ -568,40 +580,6 @@ export function HomeSessionsCalendar() {
     await fetchSessions(sessionState.userId);
   };
 
-  const buildShareText = (session: SessionItem) => {
-    const date = session.started_at
-      ? new Date(session.started_at).toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" })
-      : "日時不明";
-    const flavors =
-      session.mix?.components && session.mix.components.length > 0
-        ? session.mix.components.map((component) => {
-            const brand = component.brandName ? ` (${component.brandName})` : "";
-            const gramsValue =
-              typeof (component as { grams?: number | null }).grams === "number"
-                ? (component as { grams?: number | null }).grams
-                : null;
-            const gramsText = gramsValue && gramsValue > 0 ? ` ${gramsValue}g` : "";
-            return `- ${component.flavorName}${brand}${gramsText}`;
-          })
-        : [];
-
-    const lines = [
-      date,
-      "フレーバー:",
-      ...(flavors.length ? flavors : ["- 記録なし"]),
-      "#Kemureco #Sisha"
-    ];
-
-    return lines.join("\n");
-  };
-
-  const buildShareUrl = (session: SessionItem) => {
-    const text = buildShareText(session);
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const url = origin ? `${origin}/` : "";
-    return `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-  };
-
   const sessionsByDate = useMemo(() => {
     const map = new Map<string, SessionItem[]>();
     const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
@@ -662,6 +640,7 @@ export function HomeSessionsCalendar() {
                 const key = date ? toLocalDateKey(date) : `blank-${idx}`;
                 const daySessions = date ? sessionsByDate.get(key) ?? [] : [];
                 const hasSessions = daySessions.length > 0;
+                const isClickable = !!date;
                 const highlightAlpha = Math.min(0.25 + daySessions.length * 0.18, 0.85);
                 const highlightStyle = hasSessions
                   ? { backgroundColor: `rgba(56, 189, 248, ${highlightAlpha})` }
@@ -671,8 +650,8 @@ export function HomeSessionsCalendar() {
                     key={key}
                     className="flex h-10 items-center justify-center"
                     onClick={() => handleSelectDate(date, daySessions)}
-                    role={hasSessions ? "button" : undefined}
-                    tabIndex={hasSessions ? 0 : -1}
+                    role={isClickable ? "button" : undefined}
+                    tabIndex={isClickable ? 0 : -1}
                   >
                     {date ? (
                       <span
@@ -694,361 +673,477 @@ export function HomeSessionsCalendar() {
         </CardContent>
       </Card>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-xl rounded-2xl bg-background dark:bg-neutral-900">
+        <DialogContent className="max-w-4xl rounded-3xl border border-border/60 bg-gradient-to-b from-amber-50/90 via-background to-background/70 shadow-xl dark:from-neutral-900 dark:via-neutral-950 dark:to-neutral-950">
           <DialogHeader className="sr-only">
-            <DialogTitle>記録</DialogTitle>
+            <DialogTitle>セッション詳細</DialogTitle>
           </DialogHeader>
-          {selectedSessions.length === 0 ? (
-            <>
-              <p className="text-sm text-muted-foreground">この日に記録はありません。</p>
-            </>
-          ) : (
-            <div className="space-y-2">
-              <Carousel setApi={setCarouselApi} className="w-full">
-                <CarouselContent>
-                  {selectedSessions.map((item) => {
-                    const chartData = buildMixChartData(item.mix?.components);
+          <div className="space-y-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground">SESSION DETAIL</p>
+                <h3 className="text-xl font-semibold text-foreground sm:text-2xl">
+                  {formatDayHeader(selectedDate) || "日付未選択"}
+                </h3>
+                {daySummary.timeRange ? <p className="text-xs text-muted-foreground">{daySummary.timeRange}</p> : null}
+              </div>
+              <Popover open={openMenuId === -1} onOpenChange={(open) => setOpenMenuId(open ? -1 : null)}>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="メニュー">
+                    <Ellipsis className="h-5 w-5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-44 p-1">
+                  <div className="flex flex-col">
+                    <Button
+                      variant="ghost"
+                      className="justify-start gap-2"
+                      onClick={() => {
+                        setOpenMenuId(null);
+                        const target = selectedSessions[0];
+                        if (target) startEdit(target);
+                      }}
+                      disabled={selectedSessions.length === 0}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      編集
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start gap-2 text-destructive hover:text-destructive"
+                      onClick={() => {
+                        setOpenMenuId(null);
+                        const target = selectedSessions[0];
+                        if (!target) return;
+                        setPendingDeleteId(target.id);
+                        setDeleteDialogOpen(true);
+                      }}
+                      disabled={selectedSessions.length === 0}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      削除
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
 
-                    return (
-                      <CarouselItem key={item.id}>
-                      <Card className="w-full border-0 shadow-none rounded-2xl bg-background dark:bg-neutral-900">
-                        {editingId === item.id ? (
-                          <>
-                            <CardHeader className="px-5 pb-3 pt-4">
-                              <CardTitle className="text-base">編集モード</CardTitle>
-                              <CardDescription>
-                                <span className="sr-only">{item.id}</span>
-                              </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                              <div className="space-y-2">
-                                <Label htmlFor={`started-at-${item.id}`}>開始日時</Label>
-                                <Input
-                                  id={`started-at-${item.id}`}
-                                  type="datetime-local"
-                                  value={editingForm.startedAt}
-                                  onChange={(event) => handleEditChange("startedAt", event.target.value)}
-                                />
-                              </div>
-                              {mixColumnAvailable ? (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
+                <CardContent className="space-y-1 p-4">
+                  <p className="text-xs text-muted-foreground">記録件数</p>
+                  <p className="text-2xl font-semibold text-foreground">{daySummary.count}件</p>
+                </CardContent>
+              </Card>
+              <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
+                <CardContent className="space-y-1 p-4">
+                  <p className="text-xs text-muted-foreground">平均満足度</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-2xl font-semibold text-foreground">
+                      {daySummary.avgSatisfaction ? daySummary.avgSatisfaction.toFixed(1) : "—"}
+                    </p>
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((score) => (
+                        <ThumbsUp
+                          key={`summary-score-${score}`}
+                          className={`h-3.5 w-3.5 ${
+                            (daySummary.avgSatisfaction ?? 0) >= score
+                              ? score <= 2
+                                ? "text-primary/70 dark:text-white/70"
+                                : score <= 4
+                                  ? "text-primary/85 dark:text-white/85"
+                                  : "text-primary dark:text-white"
+                              : "text-muted-foreground/40 dark:text-white/25"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
+                <CardContent className="space-y-1 p-4">
+                  <p className="text-xs text-muted-foreground">合計グラム</p>
+                  <p className="text-2xl font-semibold text-foreground">
+                    {daySummary.hasGrams ? `${Math.round(daySummary.totalGrams)}g` : "未入力"}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {selectedSessions.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-border/70 bg-background/70 p-6 text-center">
+                <p className="text-sm text-muted-foreground">この日の記録はまだありません。</p>
+                <Button asChild className="mt-4 gap-2 rounded-full px-5" variant="outline">
+                  <Link href="/sessions/new">
+                    <Plus className="h-4 w-4" />
+                    記録を追加する
+                  </Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_260px]">
+                <ScrollArea className="max-h-[60vh] pr-2">
+                  <div className="space-y-4">
+                    {selectedSessions.map((item) => {
+                      const chartData = buildMixChartData(item.mix?.components);
+                      const memoPreview = item.notes ? item.notes.split("\n")[0]?.slice(0, 60) : "";
+
+                      return (
+                        <Card key={item.id} className="relative rounded-3xl border border-border/60 bg-background/80 shadow-sm">
+                          {editingId === item.id ? (
+                            <>
+                              <CardHeader className="px-5 pb-3 pt-4">
+                                <CardTitle className="text-base">編集モード</CardTitle>
+                                <CardDescription>
+                                  <span className="sr-only">{item.id}</span>
+                                </CardDescription>
+                              </CardHeader>
+                              <CardContent className="space-y-3">
                                 <div className="space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <Label>フレーバー</Label>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={handleAddComponent}
-                                      disabled={editingComponents.length >= maxComponents}
-                                    >
-                                      追加
-                                    </Button>
+                                  <Label htmlFor={`started-at-${item.id}`}>開始日時</Label>
+                                  <Input
+                                    id={`started-at-${item.id}`}
+                                    type="datetime-local"
+                                    value={editingForm.startedAt}
+                                    onChange={(event) => handleEditChange("startedAt", event.target.value)}
+                                  />
+                                </div>
+                                {mixColumnAvailable ? (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <Label>フレーバー</Label>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleAddComponent}
+                                        disabled={editingComponents.length >= maxComponents}
+                                      >
+                                        追加
+                                      </Button>
+                                    </div>
+                                    {editingComponents.length === 0 ? (
+                                      <p className="text-xs text-muted-foreground">フレーバー未設定</p>
+                                    ) : (
+                                      <div className="space-y-2">
+                                        {editingComponents.map((component, index) => (
+                                          <div key={`edit-flavor-${item.id}-${index}`} className="flex items-center gap-2">
+                                            <select
+                                              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                              value={component.flavorId}
+                                              onChange={(event) => handleComponentChange(index, event.target.value)}
+                                            >
+                                              <option value="">フレーバーを選択</option>
+                                              {flavors.map((flavor) => (
+                                                <option key={flavor.id} value={flavor.id}>
+                                                  {flavor.brandName ? `${flavor.brandName} ` : ""}
+                                                  {flavor.name}
+                                                </option>
+                                              ))}
+                                            </select>
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleRemoveComponent(index)}
+                                            >
+                                              削除
+                                            </Button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
-                                  {editingComponents.length === 0 ? (
-                                    <p className="text-xs text-muted-foreground">フレーバー未設定</p>
-                                  ) : (
-                                    <div className="space-y-2">
-                                      {editingComponents.map((component, index) => (
-                                        <div key={`edit-flavor-${item.id}-${index}`} className="flex items-center gap-2">
-                                          <select
-                                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                            value={component.flavorId}
-                                            onChange={(event) => handleComponentChange(index, event.target.value)}
-                                          >
-                                            <option value="">フレーバーを選択</option>
-                                            {flavors.map((flavor) => (
-                                              <option key={flavor.id} value={flavor.id}>
-                                                {flavor.brandName ? `${flavor.brandName} ` : ""}
-                                                {flavor.name}
-                                              </option>
-                                            ))}
-                                          </select>
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleRemoveComponent(index)}
-                                          >
-                                            削除
-                                          </Button>
+                                ) : null}
+                                <div className="space-y-2">
+                                  <Label>満足度</Label>
+                                  <div className="flex items-center gap-2">
+                                    {[1, 2, 3, 4, 5].map((score) => (
+                                      <button
+                                        key={`${item.id}-edit-score-${score}`}
+                                        type="button"
+                                        onClick={() => handleEditChange("satisfaction", score)}
+                                        className="rounded-full"
+                                        aria-label={`満足度 ${score}`}
+                                      >
+                                        <ThumbsUp
+                                          className={`h-4 w-4 ${
+                                            editingForm.satisfaction >= score
+                                              ? score <= 2
+                                                ? "text-primary/70 dark:text-white/70"
+                                                : score <= 4
+                                                  ? "text-primary/85 dark:text-white/85"
+                                                  : "text-primary dark:text-white"
+                                              : "text-muted-foreground/40 dark:text-white/25"
+                                          }`}
+                                        />
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`location-${item.id}`}>場所</Label>
+                                  <LocationPlacesCombobox
+                                    value={editingLocationPlace}
+                                    onChange={(nextValue) => {
+                                      setEditingLocationPlace(nextValue);
+                                      handleEditChange("location", nextValue?.name ?? "");
+                                    }}
+                                    placeholder="店舗名で検索"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`notes-${item.id}`}>メモ</Label>
+                                  <Textarea
+                                    id={`notes-${item.id}`}
+                                    placeholder="設定や感想をメモ"
+                                    value={editingForm.notes}
+                                    onChange={(event) => handleEditChange("notes", event.target.value)}
+                                    rows={3}
+                                  />
+                                </div>
+                              </CardContent>
+                              <CardFooter className="flex justify-end gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={savingId === item.id}>
+                                  キャンセル
+                                </Button>
+                                <Button size="sm" onClick={() => handleUpdate(item.id)} disabled={savingId === item.id}>
+                                  {savingId === item.id ? "更新中..." : "更新する"}
+                                </Button>
+                              </CardFooter>
+                            </>
+                          ) : (
+                            <>
+                              <CardHeader className="px-5 pb-3 pt-4">
+                                <div className="space-y-2">
+                                    <p className="text-xs text-muted-foreground">
+                                      {item.started_at ? formatSessionDateLabel(item.started_at) : "日付不明"}
+                                      {item.started_at ? ` ・ ${formatTimeLabel(item.started_at)}` : ""}
+                                    </p>
+                                    <div className="flex items-center gap-1">
+                                      {[1, 2, 3, 4, 5].map((score) => (
+                                        <ThumbsUp
+                                          key={`${item.id}-score-${score}`}
+                                          className={`h-3.5 w-3.5 ${
+                                            (item.satisfaction ?? 0) >= score
+                                              ? score <= 2
+                                                ? "text-primary/70 dark:text-white/70"
+                                                : score <= 4
+                                                  ? "text-primary/85 dark:text-white/85"
+                                                  : "text-primary dark:text-white"
+                                              : "text-muted-foreground/40 dark:text-white/25"
+                                          }`}
+                                        />
+                                      ))}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                      <MapPin className="h-4 w-4" />
+                                      {item.location_name || item.location_text ? (
+                                        <>
+                                          <span className="text-foreground/80">{item.location_name ?? item.location_text}</span>
+                                          {(() => {
+                                            const mapLink = getGoogleMapsLink(
+                                              item.location_lat,
+                                              item.location_lng,
+                                              item.location_name ?? item.location_text,
+                                              item.location_address
+                                            );
+                                            return mapLink ? (
+                                              <a
+                                                href={mapLink}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 text-primary hover:underline"
+                                                onClick={(e) => e.stopPropagation()}
+                                              >
+                                                <ExternalLink className="h-3 w-3" />
+                                              </a>
+                                            ) : null;
+                                          })()}
+                                        </>
+                                      ) : (
+                                        <span>未設定</span>
+                                      )}
+                                    </div>
+                                </div>
+                              </CardHeader>
+                              <div className="absolute right-4 top-4">
+                                <Popover
+                                  open={openMenuId === item.id}
+                                  onOpenChange={(open) => setOpenMenuId(open ? item.id : null)}
+                                >
+                                  <PopoverTrigger asChild>
+                                    <Button variant="ghost" size="icon" aria-label="メニュー">
+                                      <Ellipsis className="h-4 w-4" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent align="end" className="w-44 p-1">
+                                    <div className="flex flex-col">
+                                      <Button
+                                        variant="ghost"
+                                        className="justify-start gap-2"
+                                        onClick={() => {
+                                          setOpenMenuId(null);
+                                          startEdit(item);
+                                        }}
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                        編集
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        className="justify-start gap-2 text-destructive hover:text-destructive"
+                                        onClick={() => {
+                                          setOpenMenuId(null);
+                                          setPendingDeleteId(item.id);
+                                          setDeleteDialogOpen(true);
+                                        }}
+                                        disabled={deletingId === item.id}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        削除
+                                      </Button>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
+                              <CardContent className="space-y-3 px-5 pb-4 pt-0">
+                                {item.mix?.components && item.mix.components.length > 0 ? (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-[11px] text-muted-foreground">フレーバー配合</p>
+                                      {chartData.mode === "ratio" ? (
+                                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                                          割合のみ
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <ChartContainer className="w-full" style={{ height: 56 }}>
+                                      <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                          data={[chartData.stackedData]}
+                                          layout="vertical"
+                                          margin={{ top: 4, right: 4, left: 0, bottom: 4 }}
+                                        >
+                                          <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                                          <XAxis type="number" domain={[0, 100]} hide />
+                                          <YAxis
+                                            type="category"
+                                            dataKey="label"
+                                            tickLine={false}
+                                            axisLine={false}
+                                            width={0}
+                                            tick={false}
+                                          />
+                                          <ChartTooltip cursor={false} content={<ChartTooltipContent valueSuffix="%" />} />
+                                          {chartData.keys.map((key, index) => {
+                                            const isFirst = index === 0;
+                                            const isLast = index === chartData.keys.length - 1;
+                                            const radius = isFirst
+                                              ? ([6, 0, 0, 6] as [number, number, number, number])
+                                              : isLast
+                                                ? ([0, 6, 6, 0] as [number, number, number, number])
+                                                : 0;
+                                            const fill = chartData.items[index]?.fill;
+                                            const name = chartData.items[index]?.name;
+                                            return (
+                                              <Bar
+                                                key={`${item.id}-${key}`}
+                                                dataKey={key}
+                                                stackId="mix"
+                                                radius={radius}
+                                                barSize={12}
+                                                fill={fill}
+                                                name={name}
+                                              />
+                                            );
+                                          })}
+                                        </BarChart>
+                                      </ResponsiveContainer>
+                                    </ChartContainer>
+                                    {chartData.mode === "grams" ? (
+                                      <p className="text-[11px] text-muted-foreground">合計 {chartData.totalGrams}g</p>
+                                    ) : null}
+                                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                                      {chartData.items.map((entry) => (
+                                        <div key={`${item.id}-legend-${entry.key}`} className="flex items-center gap-2">
+                                          <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full">
+                                            <span className="absolute inset-0 rounded-full" style={{ backgroundColor: entry.fill }} />
+                                            {entry.imageUrl ? (
+                                              <img
+                                                src={entry.imageUrl}
+                                                alt={entry.name}
+                                                className="relative h-full w-full object-cover"
+                                                onError={(event) => {
+                                                  event.currentTarget.style.display = "none";
+                                                }}
+                                              />
+                                            ) : null}
+                                          </span>
+                                          <div className="flex flex-col">
+                                            <span className="text-foreground">{entry.name}</span>
+                                            {entry.brand ? <span className="text-[10px] text-muted-foreground">{entry.brand}</span> : null}
+                                          </div>
+                                          <span>
+                                            {chartData.mode === "grams"
+                                              ? entry.grams
+                                                ? `${entry.grams}g (${entry.ratio}%)`
+                                                : "未入力"
+                                              : `${entry.ratio}%`}
+                                          </span>
                                         </div>
                                       ))}
                                     </div>
-                                  )}
-                                </div>
-                              ) : null}
-                            <div className="space-y-2">
-                              <Label>満足度</Label>
-                              <div className="flex items-center gap-2">
-                                {[1, 2, 3, 4, 5].map((score) => (
-                                  <button
-                                    key={`${item.id}-edit-score-${score}`}
-                                    type="button"
-                                    onClick={() => handleEditChange("satisfaction", score)}
-                                    className="rounded-full"
-                                    aria-label={`満足度 ${score}`}
-                                  >
-                                    <ThumbsUp
-                                      className={`h-4 w-4 ${
-                                        editingForm.satisfaction >= score
-                                          ? score <= 2
-                                            ? "text-primary/70 dark:text-white/70"
-                                            : score <= 4
-                                              ? "text-primary/85 dark:text-white/85"
-                                              : "text-primary dark:text-white"
-                                          : "text-muted-foreground/40 dark:text-white/25"
-                                      }`}
-                                    />
-                                  </button>
-                                ))}
-                              </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground">フレーバー未設定</p>
+                                )}
+                                {memoPreview ? (
+                                  <p className="text-sm text-foreground">{memoPreview}{item.notes && item.notes.length > 60 ? "…" : ""}</p>
+                                ) : null}
+                              </CardContent>
+                            </>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+                <div className="space-y-3">
+                  <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">この日のメモ</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {selectedSessions.some((session) => session.notes) ? (
+                        selectedSessions
+                          .filter((session) => session.notes)
+                          .map((session) => (
+                            <div key={`note-${session.id}`} className="space-y-1 border-b border-border/40 pb-2 last:border-none last:pb-0">
+                              <p className="text-xs text-muted-foreground">{formatTimeLabel(session.started_at)}</p>
+                              <p className="text-sm text-foreground">{session.notes}</p>
                             </div>
-                              <div className="space-y-2">
-                                <Label htmlFor={`location-${item.id}`}>場所</Label>
-                                <LocationPlacesCombobox
-                                  value={editingLocationPlace}
-                                  onChange={(nextValue) => {
-                                    setEditingLocationPlace(nextValue);
-                                    handleEditChange("location", nextValue?.name ?? "");
-                                  }}
-                                  placeholder="店舗名で検索"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor={`notes-${item.id}`}>メモ</Label>
-                                <Textarea
-                                  id={`notes-${item.id}`}
-                                  placeholder="設定や感想をメモ"
-                                  value={editingForm.notes}
-                                  onChange={(event) => handleEditChange("notes", event.target.value)}
-                                  rows={3}
-                                />
-                              </div>
-                            </CardContent>
-                            <CardFooter className="flex justify-end gap-2">
-                              <Button variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={savingId === item.id}>
-                                キャンセル
-                              </Button>
-                              <Button size="sm" onClick={() => handleUpdate(item.id)} disabled={savingId === item.id}>
-                                {savingId === item.id ? "更新中..." : "更新する"}
-                              </Button>
-                            </CardFooter>
-                          </>
-                        ) : (
-                          <>
-                            <CardHeader className="px-5 pb-3 pt-4">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="space-y-2">
-                                  <p className="text-xs text-muted-foreground">
-                                    {item.started_at ? formatSessionDateLabel(item.started_at) : "日付不明"}
-                                    {item.started_at
-                                      ? ` ・ ${new Date(item.started_at).toLocaleTimeString("ja-JP", {
-                                          hour: "2-digit",
-                                          minute: "2-digit"
-                                        })}`
-                                      : ""}
-                                  </p>
-                                  <div className="flex items-center gap-1">
-                                    {[1, 2, 3, 4, 5].map((score) => (
-                                      <ThumbsUp
-                                        key={`${item.id}-score-${score}`}
-                                        className={`h-3.5 w-3.5 ${
-                                          (item.satisfaction ?? 0) >= score
-                                            ? score <= 2
-                                              ? "text-primary/70 dark:text-white/70"
-                                              : score <= 4
-                                                ? "text-primary/85 dark:text-white/85"
-                                                : "text-primary dark:text-white"
-                                            : "text-muted-foreground/40 dark:text-white/25"
-                                        }`}
-                                      />
-                                    ))}
-                                  </div>
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <MapPin className="h-4 w-4" />
-                                    {item.location_name || item.location_text ? (
-                                      <>
-                                        <span className="text-foreground/80">{item.location_name ?? item.location_text}</span>
-                                        {(() => {
-                                          const mapLink = getGoogleMapsLink(
-                                            item.location_lat,
-                                            item.location_lng,
-                                            item.location_name ?? item.location_text,
-                                            item.location_address
-                                          );
-                                          return mapLink ? (
-                                            <a
-                                              href={mapLink}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="inline-flex items-center gap-1 text-primary hover:underline"
-                                              onClick={(e) => e.stopPropagation()}
-                                            >
-                                              <ExternalLink className="h-3 w-3" />
-                                            </a>
-                                          ) : null;
-                                        })()}
-                                      </>
-                                    ) : (
-                                      <span>未設定</span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Popover
-                                    open={openMenuId === item.id}
-                                    onOpenChange={(open) => setOpenMenuId(open ? item.id : null)}
-                                  >
-                                    <PopoverTrigger asChild>
-                                      <Button variant="ghost" size="icon" aria-label="メニュー">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent align="end" className="w-40 p-1">
-                                      <div className="flex flex-col">
-                                        <Button
-                                          variant="ghost"
-                                          className="justify-start gap-2"
-                                          onClick={() => {
-                                            setOpenMenuId(null);
-                                            startEdit(item);
-                                          }}
-                                        >
-                                          <Pencil className="h-4 w-4" />
-                                          編集
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          className="justify-start gap-2 text-destructive hover:text-destructive"
-                                          onClick={() => {
-                                            setOpenMenuId(null);
-                                            setPendingDeleteId(item.id);
-                                            setDeleteDialogOpen(true);
-                                          }}
-                                          disabled={deletingId === item.id}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                          削除
-                                        </Button>
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
-                                </div>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="space-y-3 px-5 pb-4 pt-0">
-                              {item.mix?.components && item.mix.components.length > 0 ? (
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-[11px] text-muted-foreground">フレーバー配合</p>
-                                    {chartData.mode === "ratio" ? (
-                                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                                        割合のみ
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  <ChartContainer className="w-full" style={{ height: 56 }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                      <BarChart data={[chartData.stackedData]} layout="vertical" margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
-                                        <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                                        <XAxis type="number" domain={[0, 100]} hide />
-                                        <YAxis
-                                          type="category"
-                                          dataKey="label"
-                                          tickLine={false}
-                                          axisLine={false}
-                                          width={0}
-                                          tick={false}
-                                        />
-                                        <ChartTooltip cursor={false} content={<ChartTooltipContent valueSuffix="%" />} />
-                                        {chartData.keys.map((key, index) => {
-                                          const isFirst = index === 0;
-                                          const isLast = index === chartData.keys.length - 1;
-                                          const radius = isFirst
-                                            ? ([6, 0, 0, 6] as [number, number, number, number])
-                                            : isLast
-                                              ? ([0, 6, 6, 0] as [number, number, number, number])
-                                              : 0;
-                                          const fill = chartData.items[index]?.fill;
-                                          const name = chartData.items[index]?.name;
-                                          return (
-                                            <Bar
-                                              key={`${item.id}-${key}`}
-                                              dataKey={key}
-                                              stackId="mix"
-                                              radius={radius}
-                                              barSize={12}
-                                              fill={fill}
-                                              name={name}
-                                            />
-                                          );
-                                        })}
-                                      </BarChart>
-                                    </ResponsiveContainer>
-                                  </ChartContainer>
-                                  {chartData.mode === "grams" ? (
-                                    <p className="text-[11px] text-muted-foreground">合計 {chartData.totalGrams}g</p>
-                                  ) : null}
-                                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                                    {chartData.items.map((entry) => (
-                                      <div key={`${item.id}-legend-${entry.key}`} className="flex items-center gap-2">
-                                        <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full">
-                                          <span className="absolute inset-0 rounded-full" style={{ backgroundColor: entry.fill }} />
-                                          {entry.imageUrl ? (
-                                            <img
-                                              src={entry.imageUrl}
-                                              alt={entry.name}
-                                              className="relative h-full w-full object-cover"
-                                              onError={(event) => {
-                                                event.currentTarget.style.display = "none";
-                                              }}
-                                            />
-                                          ) : null}
-                                        </span>
-                                        <div className="flex flex-col">
-                                          <span className="text-foreground">{entry.name}</span>
-                                          {entry.brand ? <span className="text-[10px] text-muted-foreground">{entry.brand}</span> : null}
-                                        </div>
-                                        <span>
-                                          {chartData.mode === "grams"
-                                            ? entry.grams
-                                              ? `${entry.grams}g (${entry.ratio}%)`
-                                              : "未入力"
-                                            : `${entry.ratio}%`}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : (
-                                <p className="text-xs text-muted-foreground">フレーバー未設定</p>
-                              )}
-                              {item.notes ? <p className="whitespace-pre-wrap text-sm">{item.notes}</p> : null}
-                            </CardContent>
-                            <CardFooter className="flex justify-end px-5 pb-4 pt-0">
-                              <Button size="sm" asChild className="gap-2">
-                                <a href={buildShareUrl(item)} target="_blank" rel="noreferrer">
-                                  <Share2 className="h-4 w-4" />
-                                  Xに投稿
-                                </a>
-                              </Button>
-                            </CardFooter>
-                          </>
-                        )}
-                      </Card>
-                    </CarouselItem>
-                  );
-                })}
-                </CarouselContent>
-                {selectedSessions.length > 1 ? (
-                  <>
-                    <CarouselPrevious className="absolute left-[-4rem] top-1/2 -translate-y-1/2 rounded-full" />
-                    <CarouselNext className="absolute right-[-4rem] top-1/2 -translate-y-1/2 rounded-full" />
-                  </>
-                ) : null}
-              </Carousel>
-            </div>
-          )}
+                          ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">メモはまだありません。</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                  <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
+                    <CardContent className="space-y-2 p-4">
+                      <p className="text-xs text-muted-foreground">次のアクション</p>
+                      <Button asChild className="w-full gap-2 rounded-full">
+                        <Link href="/sessions/new">
+                          <Plus className="h-4 w-4" />
+                          この日に記録を追加
+                        </Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
       <Dialog
