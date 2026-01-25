@@ -64,7 +64,7 @@ export default function RootLayout({
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="hidden sm:block">
+                    <div className="sm:hidden">
                       <NavMenu />
                     </div>
                     <ThemeToggle />

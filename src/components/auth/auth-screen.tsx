@@ -59,7 +59,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
     if (user?.email && !notifiedSignedIn) {
       setNotifiedSignedIn(true);
       onSignedIn?.();
-      router.replace("/");
+      router.replace("/sessions");
     }
   }, [user?.email, onSignedIn, notifiedSignedIn, router]);
 
