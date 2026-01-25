@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   description: "Kemureco へのサインインページ"
 };
 
+export const dynamic = "force-dynamic";
+export const runtime = "edge";
+
 export default function AuthPage() {
   return (
     <div className="py-10">

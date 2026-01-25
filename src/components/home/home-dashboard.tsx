@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Kaisei_Decol, Zen_Kaku_Gothic_New } from "next/font/google";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,15 @@ const workflowSteps = [
 
 export function HomeDashboard() {
   const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (user?.id) {
+      router.replace("/sessions");
+    }
+  }, [authLoading, user?.id, router]);
+
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.scrollAnimate = "true";

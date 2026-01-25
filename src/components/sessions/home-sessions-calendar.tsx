@@ -12,11 +12,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/components/auth/auth-provider";
-import { Ellipsis, ExternalLink, MapPin, Pencil, Plus, ThumbsUp, Trash2 } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { Ellipsis, ExternalLink, MapPin, Pencil, Plus, Share2, ThumbsUp, Trash2 } from "lucide-react";
 import { LocationPlacesCombobox, type PlaceValue, getGoogleMapsLink } from "@/components/sessions/location-places-combobox";
 import Link from "next/link";
 
@@ -50,7 +48,6 @@ export function HomeSessionsCalendar() {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const maxComponents = 4;
-  const chartColors = ["#f59e0b", "#34d399", "#60a5fa", "#f472b6", "#f97316"];
 
   const toLocalDateKey = (value: Date) => {
     const year = value.getFullYear();
@@ -95,67 +92,56 @@ export function HomeSessionsCalendar() {
     return date.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
   };
 
-  const buildMixChartData = (
-    components: {
-      flavorName: string;
-      brandName?: string | null;
-      imageUrl?: string | null;
-      grams?: number | null;
-      ratioPercent?: number | null;
-    }[] | undefined
-  ) => {
-    if (!components || components.length === 0) {
-      return { items: [], stackedData: { label: "配合" }, keys: [] as string[], mode: "ratio" as const, totalGrams: 0 };
+
+  const buildShareText = (session: SessionItem) => {
+    const date = session.started_at
+      ? new Date(session.started_at).toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" })
+      : "日時不明";
+    const flavors =
+      session.mix?.components && session.mix.components.length > 0
+        ? session.mix.components.map((component) => {
+            const brand = component.brandName ? ` (${component.brandName})` : "";
+            const gramsValue =
+              typeof (component as { grams?: number | null }).grams === "number"
+                ? (component as { grams?: number | null }).grams
+                : null;
+            const gramsText = gramsValue && gramsValue > 0 ? ` ${gramsValue}g` : "";
+            return `- ${component.flavorName}${brand}${gramsText}`;
+          })
+        : [];
+
+    const lines = [
+      date,
+      "フレーバー:",
+      ...(flavors.length ? flavors : ["- 記録なし"]),
+      "#Kemureco #Sisha"
+    ];
+
+    return lines.join("\n");
+  };
+
+  const buildShareUrl = (session: SessionItem) => {
+    const text = buildShareText(session);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = origin ? `${origin}/` : "";
+    return `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  };
+
+  const handleCopyShare = async (session: SessionItem) => {
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      toast({ title: "コピーできませんでした", description: "ブラウザの設定をご確認ください。", variant: "destructive" });
+      return;
     }
-    const hasAnyGrams = components.some((component) => typeof component.grams === "number" && component.grams > 0);
-    const hasAllGrams = components.every((component) => typeof component.grams === "number" && component.grams > 0);
-    const totalGrams = hasAllGrams
-      ? components.reduce((sum, component) => sum + (component.grams ?? 0), 0)
-      : 0;
-
-    const resolvedRatios = hasAllGrams
-      ? components.map((component) => Math.round(((component.grams ?? 0) / totalGrams) * 100))
-      : components.map((component) => component.ratioPercent ?? 0);
-    if (hasAllGrams) {
-      const diff = 100 - resolvedRatios.reduce((sum, value) => sum + value, 0);
-      if (diff !== 0 && resolvedRatios.length > 0) {
-        resolvedRatios[resolvedRatios.length - 1] += diff;
-      }
+    const text = buildShareText(session);
+    const origin = window.location.origin;
+    const url = origin ? `${origin}/` : "";
+    try {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      toast({ title: "リンクをコピーしました" });
+    } catch (error) {
+      console.error("copy share error", error);
+      toast({ title: "コピーに失敗しました", description: "もう一度お試しください。", variant: "destructive" });
     }
-
-    const items = components.map((component, index) => {
-      const rawName = component.flavorName;
-      const firstSpaceIndex = rawName.indexOf(" ");
-      const brandFromName = firstSpaceIndex > 0 ? rawName.slice(0, firstSpaceIndex) : "";
-      const flavorFromName = firstSpaceIndex > 0 ? rawName.slice(firstSpaceIndex + 1).trim() : "";
-      const displayName = flavorFromName || rawName;
-      const displayBrand = flavorFromName ? brandFromName : "";
-
-      return {
-        key: `flavor${index}`,
-        name: displayName,
-        brand: displayBrand,
-        imageUrl: component.imageUrl ?? null,
-        grams: component.grams ?? null,
-        ratio: resolvedRatios[index] ?? 0,
-        fill: chartColors[index % chartColors.length]
-      };
-    });
-    const stackedData = items.reduce<Record<string, number | string>>(
-      (acc, item) => {
-        acc[item.key] = item.ratio;
-        return acc;
-      },
-      { label: "配合" }
-    );
-
-    return {
-      items,
-      stackedData,
-      keys: items.map((item) => item.key),
-      mode: hasAllGrams ? "grams" : "ratio",
-      totalGrams
-    };
   };
 
   const daySummary = useMemo(() => {
@@ -673,11 +659,11 @@ export function HomeSessionsCalendar() {
         </CardContent>
       </Card>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl rounded-3xl border border-border/60 bg-gradient-to-b from-amber-50/90 via-background to-background/70 shadow-xl dark:from-neutral-900 dark:via-neutral-950 dark:to-neutral-950">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-amber-50/90 via-background to-background/70 p-4 shadow-xl sm:rounded-3xl sm:p-6 dark:from-neutral-900 dark:via-neutral-950 dark:to-neutral-950">
           <DialogHeader className="sr-only">
             <DialogTitle>セッション詳細</DialogTitle>
           </DialogHeader>
-          <div className="space-y-5">
+          <div className="flex h-full flex-col gap-4 sm:gap-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground">SESSION DETAIL</p>
@@ -688,7 +674,7 @@ export function HomeSessionsCalendar() {
               </div>
               <Popover open={openMenuId === -1} onOpenChange={(open) => setOpenMenuId(open ? -1 : null)}>
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="メニュー">
+                  <Button variant="ghost" size="icon" aria-label="メニュー" className="self-end sm:self-auto">
                     <Ellipsis className="h-5 w-5" />
                   </Button>
                 </PopoverTrigger>
@@ -724,18 +710,17 @@ export function HomeSessionsCalendar() {
                     </Button>
                   </div>
                 </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
+                </Popover>
+              </div>
+            <div className="grid gap-3 sm:grid-cols-3 grid-cols-2">
               <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
-                <CardContent className="space-y-1 p-4">
+                <CardContent className="space-y-1 p-3 sm:p-4">
                   <p className="text-xs text-muted-foreground">記録件数</p>
                   <p className="text-2xl font-semibold text-foreground">{daySummary.count}件</p>
                 </CardContent>
               </Card>
               <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
-                <CardContent className="space-y-1 p-4">
+                <CardContent className="space-y-1 p-3 sm:p-4">
                   <p className="text-xs text-muted-foreground">平均満足度</p>
                   <div className="flex items-center gap-2">
                     <p className="text-2xl font-semibold text-foreground">
@@ -761,7 +746,7 @@ export function HomeSessionsCalendar() {
                 </CardContent>
               </Card>
               <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
-                <CardContent className="space-y-1 p-4">
+                <CardContent className="space-y-1 p-3 sm:p-4">
                   <p className="text-xs text-muted-foreground">合計グラム</p>
                   <p className="text-2xl font-semibold text-foreground">
                     {daySummary.hasGrams ? `${Math.round(daySummary.totalGrams)}g` : "未入力"}
@@ -770,22 +755,23 @@ export function HomeSessionsCalendar() {
               </Card>
             </div>
 
-            {selectedSessions.length === 0 ? (
-              <div className="rounded-3xl border border-dashed border-border/70 bg-background/70 p-6 text-center">
-                <p className="text-sm text-muted-foreground">この日の記録はまだありません。</p>
-                <Button asChild className="mt-4 gap-2 rounded-full px-5" variant="outline">
-                  <Link href="/sessions/new">
-                    <Plus className="h-4 w-4" />
-                    記録を追加する
-                  </Link>
-                </Button>
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_260px]">
-                <ScrollArea className="max-h-[60vh] pr-2">
+            <div className="flex-1 overflow-hidden">
+              {selectedSessions.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-border/70 bg-background/70 p-6 text-center">
+                  <p className="text-sm text-muted-foreground">この日の記録はまだありません。</p>
+                  <Button asChild className="mt-4 gap-2 rounded-full px-5" variant="outline">
+                    <Link href="/sessions/new">
+                      <Plus className="h-4 w-4" />
+                      記録を追加する
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_260px] h-full">
+                  <ScrollArea className="max-h-[44vh] pr-1 sm:max-h-[60vh] sm:pr-2">
                   <div className="space-y-4">
                     {selectedSessions.map((item) => {
-                      const chartData = buildMixChartData(item.mix?.components);
+                      const mixItems = item.mix?.components ?? [];
                       const memoPreview = item.notes ? item.notes.split("\n")[0]?.slice(0, 60) : "";
 
                       return (
@@ -992,6 +978,28 @@ export function HomeSessionsCalendar() {
                                       </Button>
                                       <Button
                                         variant="ghost"
+                                        className="justify-start gap-2"
+                                        onClick={() => {
+                                          setOpenMenuId(null);
+                                          window.open(buildShareUrl(item), "_blank", "noopener,noreferrer");
+                                        }}
+                                      >
+                                        <Share2 className="h-4 w-4" />
+                                        Xに投稿
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        className="justify-start gap-2"
+                                        onClick={() => {
+                                          setOpenMenuId(null);
+                                          void handleCopyShare(item);
+                                        }}
+                                      >
+                                        <Share2 className="h-4 w-4" />
+                                        リンクをコピー
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
                                         className="justify-start gap-2 text-destructive hover:text-destructive"
                                         onClick={() => {
                                           setOpenMenuId(null);
@@ -1010,70 +1018,19 @@ export function HomeSessionsCalendar() {
                               <CardContent className="space-y-3 px-5 pb-4 pt-0">
                                 {item.mix?.components && item.mix.components.length > 0 ? (
                                   <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-[11px] text-muted-foreground">フレーバー配合</p>
-                                      {chartData.mode === "ratio" ? (
-                                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                                          割合のみ
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <ChartContainer className="w-full" style={{ height: 56 }}>
-                                      <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                          data={[chartData.stackedData]}
-                                          layout="vertical"
-                                          margin={{ top: 4, right: 4, left: 0, bottom: 4 }}
+                                    <p className="text-[11px] text-muted-foreground">フレーバー</p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {mixItems.map((component) => (
+                                        <div
+                                          key={`${item.id}-flavor-${component.flavorId}`}
+                                          className="flex items-center gap-2 rounded-full border border-border/60 bg-background px-2 py-1 text-[11px] text-muted-foreground"
                                         >
-                                          <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                                          <XAxis type="number" domain={[0, 100]} hide />
-                                          <YAxis
-                                            type="category"
-                                            dataKey="label"
-                                            tickLine={false}
-                                            axisLine={false}
-                                            width={0}
-                                            tick={false}
-                                          />
-                                          <ChartTooltip cursor={false} content={<ChartTooltipContent valueSuffix="%" />} />
-                                          {chartData.keys.map((key, index) => {
-                                            const isFirst = index === 0;
-                                            const isLast = index === chartData.keys.length - 1;
-                                            const radius = isFirst
-                                              ? ([6, 0, 0, 6] as [number, number, number, number])
-                                              : isLast
-                                                ? ([0, 6, 6, 0] as [number, number, number, number])
-                                                : 0;
-                                            const fill = chartData.items[index]?.fill;
-                                            const name = chartData.items[index]?.name;
-                                            return (
-                                              <Bar
-                                                key={`${item.id}-${key}`}
-                                                dataKey={key}
-                                                stackId="mix"
-                                                radius={radius}
-                                                barSize={12}
-                                                fill={fill}
-                                                name={name}
-                                              />
-                                            );
-                                          })}
-                                        </BarChart>
-                                      </ResponsiveContainer>
-                                    </ChartContainer>
-                                    {chartData.mode === "grams" ? (
-                                      <p className="text-[11px] text-muted-foreground">合計 {chartData.totalGrams}g</p>
-                                    ) : null}
-                                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                                      {chartData.items.map((entry) => (
-                                        <div key={`${item.id}-legend-${entry.key}`} className="flex items-center gap-2">
-                                          <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full">
-                                            <span className="absolute inset-0 rounded-full" style={{ backgroundColor: entry.fill }} />
-                                            {entry.imageUrl ? (
+                                          <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full bg-muted">
+                                            {component.imageUrl ? (
                                               <img
-                                                src={entry.imageUrl}
-                                                alt={entry.name}
-                                                className="relative h-full w-full object-cover"
+                                                src={component.imageUrl}
+                                                alt={component.flavorName}
+                                                className="h-full w-full object-cover"
                                                 onError={(event) => {
                                                   event.currentTarget.style.display = "none";
                                                 }}
@@ -1081,16 +1038,11 @@ export function HomeSessionsCalendar() {
                                             ) : null}
                                           </span>
                                           <div className="flex flex-col">
-                                            <span className="text-foreground">{entry.name}</span>
-                                            {entry.brand ? <span className="text-[10px] text-muted-foreground">{entry.brand}</span> : null}
+                                            <span className="text-foreground">{component.flavorName}</span>
+                                            {component.brandName ? (
+                                              <span className="text-[10px] text-muted-foreground">{component.brandName}</span>
+                                            ) : null}
                                           </div>
-                                          <span>
-                                            {chartData.mode === "grams"
-                                              ? entry.grams
-                                                ? `${entry.grams}g (${entry.ratio}%)`
-                                                : "未入力"
-                                              : `${entry.ratio}%`}
-                                          </span>
                                         </div>
                                       ))}
                                     </div>
@@ -1108,41 +1060,42 @@ export function HomeSessionsCalendar() {
                       );
                     })}
                   </div>
-                </ScrollArea>
-                <div className="space-y-3">
-                  <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">この日のメモ</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {selectedSessions.some((session) => session.notes) ? (
-                        selectedSessions
-                          .filter((session) => session.notes)
-                          .map((session) => (
-                            <div key={`note-${session.id}`} className="space-y-1 border-b border-border/40 pb-2 last:border-none last:pb-0">
-                              <p className="text-xs text-muted-foreground">{formatTimeLabel(session.started_at)}</p>
-                              <p className="text-sm text-foreground">{session.notes}</p>
-                            </div>
-                          ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">メモはまだありません。</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                  <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
-                    <CardContent className="space-y-2 p-4">
-                      <p className="text-xs text-muted-foreground">次のアクション</p>
-                      <Button asChild className="w-full gap-2 rounded-full">
-                        <Link href="/sessions/new">
-                          <Plus className="h-4 w-4" />
-                          この日に記録を追加
-                        </Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
+                  </ScrollArea>
+                  <div className="space-y-3">
+                    <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">この日のメモ</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {selectedSessions.some((session) => session.notes) ? (
+                          selectedSessions
+                            .filter((session) => session.notes)
+                            .map((session) => (
+                              <div key={`note-${session.id}`} className="space-y-1 border-b border-border/40 pb-2 last:border-none last:pb-0">
+                                <p className="text-xs text-muted-foreground">{formatTimeLabel(session.started_at)}</p>
+                                <p className="text-sm text-foreground">{session.notes}</p>
+                              </div>
+                            ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">メモはまだありません。</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
+                      <CardContent className="space-y-2 p-4">
+                        <p className="text-xs text-muted-foreground">次のアクション</p>
+                        <Button asChild className="w-full gap-2 rounded-full">
+                          <Link href="/sessions/new">
+                            <Plus className="h-4 w-4" />
+                            この日に記録を追加
+                          </Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

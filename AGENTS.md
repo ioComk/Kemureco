@@ -11,6 +11,7 @@ Kemureco is a web platform for shisha users to record, manage, and receive recom
 - Maintain **idempotent logic**
 - If something is unclear, **ask before assuming**
 - After implementation, confirm **HTTP 200 at http://localhost:3000**
+- .codex/skills/にskillsを置いているので必要に応じて読み込む
 
 ---
 
