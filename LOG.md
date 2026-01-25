@@ -341,3 +341,18 @@ Kemureco is a web platform for shisha users, focused on accurate session/flavor 
 ### 2026-01-18 追加: セッション日付詳細の配合表示簡素化
 - 配合グラフ表示を廃止し、フレーバー名と画像の並びのみ表示するよう更新
 - 仕様書 `doc/frontend/session-day-detail.md` のミックス表示方針を更新
+
+---
+
+### 2026-01-18 追加: /auth のビルド失敗回避
+- `/auth` ページをクライアント専用レンダリングにして、ビルド時にSupabase環境変数が無い場合でも失敗しないよう調整
+
+---
+
+### 2026-01-18 追加: /auth のプリレンダー抑止
+- `/auth` を `force-dynamic` にしてビルド時のプリレンダーを回避
+
+---
+
+### 2026-01-18 追加: /auth のEdge Runtime指定
+- Cloudflare Pages の要件に合わせて `/auth` に `runtime = "edge"` を追加
