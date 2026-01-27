@@ -52,7 +52,7 @@ export default async function FlavorsPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading flavors...</p>}>
+      <Suspense fallback={<p className="text-sm text-muted-foreground">フレーバーを読み込み中...</p>}>
         <FlavorsExplorer
           flavors={flavors}
           initialQuery={query}

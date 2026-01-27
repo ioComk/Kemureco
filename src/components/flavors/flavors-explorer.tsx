@@ -668,7 +668,7 @@ export function FlavorsExplorer({
                       toggleTagExpand(flavor.id);
                     }}
                   >
-                    {isExpanded ? "show less" : "show more..."}
+                    {isExpanded ? "閉じる" : "もっと見る"}
                   </button>
                 ) : null}
               </div>
@@ -770,7 +770,7 @@ export function FlavorsExplorer({
                         toggleTagExpand(flavor.id);
                       }}
                     >
-                      {isExpanded ? "show less" : "show more..."}
+                      {isExpanded ? "閉じる" : "もっと見る"}
                     </Button>
                   ) : null}
                 </div>
@@ -860,7 +860,7 @@ export function FlavorsExplorer({
             </div>
           </div>
           <div className="flex flex-nowrap items-center gap-3 overflow-x-auto">
-            <Label className="whitespace-nowrap">Group by</Label>
+            <Label className="whitespace-nowrap">グループ化</Label>
             <div className="flex flex-nowrap items-center gap-2">
               <Button
                 type="button"
@@ -868,7 +868,7 @@ export function FlavorsExplorer({
                 variant={group === "none" ? "default" : "outline"}
                 onClick={() => setGroup("none")}
               >
-                None
+                なし
               </Button>
               <Button
                 type="button"
@@ -876,7 +876,7 @@ export function FlavorsExplorer({
                 variant={group === "brand" ? "default" : "outline"}
                 onClick={() => setGroup("brand")}
               >
-                Brand
+                ブランド
               </Button>
             </div>
           </div>
@@ -958,7 +958,7 @@ export function FlavorsExplorer({
                     className="shrink-0 text-xs text-muted-foreground underline-offset-4 hover:underline"
                     onClick={() => setTagsOpen((prev) => !prev)}
                   >
-                    {tagsOpen ? "show less" : "show more..."}
+                    {tagsOpen ? "閉じる" : "もっと見る"}
                   </button>
                 ) : null}
               </div>

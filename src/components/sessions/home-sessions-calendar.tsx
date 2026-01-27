@@ -13,10 +13,55 @@ import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Ellipsis, ExternalLink, MapPin, Pencil, Plus, Share2, ThumbsUp, Trash2 } from "lucide-react";
 import { LocationPlacesCombobox, type PlaceValue, getGoogleMapsLink } from "@/components/sessions/location-places-combobox";
+import {
+  extractCustomFlavorEntries,
+  extractCustomFlavors,
+  formatCustomFlavorEntry,
+  parseCustomFlavorEntry,
+  stripCustomFlavorNotes
+} from "@/components/sessions/session-utils";
 import Link from "next/link";
+
+type EditComponentState = {
+  flavorId: string;
+  grams: number | "";
+  mode: "existing" | "custom";
+  customName: string;
+  customBrand: string;
+};
+
+const MIN_COMPONENTS = 1;
+const MAX_COMPONENTS = 4;
+const DEFAULT_COMPONENT_GRAMS = 3;
+
+const getGramsValue = (grams: EditComponentState["grams"]) => (typeof grams === "number" ? grams : 0);
+
+const createDefaultComponents = (count: number): EditComponentState[] => {
+  if (count <= 0) return [];
+  return Array.from({ length: count }, () => ({
+    flavorId: "",
+    grams: DEFAULT_COMPONENT_GRAMS,
+    mode: "existing",
+    customName: "",
+    customBrand: ""
+  }));
+};
+
+const evenDistribution = (list: EditComponentState[], totalOverride?: number): EditComponentState[] => {
+  if (list.length === 0) return list;
+  const currentTotal = list.reduce((sum, component) => sum + getGramsValue(component.grams), 0);
+  const total = totalOverride ?? (currentTotal > 0 ? currentTotal : DEFAULT_COMPONENT_GRAMS * list.length);
+  const equal = Math.floor(total / list.length);
+  let remainder = total - equal * list.length;
+  return list.map((component) => ({
+    ...component,
+    grams: Math.max(0, equal + (remainder-- > 0 ? 1 : 0))
+  }));
+};
 
 export function HomeSessionsCalendar() {
   const supabase = useMemo(() => createSupabaseClient(), []);
@@ -35,7 +80,8 @@ export function HomeSessionsCalendar() {
   const [selectedSessions, setSelectedSessions] = useState<SessionItem[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingLocationPlace, setEditingLocationPlace] = useState<PlaceValue | null>(null);
-  const [editingComponents, setEditingComponents] = useState<Array<{ flavorId: string }>>([]);
+  const [editingComponents, setEditingComponents] = useState<EditComponentState[]>([]);
+  const [useCustomRatio, setUseCustomRatio] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
@@ -47,7 +93,6 @@ export function HomeSessionsCalendar() {
   }>({ startedAt: "", satisfaction: 3, location: "", notes: "" });
   const [savingId, setSavingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const maxComponents = 4;
 
   const toLocalDateKey = (value: Date) => {
     const year = value.getFullYear();
@@ -153,16 +198,6 @@ export function HomeSessionsCalendar() {
       satisfactionValues.length > 0
         ? satisfactionValues.reduce((sum, value) => sum + value, 0) / satisfactionValues.length
         : null;
-    let totalGrams = 0;
-    let hasGrams = false;
-    selectedSessions.forEach((session) => {
-      session.mix?.components?.forEach((component) => {
-        if (typeof component.grams === "number" && component.grams > 0) {
-          totalGrams += component.grams;
-          hasGrams = true;
-        }
-      });
-    });
     const times = selectedSessions
       .map((session) => (session.started_at ? new Date(session.started_at) : null))
       .filter((value): value is Date => !!value && !Number.isNaN(value.getTime()))
@@ -173,7 +208,37 @@ export function HomeSessionsCalendar() {
             times.length - 1
           ].toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}`
         : "";
-    return { count, avgSatisfaction, totalGrams, hasGrams, timeRange };
+    return { count, avgSatisfaction, timeRange };
+  }, [selectedSessions]);
+
+  const totalEditingGrams = useMemo(
+    () => editingComponents.reduce((sum, component) => sum + getGramsValue(component.grams), 0),
+    [editingComponents]
+  );
+
+  const flavorById = useMemo(
+    () => new Map(flavors.map((flavor) => [String(flavor.id), flavor])),
+    [flavors]
+  );
+
+  const dayFlavors = useMemo(() => {
+    const items = new Map<string, { name: string; imageUrl: string | null }>();
+    selectedSessions.forEach((session) => {
+      session.mix?.components?.forEach((component) => {
+        if (!component.flavorName) return;
+        const key = `mix-${component.flavorId}`;
+        if (!items.has(key)) {
+          items.set(key, { name: component.flavorName, imageUrl: component.imageUrl ?? null });
+        }
+      });
+      extractCustomFlavors(session.notes).forEach((name) => {
+        const key = `custom-${name}`;
+        if (!items.has(key)) {
+          items.set(key, { name, imageUrl: null });
+        }
+      });
+    });
+    return Array.from(items.values());
   }, [selectedSessions]);
 
   useEffect(() => {
@@ -207,6 +272,7 @@ export function HomeSessionsCalendar() {
       setEditingForm({ startedAt: "", satisfaction: 3, location: "", notes: "" });
       setEditingComponents([]);
       setEditingLocationPlace(null);
+      setUseCustomRatio(false);
       setOpenMenuId(null);
       setDeleteDialogOpen(false);
       setPendingDeleteId(null);
@@ -376,17 +442,49 @@ export function HomeSessionsCalendar() {
     setEditingForm({ startedAt: "", satisfaction: 3, location: "", notes: "" });
     setEditingComponents([]);
     setEditingLocationPlace(null);
+    setUseCustomRatio(false);
     setDialogOpen(true);
   };
 
   const startEdit = (session: SessionItem) => {
     setEditingId(session.id);
+    const mixComponents: EditComponentState[] = session.mix?.components?.length
+      ? session.mix.components.map((component) => ({
+          flavorId: String(component.flavorId),
+          grams: typeof component.grams === "number" ? component.grams : "",
+          mode: "existing",
+          customName: "",
+          customBrand: ""
+        }))
+      : [];
+    const customComponents = extractCustomFlavorEntries(session.notes)
+      .map((entry) => parseCustomFlavorEntry(entry))
+      .filter((entry) => entry.name.length > 0)
+      .map((entry) => ({
+        flavorId: "",
+        grams: entry.grams,
+        mode: "custom" as const,
+        customName: entry.name,
+        customBrand: entry.brand
+      }));
+    const combinedComponents = mixComponents.concat(customComponents);
+    const hasGrams = combinedComponents.some((component) => getGramsValue(component.grams) > 0);
+    const nextComponents = combinedComponents.length > 0 ? combinedComponents : createDefaultComponents(MIN_COMPONENTS);
+    const normalizedComponents = hasGrams
+      ? nextComponents.map((component) => ({
+          ...component,
+          grams: getGramsValue(component.grams) > 0 ? component.grams : DEFAULT_COMPONENT_GRAMS
+        }))
+      : nextComponents;
+
     setEditingForm({
       startedAt: formatDateInput(session.started_at),
       satisfaction: session.satisfaction ?? 3,
       location: session.location_name ?? session.location_text ?? "",
-      notes: session.notes ?? ""
+      notes: stripCustomFlavorNotes(session.notes)
     });
+    setEditingComponents(normalizedComponents);
+    setUseCustomRatio(hasGrams);
     setEditingLocationPlace(
       session.location_place_id || session.location_name || session.location_address
         ? {
@@ -399,27 +497,25 @@ export function HomeSessionsCalendar() {
           }
         : null
     );
-    setEditingComponents(
-      session.mix?.components?.length
-        ? session.mix.components.map((component) => ({ flavorId: String(component.flavorId) }))
-        : []
-    );
   };
 
   const handleEditChange = <K extends keyof typeof editingForm>(key: K, value: (typeof editingForm)[K]) => {
     setEditingForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleComponentChange = (index: number, flavorId: string) => {
+  const handleComponentChange = (index: number, updates: Partial<EditComponentState>) => {
     setEditingComponents((prev) => {
       const next = [...prev];
-      next[index] = { flavorId };
+      const current = next[index] ?? createDefaultComponents(1)[0];
+      next[index] = { ...current, ...updates };
       return next;
     });
   };
 
   const handleAddComponent = () => {
-    setEditingComponents((prev) => (prev.length >= maxComponents ? prev : [...prev, { flavorId: "" }]));
+    setEditingComponents((prev) =>
+      prev.length >= MAX_COMPONENTS ? prev : [...prev, ...createDefaultComponents(1)]
+    );
   };
 
   const handleRemoveComponent = (index: number) => {
@@ -428,8 +524,15 @@ export function HomeSessionsCalendar() {
 
   const handleUpdate = async (sessionId: number) => {
     if (!sessionState.userId) return;
-    if (mixColumnAvailable && editingComponents.length > 0 && editingComponents.some((component) => !component.flavorId)) {
-      toast({ title: "フレーバーを選択してください", variant: "destructive" });
+    const hasInvalidComponent = editingComponents.some((component) =>
+      component.mode === "existing" ? !component.flavorId : component.customName.trim().length === 0
+    );
+    if (mixColumnAvailable && editingComponents.length > 0 && hasInvalidComponent) {
+      toast({ title: "フレーバーを入力してください", variant: "destructive" });
+      return;
+    }
+    if (useCustomRatio && editingComponents.some((component) => getGramsValue(component.grams) <= 0)) {
+      toast({ title: "グラム数を入力してください", variant: "destructive" });
       return;
     }
     setSavingId(sessionId);
@@ -442,6 +545,24 @@ export function HomeSessionsCalendar() {
     }
 
     const startedAt = parsedDate ? parsedDate.toISOString() : null;
+    const customFlavorNotes = editingComponents
+      .filter((component) => component.mode === "custom" && component.customName.trim().length > 0)
+      .map((component) =>
+        formatCustomFlavorEntry({
+          name: component.customName,
+          brand: component.customBrand,
+          grams: useCustomRatio ? getGramsValue(component.grams) : ""
+        })
+      )
+      .filter((entry) => entry.length > 0);
+    const notesParts = [
+      editingForm.notes.trim(),
+      customFlavorNotes.length ? `自由入力フレーバー: ${customFlavorNotes.join(", ")}` : ""
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+
     const payload: Record<string, unknown> = {
       started_at: startedAt,
       satisfaction: editingForm.satisfaction,
@@ -452,12 +573,13 @@ export function HomeSessionsCalendar() {
       location_lat: editingLocationPlace?.lat ?? null,
       location_lng: editingLocationPlace?.lng ?? null,
       location_distance_km: editingLocationPlace?.distanceKm ?? null,
-      notes: editingForm.notes.trim() || null
+      notes: notesParts || null
     };
 
     if (mixColumnAvailable) {
       const sessionItem = sessions.find((session) => session.id === sessionId);
-      const flavorIds = editingComponents.map((component) => Number(component.flavorId)).filter((id) => id > 0);
+      const existingComponents = editingComponents.filter((component) => component.mode === "existing" && component.flavorId);
+      const flavorIds = existingComponents.map((component) => Number(component.flavorId)).filter((id) => id > 0);
       let mixIdToUse: number | null = sessionItem?.mix_id ?? null;
 
       if (flavorIds.length > 0) {
@@ -498,14 +620,30 @@ export function HomeSessionsCalendar() {
             return;
           }
 
-          const equal = Math.floor(100 / flavorIds.length);
-          let remainder = 100 - equal * flavorIds.length;
-          const ratios = flavorIds.map(() => equal + (remainder-- > 0 ? 1 : 0));
-          const componentsPayload = flavorIds.map((flavorId, index) => ({
+          const ratios = (() => {
+            if (!useCustomRatio) {
+              const equal = Math.floor(100 / flavorIds.length);
+              let remainder = 100 - equal * flavorIds.length;
+              return flavorIds.map(() => equal + (remainder-- > 0 ? 1 : 0));
+            }
+            const total = existingComponents.reduce((sum, component) => sum + getGramsValue(component.grams), 0);
+            const rawRatios = existingComponents.map((component) =>
+              total > 0 ? (getGramsValue(component.grams) / total) * 100 : 0
+            );
+            let remaining = 100;
+            return rawRatios.map((ratio, index) => {
+              if (index === rawRatios.length - 1) return Math.max(0, remaining);
+              const rounded = Math.max(0, Math.round(ratio));
+              remaining -= rounded;
+              return rounded;
+            });
+          })();
+
+          const componentsPayload = existingComponents.map((component, index) => ({
             mix_id: mixId,
-            flavor_id: flavorId,
+            flavor_id: Number(component.flavorId),
             ratio_percent: ratios[index] ?? 0,
-            grams: null,
+            grams: useCustomRatio ? getGramsValue(component.grams) : null,
             layer_order: index + 1
           }));
 
@@ -659,12 +797,12 @@ export function HomeSessionsCalendar() {
         </CardContent>
       </Card>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-amber-50/90 via-background to-background/70 p-4 shadow-xl sm:rounded-3xl sm:p-6 dark:from-neutral-900 dark:via-neutral-950 dark:to-neutral-950">
+        <DialogContent className="w-[95vw] max-w-4xl h-[90vh] overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-amber-50/90 via-background to-background/70 p-0 shadow-xl sm:rounded-3xl dark:from-neutral-900 dark:via-neutral-950 dark:to-neutral-950">
           <DialogHeader className="sr-only">
             <DialogTitle>セッション詳細</DialogTitle>
           </DialogHeader>
-          <div className="flex h-full flex-col gap-4 sm:gap-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex h-full flex-col overflow-hidden">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 pt-4 sm:px-6">
               <div>
                 <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground">SESSION DETAIL</p>
                 <h3 className="text-xl font-semibold text-foreground sm:text-2xl">
@@ -712,7 +850,10 @@ export function HomeSessionsCalendar() {
                 </PopoverContent>
                 </Popover>
               </div>
-            <div className="grid gap-3 sm:grid-cols-3 grid-cols-2">
+            </div>
+            <ScrollArea className="flex-1 min-h-0 px-4 pb-6 sm:px-6">
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3 grid-cols-2">
               <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
                 <CardContent className="space-y-1 p-3 sm:p-4">
                   <p className="text-xs text-muted-foreground">記録件数</p>
@@ -746,16 +887,42 @@ export function HomeSessionsCalendar() {
                 </CardContent>
               </Card>
               <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
-                <CardContent className="space-y-1 p-3 sm:p-4">
-                  <p className="text-xs text-muted-foreground">合計グラム</p>
-                  <p className="text-2xl font-semibold text-foreground">
-                    {daySummary.hasGrams ? `${Math.round(daySummary.totalGrams)}g` : "未入力"}
-                  </p>
+                <CardContent className="space-y-2 p-3 sm:p-4">
+                  <p className="text-xs text-muted-foreground">使用フレーバー</p>
+                  {dayFlavors.length > 0 ? (
+                    <TooltipProvider>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {dayFlavors.map((flavor) => (
+                          <Tooltip key={flavor.name}>
+                            <TooltipTrigger asChild>
+                              <div className="h-10 w-10 overflow-hidden rounded-full border border-border/60 bg-muted/50 shadow-sm">
+                                {flavor.imageUrl ? (
+                                  <img
+                                    src={flavor.imageUrl}
+                                    alt={flavor.name}
+                                    className="h-full w-full object-cover"
+                                    onError={(event) => {
+                                      event.currentTarget.style.display = "none";
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="h-full w-full bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600" />
+                                )}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>{flavor.name}</TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </TooltipProvider>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">未設定</p>
+                  )}
                 </CardContent>
               </Card>
             </div>
 
-            <div className="flex-1 overflow-hidden">
+              <div className="flex-1 overflow-hidden">
               {selectedSessions.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-border/70 bg-background/70 p-6 text-center">
                   <p className="text-sm text-muted-foreground">この日の記録はまだありません。</p>
@@ -767,12 +934,13 @@ export function HomeSessionsCalendar() {
                   </Button>
                 </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_260px] h-full">
-                  <ScrollArea className="max-h-[44vh] pr-1 sm:max-h-[60vh] sm:pr-2">
+                <div className="flex h-full flex-col gap-4">
                   <div className="space-y-4">
                     {selectedSessions.map((item) => {
                       const mixItems = item.mix?.components ?? [];
-                      const memoPreview = item.notes ? item.notes.split("\n")[0]?.slice(0, 60) : "";
+                      const customFlavors = extractCustomFlavors(item.notes);
+                      const displayNotes = stripCustomFlavorNotes(item.notes);
+                      const memoPreview = displayNotes ? displayNotes.split("\n")[0]?.slice(0, 60) : "";
 
                       return (
                         <Card key={item.id} className="relative rounded-3xl border border-border/60 bg-background/80 shadow-sm">
@@ -795,50 +963,226 @@ export function HomeSessionsCalendar() {
                                   />
                                 </div>
                                 {mixColumnAvailable ? (
-                                  <div className="space-y-2">
+                                  <div className="space-y-3">
                                     <div className="flex items-center justify-between">
-                                      <Label>フレーバー</Label>
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleAddComponent}
-                                        disabled={editingComponents.length >= maxComponents}
-                                      >
-                                        追加
-                                      </Button>
-                                    </div>
-                                    {editingComponents.length === 0 ? (
-                                      <p className="text-xs text-muted-foreground">フレーバー未設定</p>
-                                    ) : (
-                                      <div className="space-y-2">
-                                        {editingComponents.map((component, index) => (
-                                          <div key={`edit-flavor-${item.id}-${index}`} className="flex items-center gap-2">
-                                            <select
-                                              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                              value={component.flavorId}
-                                              onChange={(event) => handleComponentChange(index, event.target.value)}
-                                            >
-                                              <option value="">フレーバーを選択</option>
-                                              {flavors.map((flavor) => (
-                                                <option key={flavor.id} value={flavor.id}>
-                                                  {flavor.brandName ? `${flavor.brandName} ` : ""}
-                                                  {flavor.name}
-                                                </option>
-                                              ))}
-                                            </select>
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => handleRemoveComponent(index)}
-                                            >
-                                              削除
-                                            </Button>
-                                          </div>
-                                        ))}
+                                      <div>
+                                        <Label className="text-base">フレーバー構成</Label>
+                                        {useCustomRatio ? (
+                                          <p className="text-xs text-muted-foreground">合計: {totalEditingGrams}g</p>
+                                        ) : null}
                                       </div>
-                                    )}
+                                      <div className="flex gap-2">
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={handleAddComponent}
+                                          disabled={editingComponents.length >= MAX_COMPONENTS}
+                                        >
+                                          追加
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => {
+                                            setEditingComponents(createDefaultComponents(2));
+                                            setUseCustomRatio(false);
+                                          }}
+                                        >
+                                          リセット
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                                      <input
+                                        type="checkbox"
+                                        checked={useCustomRatio}
+                                        onChange={(event) => {
+                                          const next = event.target.checked;
+                                          setUseCustomRatio(next);
+                                          if (next) {
+                                            setEditingComponents((prev) => evenDistribution(prev));
+                                          }
+                                        }}
+                                        className="h-4 w-4 accent-primary"
+                                      />
+                                      グラム数を自分で設定する
+                                    </label>
+                                    <div className="grid gap-3">
+                                      {editingComponents.map((component, index) => {
+                                        const selectedFlavor =
+                                          component.mode === "existing" ? flavorById.get(component.flavorId) ?? null : null;
+                                        const isSelected =
+                                          component.mode === "existing"
+                                            ? !!selectedFlavor
+                                            : component.customName.trim().length > 0;
+
+                                        return (
+                                          <div
+                                            key={`edit-flavor-${item.id}-${index}`}
+                                            className={`rounded-xl border p-4 space-y-3 transition-all ${
+                                              isSelected
+                                                ? "border-foreground/30 bg-gray-100 dark:bg-zinc-800"
+                                                : "border-border bg-white dark:bg-zinc-900"
+                                            }`}
+                                          >
+                                            <div className="flex items-center justify-between gap-2">
+                                              <div className="flex items-center gap-3">
+                                                <div
+                                                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                                                    isSelected
+                                                      ? "bg-foreground text-background"
+                                                      : "bg-muted-foreground/20 text-muted-foreground"
+                                                  }`}
+                                                >
+                                                  {index + 1}
+                                                </div>
+                                                <div>
+                                                  <Label className="text-sm font-semibold">フレーバー #{index + 1}</Label>
+                                                  {selectedFlavor?.brandName ? (
+                                                    <p className="text-xs text-muted-foreground">{selectedFlavor.brandName}</p>
+                                                  ) : null}
+                                                </div>
+                                              </div>
+                                              {editingComponents.length > MIN_COMPONENTS ? (
+                                                <Button
+                                                  type="button"
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => handleRemoveComponent(index)}
+                                                >
+                                                  削除
+                                                </Button>
+                                              ) : null}
+                                            </div>
+                                            <div className="flex rounded-lg bg-muted/50 p-1">
+                                              <button
+                                                type="button"
+                                                className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                                                  component.mode === "existing"
+                                                    ? "bg-background shadow-sm text-foreground"
+                                                    : "text-muted-foreground hover:text-foreground"
+                                                }`}
+                                                onClick={() =>
+                                                  handleComponentChange(index, {
+                                                    mode: "existing",
+                                                    customName: "",
+                                                    customBrand: ""
+                                                  })
+                                                }
+                                              >
+                                                既存から選ぶ
+                                              </button>
+                                              <button
+                                                type="button"
+                                                className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                                                  component.mode === "custom"
+                                                    ? "bg-background shadow-sm text-foreground"
+                                                    : "text-muted-foreground hover:text-foreground"
+                                                }`}
+                                                onClick={() =>
+                                                  handleComponentChange(index, { mode: "custom", flavorId: "" })
+                                                }
+                                              >
+                                                自由入力
+                                              </button>
+                                            </div>
+                                            {component.mode === "existing" ? (
+                                              <div className="space-y-2">
+                                                <select
+                                                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                  value={component.flavorId}
+                                                  onChange={(event) =>
+                                                    handleComponentChange(index, {
+                                                      flavorId: event.target.value,
+                                                      mode: "existing",
+                                                      customName: "",
+                                                      customBrand: ""
+                                                    })
+                                                  }
+                                                >
+                                                  <option value="">フレーバーを選択</option>
+                                                  {flavors.map((flavor) => (
+                                                    <option key={flavor.id} value={flavor.id}>
+                                                      {flavor.brandName ? `${flavor.brandName} ` : ""}
+                                                      {flavor.name}
+                                                    </option>
+                                                  ))}
+                                                </select>
+                                                {useCustomRatio ? (
+                                                  <div className="flex items-center gap-2">
+                                                    <Label className="text-xs text-muted-foreground whitespace-nowrap">グラム数:</Label>
+                                                    <Input
+                                                      type="number"
+                                                      min={0}
+                                                      step={1}
+                                                      value={component.grams === "" ? "" : component.grams}
+                                                      onChange={(event) => {
+                                                        const raw = event.target.value;
+                                                        if (raw === "") {
+                                                          handleComponentChange(index, { grams: "" });
+                                                          return;
+                                                        }
+                                                        const nextValue = Number(raw);
+                                                        handleComponentChange(index, {
+                                                          grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0
+                                                        });
+                                                      }}
+                                                      className="h-9 w-24"
+                                                    />
+                                                    <span className="text-xs text-muted-foreground">g</span>
+                                                  </div>
+                                                ) : null}
+                                              </div>
+                                            ) : (
+                                              <div className="space-y-2">
+                                                <Input
+                                                  placeholder="フレーバー名 (例: ミント)"
+                                                  value={component.customName}
+                                                  onChange={(event) =>
+                                                    handleComponentChange(index, { customName: event.target.value })
+                                                  }
+                                                  className="h-10"
+                                                />
+                                                <Input
+                                                  placeholder="ブランド名 (任意: 例 オリジナル)"
+                                                  value={component.customBrand}
+                                                  onChange={(event) =>
+                                                    handleComponentChange(index, { customBrand: event.target.value })
+                                                  }
+                                                  className="border-dashed"
+                                                />
+                                                {useCustomRatio ? (
+                                                  <div className="flex items-center gap-2">
+                                                    <Label className="text-xs text-muted-foreground whitespace-nowrap">グラム数:</Label>
+                                                    <Input
+                                                      type="number"
+                                                      min={0}
+                                                      step={1}
+                                                      value={component.grams === "" ? "" : component.grams}
+                                                      onChange={(event) => {
+                                                        const raw = event.target.value;
+                                                        if (raw === "") {
+                                                          handleComponentChange(index, { grams: "" });
+                                                          return;
+                                                        }
+                                                        const nextValue = Number(raw);
+                                                        handleComponentChange(index, {
+                                                          grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0
+                                                        });
+                                                      }}
+                                                      className="h-9 w-24"
+                                                    />
+                                                    <span className="text-xs text-muted-foreground">g</span>
+                                                  </div>
+                                                ) : null}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
                                 ) : null}
                                 <div className="space-y-2">
@@ -890,7 +1234,14 @@ export function HomeSessionsCalendar() {
                                 </div>
                               </CardContent>
                               <CardFooter className="flex justify-end gap-2">
-                                <Button variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={savingId === item.id}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingId(null);
+                                  }}
+                                  disabled={savingId === item.id}
+                                >
                                   キャンセル
                                 </Button>
                                 <Button size="sm" onClick={() => handleUpdate(item.id)} disabled={savingId === item.id}>
@@ -1047,11 +1398,18 @@ export function HomeSessionsCalendar() {
                                       ))}
                                     </div>
                                   </div>
+                                ) : customFlavors.length > 0 ? (
+                                  <div className="space-y-1">
+                                    <p className="text-[11px] text-muted-foreground">フレーバー</p>
+                                    <p className="text-xs text-foreground">
+                                      {customFlavors.join(", ")}
+                                    </p>
+                                  </div>
                                 ) : (
                                   <p className="text-xs text-muted-foreground">フレーバー未設定</p>
                                 )}
                                 {memoPreview ? (
-                                  <p className="text-sm text-foreground">{memoPreview}{item.notes && item.notes.length > 60 ? "…" : ""}</p>
+                                  <p className="text-sm text-foreground">{memoPreview}{displayNotes.length > 60 ? "…" : ""}</p>
                                 ) : null}
                               </CardContent>
                             </>
@@ -1060,43 +1418,21 @@ export function HomeSessionsCalendar() {
                       );
                     })}
                   </div>
-                  </ScrollArea>
-                  <div className="space-y-3">
-                    <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">この日のメモ</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        {selectedSessions.some((session) => session.notes) ? (
-                          selectedSessions
-                            .filter((session) => session.notes)
-                            .map((session) => (
-                              <div key={`note-${session.id}`} className="space-y-1 border-b border-border/40 pb-2 last:border-none last:pb-0">
-                                <p className="text-xs text-muted-foreground">{formatTimeLabel(session.started_at)}</p>
-                                <p className="text-sm text-foreground">{session.notes}</p>
-                              </div>
-                            ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground">メモはまだありません。</p>
-                        )}
-                      </CardContent>
-                    </Card>
-                    <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
-                      <CardContent className="space-y-2 p-4">
-                        <p className="text-xs text-muted-foreground">次のアクション</p>
-                        <Button asChild className="w-full gap-2 rounded-full">
-                          <Link href="/sessions/new">
-                            <Plus className="h-4 w-4" />
-                            この日に記録を追加
-                          </Link>
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </div>
+                  <Card className="sticky bottom-0 z-20 rounded-3xl border border-border/60 bg-background/95 backdrop-blur shadow-lg">
+                    <CardContent className="p-4">
+                      <Button asChild className="w-full gap-2 rounded-full">
+                        <Link href="/sessions/new">
+                          <Plus className="h-4 w-4" />
+                          この日に記録を追加
+                        </Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
+              </div>
             </div>
-          </div>
+            </ScrollArea>
         </DialogContent>
       </Dialog>
       <Dialog

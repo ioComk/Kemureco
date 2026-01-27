@@ -18,6 +18,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { ExternalLink, Trash2 } from "lucide-react";
 import { HomeSessionsCalendar } from "@/components/sessions/home-sessions-calendar";
 import { LocationPlacesCombobox, type PlaceValue, getGoogleMapsLink } from "@/components/sessions/location-places-combobox";
+import { extractCustomFlavors, stripCustomFlavorNotes } from "@/components/sessions/session-utils";
 
 export function SessionsDashboard() {
   const supabase = useMemo(() => createSupabaseClient(), []);
@@ -544,6 +545,10 @@ export function SessionsDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-2">
+                      {(() => {
+                        const customFlavors = extractCustomFlavors(item.notes);
+                        return (
+                          <>
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <p className="font-medium">{item.mix?.title ? item.mix.title : "ミックス未選択"}</p>
@@ -583,7 +588,7 @@ export function SessionsDashboard() {
                           })()}
                         </div>
                       ) : null}
-                      {item.notes ? <p className="text-sm">{item.notes}</p> : null}
+                      {stripCustomFlavorNotes(item.notes) ? <p className="text-sm">{stripCustomFlavorNotes(item.notes)}</p> : null}
                       {item.mix?.components && item.mix.components.length > 0 ? (
                         <Card>
                           <CardContent className="space-y-1 py-3">
@@ -595,6 +600,15 @@ export function SessionsDashboard() {
                                   component.brandName ? `${component.brandName} ${component.flavorName}` : component.flavorName
                                 )
                                 .join(", ")}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      ) : customFlavors.length > 0 ? (
+                        <Card>
+                          <CardContent className="space-y-1 py-3">
+                            <p className="text-xs font-medium text-muted-foreground">使用フレーバー</p>
+                            <p className="text-sm text-foreground/90">
+                              {customFlavors.join(", ")}
                             </p>
                           </CardContent>
                         </Card>
@@ -613,6 +627,9 @@ export function SessionsDashboard() {
                           {deletingId === item.id ? "削除中..." : <Trash2 className="h-4 w-4" />}
                         </Button>
                       </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>

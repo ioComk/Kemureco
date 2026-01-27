@@ -156,13 +156,17 @@ export function HomeDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-[#5c4634] dark:text-[#cdb79b]">
-                <div className="flex items-center justify-between rounded-xl border border-dashed border-[#9a7b4f]/30 bg-[#fdf9f4] px-3 py-2 dark:border-[#6f5a3a]/50 dark:bg-[#1e1b16]">
+                <div className="flex flex-col gap-1 rounded-xl border border-dashed border-[#9a7b4f]/30 bg-[#fdf9f4] px-3 py-2 sm:flex-row sm:items-center sm:justify-between dark:border-[#6f5a3a]/50 dark:bg-[#1e1b16]">
                   <span>香り</span>
-                  <span className="font-medium text-[#2f2218] dark:text-[#f2e6d6]">フローラル / シトラス</span>
+                  <span className="font-medium text-[#2f2218] dark:text-[#f2e6d6] sm:text-right">
+                    フローラル / シトラス
+                  </span>
                 </div>
-                <div className="flex items-center justify-between rounded-xl border border-dashed border-[#9a7b4f]/30 bg-[#fdf9f4] px-3 py-2 dark:border-[#6f5a3a]/50 dark:bg-[#1e1b16]">
+                <div className="flex flex-col gap-1 rounded-xl border border-dashed border-[#9a7b4f]/30 bg-[#fdf9f4] px-3 py-2 sm:flex-row sm:items-center sm:justify-between dark:border-[#6f5a3a]/50 dark:bg-[#1e1b16]">
                   <span>満足度</span>
-                  <span className="font-medium text-[#2f2218] dark:text-[#f2e6d6]">4.5 / 5</span>
+                  <span className="font-medium text-[#2f2218] dark:text-[#f2e6d6] sm:text-right">
+                    4.5 / 5
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -192,7 +196,7 @@ export function HomeDashboard() {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-3">
+      <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {featureHighlights.map((feature) => (
           <Card
             key={feature.title}

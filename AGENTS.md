@@ -6,12 +6,12 @@ Kemureco is a web platform for shisha users to record, manage, and receive recom
 ---
 
 ## Absolute Rules (Highest Priority)
+- "~/.codex/skills/"にskillsを置いている.
 - All outputs and comments must be written in **Japanese**
 - **No destructive changes**
 - Maintain **idempotent logic**
 - If something is unclear, **ask before assuming**
 - After implementation, confirm **HTTP 200 at http://localhost:3000**
-- .codex/skills/にskillsを置いているので必要に応じて読み込む
 
 ---
 

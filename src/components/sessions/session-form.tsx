@@ -15,6 +15,7 @@ import { Droplets, Plus, ShieldAlert, ThumbsUp, Trash2, Sparkles, Package } from
 import { useAuth } from "@/components/auth/auth-provider";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { LocationPlacesCombobox, type PlaceValue } from "@/components/sessions/location-places-combobox";
+import { formatCustomFlavorEntry } from "@/components/sessions/session-utils";
 
 type MixOption = Pick<Database["public"]["Tables"]["mixes"]["Row"], "id" | "title">;
 type FlavorOption = Flavor & { brand?: { id: number; name: string } | null };
@@ -346,12 +347,14 @@ export function SessionForm() {
 
     const customFlavorNotes = components
       .filter((component) => component.mode === "custom" && component.customName.trim().length > 0)
-      .map((component) => {
-        const name = component.customName.trim();
-        const brand = component.customBrand.trim();
-        const grams = getGramsValue(component.grams) > 0 ? ` (${getGramsValue(component.grams)}g)` : "";
-        return `${brand ? `${brand} ` : ""}${name}${grams}`;
-      });
+      .map((component) =>
+        formatCustomFlavorEntry({
+          name: component.customName,
+          brand: component.customBrand,
+          grams: getGramsValue(component.grams)
+        })
+      )
+      .filter((entry) => entry.length > 0);
     const notesPayload = [formState.notes.trim(), customFlavorNotes.length ? `自由入力フレーバー: ${customFlavorNotes.join(", ")}` : ""]
       .filter((value) => value.length > 0)
       .join("\n");
@@ -525,7 +528,7 @@ export function SessionForm() {
         </CardTitle>
       </CardHeader>
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 pb-24 sm:pb-6">
           {mixColumnAvailable ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -698,7 +701,7 @@ export function SessionForm() {
                             </DialogHeader>
                             <div className="space-y-3">
                               <Input
-                                placeholder="検索 (例: Mint, レモン)"
+                                placeholder="検索 (例: ミント / レモン)"
                                 value={flavorQuery}
                                 onChange={(event) => setFlavorQuery(event.target.value)}
                               />
@@ -806,7 +809,7 @@ export function SessionForm() {
                           </div>
                         )}
                         <Input
-                          placeholder="フレーバー名 (例: Unknown Mint)"
+                          placeholder="フレーバー名 (例: ミント)"
                           value={component.customName}
                           onChange={(event) => handleComponentChange(index, { customName: event.target.value })}
                           className="h-11"
@@ -856,7 +859,7 @@ export function SessionForm() {
                   </div>
                 ) : null}
                 <Input
-                  placeholder="ブランド名 (任意: 例 Unknown Brand)"
+                  placeholder="ブランド名 (任意: 例 オリジナル)"
                   value={component.customBrand}
                   onChange={(event) => handleComponentChange(index, { customBrand: event.target.value })}
                   className="border-dashed"
@@ -931,11 +934,11 @@ export function SessionForm() {
             />
           </div>
         </CardContent>
-        <CardFooter className="sticky bottom-0 z-10 flex justify-end border-t bg-background/95 py-4 backdrop-blur">
+        <CardFooter className="sticky bottom-0 z-10 flex flex-col justify-end gap-3 border-t bg-background/95 py-4 backdrop-blur sm:flex-row">
           <Button
             type="submit"
             disabled={isPending || (mixColumnAvailable && !canSubmitFlavors)}
-            className="text-white dark:bg-muted dark:text-white"
+            className="w-full text-white dark:bg-muted dark:text-white sm:w-auto"
           >
             {isPending ? "保存中..." : "記録する"}
           </Button>
