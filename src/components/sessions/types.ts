@@ -1,16 +1,18 @@
-import type { Database, Session } from "@/lib/types";
+import type { Session } from "@/lib/types";
 
-export type MixOption = Pick<Database["public"]["Tables"]["mixes"]["Row"], "id" | "title">;
-
-export type MixComponentInfo = {
-  flavorId: number;
+export type SessionFlavorInfo = {
+  id: number;
+  flavorId: number | null;
   flavorName: string;
   brandName?: string | null;
   imageUrl?: string | null;
   grams?: number | null;
   ratioPercent?: number | null;
+  customFlavorName?: string | null;
+  customBrandName?: string | null;
+  layerOrder: number;
 };
 
 export type SessionItem = Session & {
-  mix?: (MixOption & { components?: MixComponentInfo[] }) | null;
+  session_flavors?: SessionFlavorInfo[];
 };

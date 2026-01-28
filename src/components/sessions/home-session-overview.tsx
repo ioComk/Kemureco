@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Session } from "@/lib/types";
 import { createSupabaseClient } from "@/lib/supabase";
-import type { SessionItem } from "@/components/sessions/types";
+import type { SessionItem, SessionFlavorInfo } from "@/components/sessions/types";
 import { SessionOverviewCard } from "@/components/sessions/session-overview-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,6 @@ export function HomeSessionOverview() {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const [sessionState, setSessionState] = useState<{ loading: boolean; userId?: string }>({ loading: true });
-  const [mixColumnAvailable, setMixColumnAvailable] = useState(true);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
 
   useEffect(() => {
@@ -35,11 +34,10 @@ export function HomeSessionOverview() {
 
   const fetchSessions = async (userId: string) => {
     try {
-      const baseSelect =
-        "id, started_at, location_text, satisfaction, notes" + (mixColumnAvailable ? ", mix_id" : "");
+      // セッション取得
       const { data, error } = await supabase
         .from("sessions")
-        .select(baseSelect)
+        .select("id, started_at, location_text, satisfaction, notes")
         .eq("user_id", userId)
         .order("started_at", { ascending: false });
 
@@ -48,79 +46,63 @@ export function HomeSessionOverview() {
       }
 
       const rows: Session[] = Array.isArray(data) ? ((data as unknown) as Session[]) : [];
+      const sessionIds = rows.map((row) => row.id);
 
-      const mixIds = rows
-        .map((row) => (mixColumnAvailable ? row.mix_id : null))
-        .filter((id): id is number => typeof id === "number");
-      const uniqueMixIds = Array.from(new Set(mixIds));
+      // session_flavors取得
+      let flavorsMap = new Map<number, SessionFlavorInfo[]>();
 
-      let mixMap = new Map<
-        number,
-        { id: number; title: string; components: { flavorId: number; flavorName: string; brandName?: string | null }[] }
-      >();
+      if (sessionIds.length > 0) {
+        const { data: sfData, error: sfError } = await supabase
+          .from("session_flavors")
+          .select("id, session_id, flavor_id, custom_flavor_name, custom_brand_name, ratio_percent, grams, layer_order, flavors(name, image_path, brands(name))")
+          .in("session_id", sessionIds)
+          .order("layer_order", { ascending: true });
 
-      if (uniqueMixIds.length > 0) {
-        try {
-          const { data: mixData, error: mixError } = await supabase
-            .from("mixes")
-            .select("id,title,mix_components:mix_components(flavor_id,flavors(name,brands(name)))")
-            .in("id", uniqueMixIds);
-
-          if (mixError) {
-            throw mixError;
+        if (sfError) {
+          console.warn("session_flavors fetch failed", sfError);
+        } else {
+          const sfRows = Array.isArray(sfData) ? sfData : [];
+          for (const sf of sfRows) {
+            const sessionId = sf.session_id;
+            const flavorInfo: SessionFlavorInfo = {
+              id: sf.id,
+              flavorId: sf.flavor_id,
+              flavorName: sf.custom_flavor_name ?? sf.flavors?.name ?? "不明なフレーバー",
+              brandName: sf.custom_brand_name ?? sf.flavors?.brands?.name ?? null,
+              imageUrl: sf.flavors?.image_path
+                ? supabase.storage.from("flavor-images").getPublicUrl(sf.flavors.image_path).data.publicUrl
+                : null,
+              grams: sf.grams,
+              ratioPercent: sf.ratio_percent,
+              customFlavorName: sf.custom_flavor_name,
+              customBrandName: sf.custom_brand_name,
+              layerOrder: sf.layer_order
+            };
+            const existing = flavorsMap.get(sessionId) ?? [];
+            existing.push(flavorInfo);
+            flavorsMap.set(sessionId, existing);
           }
-
-          const mixRows = Array.isArray(mixData) ? mixData : [];
-          mixMap = new Map(
-            mixRows.map((mix) => [
-              mix.id,
-              {
-                id: mix.id,
-                title: mix.title,
-                components: (Array.isArray(mix.mix_components) ? mix.mix_components : [])?.map((component) => ({
-                  flavorId: component.flavor_id,
-                  flavorName: component.flavors?.name ?? "不明なフレーバー",
-                  brandName: component.flavors?.brands?.name ?? null
-                })) ?? []
-              }
-            ])
-          );
-        } catch (mixErr) {
-          console.warn("mix fetch skipped", mixErr);
-          mixMap = new Map();
         }
       }
 
-      const normalized: SessionItem[] =
-        rows.map((item) => ({
-          id: item.id,
-          user_id: userId,
-          started_at: item.started_at,
-          location_text: item.location_text,
-          location_place_id: null,
-          location_name: null,
-          location_address: null,
-          location_lat: null,
-          location_lng: null,
-          location_distance_km: null,
-          satisfaction: item.satisfaction,
-          notes: item.notes,
-          mix_id: mixColumnAvailable ? item.mix_id : null,
-          mix: mixColumnAvailable && item.mix_id ? mixMap.get(item.mix_id) ?? null : null
-        })) ?? [];
+      const normalized: SessionItem[] = rows.map((item) => ({
+        id: item.id,
+        user_id: userId,
+        started_at: item.started_at,
+        location_text: item.location_text,
+        location_place_id: null,
+        location_name: null,
+        location_address: null,
+        location_lat: null,
+        location_lng: null,
+        location_distance_km: null,
+        satisfaction: item.satisfaction,
+        notes: item.notes,
+        session_flavors: flavorsMap.get(item.id) ?? []
+      }));
 
       setSessions(normalized);
     } catch (err) {
-      if (
-        mixColumnAvailable &&
-        typeof err === "object" &&
-        err !== null &&
-        ("message" in err ? String((err as any).message) : "").includes("mix_id")
-      ) {
-        setMixColumnAvailable(false);
-        await fetchSessions(userId);
-        return;
-      }
       const errorDetail =
         err && typeof err === "object"
           ? JSON.stringify(err, Object.getOwnPropertyNames(err))

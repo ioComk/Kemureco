@@ -14,38 +14,34 @@ create table if not exists public.flavors (
   created_by uuid references auth.users(id) on delete set null
 );
 
-create table if not exists public.mixes (
-  id serial primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  title text not null,
-  description text,
-  created_at timestamptz not null default timezone('utc'::text, now())
-);
-
-create table if not exists public.mix_components (
-  mix_id integer not null references public.mixes(id) on delete cascade,
-  flavor_id integer not null references public.flavors(id) on delete cascade,
-  ratio_percent integer not null check (ratio_percent between 1 and 100),
-  grams numeric(10,2) default null,
-  layer_order integer not null,
-  constraint mix_components_pkey primary key (mix_id, flavor_id)
-);
-
 create table if not exists public.sessions (
   id serial primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   started_at timestamptz not null default timezone('utc'::text, now()),
   location_text text,
-  mix_id integer references public.mixes(id) on delete set null,
   satisfaction integer check (satisfaction between 1 and 5) default 3,
   notes text
 );
 
+create table if not exists public.session_flavors (
+  id serial primary key,
+  session_id integer not null references public.sessions(id) on delete cascade,
+  flavor_id integer references public.flavors(id) on delete set null,
+  custom_flavor_name text,
+  custom_brand_name text,
+  ratio_percent integer check (ratio_percent between 1 and 100),
+  grams numeric(10,2),
+  layer_order integer not null default 1,
+  created_at timestamptz not null default timezone('utc'::text, now())
+);
+
+create index if not exists idx_session_flavors_session_id on public.session_flavors(session_id);
+create index if not exists idx_session_flavors_flavor_id on public.session_flavors(flavor_id);
+
 alter table public.brands enable row level security;
 alter table public.flavors enable row level security;
-alter table public.mixes enable row level security;
-alter table public.mix_components enable row level security;
 alter table public.sessions enable row level security;
+alter table public.session_flavors enable row level security;
 
 create policy "Brands are readable by anyone"
   on public.brands for select
@@ -70,26 +66,19 @@ create policy "Users can delete their own flavors"
   for delete
   using (created_by = auth.uid());
 
-create policy "Users manage their mixes"
-  on public.mixes
-  for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
-create policy "Users manage their mix components"
-  on public.mix_components
-  for all
-  using (exists(select 1 from public.mixes m where m.id = mix_components.mix_id and m.user_id = auth.uid()))
-  with check (exists(select 1 from public.mixes m where m.id = mix_components.mix_id and m.user_id = auth.uid()));
-
 create policy "Users manage their sessions"
   on public.sessions
   for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+create policy "Users manage their session flavors"
+  on public.session_flavors
+  for all
+  using (exists(select 1 from public.sessions s where s.id = session_flavors.session_id and s.user_id = auth.uid()))
+  with check (exists(select 1 from public.sessions s where s.id = session_flavors.session_id and s.user_id = auth.uid()));
+
 comment on table public.brands is 'Shisha flavor brands';
 comment on table public.flavors is 'Individual flavors belonging to brands';
-comment on table public.mixes is 'User-created mixes';
-comment on table public.mix_components is 'Flavor ratio per mix';
 comment on table public.sessions is 'Smoking session logs';
+comment on table public.session_flavors is 'Flavors used in each session';

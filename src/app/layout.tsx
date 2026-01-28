@@ -94,9 +94,7 @@ export default function RootLayout({
                   </div>
                 </footer>
               </div>
-              <div className="hidden sm:block">
-                <FloatingRecordButton />
-              </div>
+              <FloatingRecordButton />
               <Toaster />
           </ConditionalAuthGuard>
           </AuthProvider>

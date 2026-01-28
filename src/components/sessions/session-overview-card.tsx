@@ -16,7 +16,6 @@ export function SessionOverviewCard({ sessions, className }: SessionOverviewCard
   const {
     averageSatisfaction,
     sessionsThisMonth,
-    topMix,
     topFlavors,
     dailyCounts,
     weeklyCountsLast7,
@@ -26,7 +25,6 @@ export function SessionOverviewCard({ sessions, className }: SessionOverviewCard
   } = useMemo<{
     averageSatisfaction: number | null;
     sessionsThisMonth: SessionItem[];
-    topMix: { title: string; count: number } | null;
     topFlavors: { name: string; brand?: string | null; count: number }[];
     dailyCounts: { label: string; count: number }[];
     weeklyCountsLast7: { label: string; count: number }[];
@@ -47,32 +45,24 @@ export function SessionOverviewCard({ sessions, className }: SessionOverviewCard
       return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
     });
 
-    const mixCounts = new Map<number, { count: number; title: string }>();
-    const flavorCounts = new Map<number, { count: number; flavorName: string; brandName?: string | null }>();
+    // session_flavorsからフレーバー使用頻度を計算
+    const flavorCounts = new Map<string, { count: number; flavorName: string; brandName?: string | null }>();
 
     sessions.forEach((session) => {
-      if (session.mix && session.mix_id) {
-        const current = mixCounts.get(session.mix_id) ?? { count: 0, title: session.mix.title };
-        mixCounts.set(session.mix_id, { count: current.count + 1, title: current.title });
-      }
+      const flavors = session.session_flavors ?? [];
+      flavors.forEach((flavor) => {
+        // カスタムフレーバーと既存フレーバーを区別するためのキーを生成
+        const key = flavor.flavorId
+          ? `flavor-${flavor.flavorId}`
+          : `custom-${flavor.customFlavorName}-${flavor.customBrandName}`;
 
-      const components = session.mix?.components ?? [];
-      components.forEach((component) => {
-        if (!component?.flavorId) return;
-        const current = flavorCounts.get(component.flavorId) ?? {
+        const current = flavorCounts.get(key) ?? {
           count: 0,
-          flavorName: component.flavorName,
-          brandName: component.brandName
+          flavorName: flavor.flavorName,
+          brandName: flavor.brandName
         };
-        flavorCounts.set(component.flavorId, { ...current, count: current.count + 1 });
+        flavorCounts.set(key, { ...current, count: current.count + 1 });
       });
-    });
-
-    let frequentMix: { title: string; count: number } | null = null;
-    mixCounts.forEach((value) => {
-      if (!frequentMix || value.count > frequentMix.count) {
-        frequentMix = { title: value.title, count: value.count };
-      }
     });
 
     const toLocalDateKey = (value: Date) => {
@@ -153,7 +143,6 @@ export function SessionOverviewCard({ sessions, className }: SessionOverviewCard
     return {
       averageSatisfaction: avg,
       sessionsThisMonth: monthlySessions,
-      topMix: frequentMix,
       topFlavors,
       dailyCounts,
       weeklyCountsLast7,
@@ -277,16 +266,11 @@ export function SessionOverviewCard({ sessions, className }: SessionOverviewCard
           </div>
         </div>
         <div className="rounded-xl bg-muted/20 p-4 space-y-3">
-          <p className="text-xs text-muted-foreground">よく使うフレーバー / ミックス</p>
+          <p className="text-xs text-muted-foreground">よく使うフレーバー</p>
           {sessions.length === 0 ? (
             <p className="text-xs text-muted-foreground">データがありません</p>
           ) : (
             <div className="space-y-3">
-              {topMix ? (
-                <p className="text-sm font-medium">
-                  {topMix.title} <span className="text-xs text-muted-foreground">({topMix.count}回)</span>
-                </p>
-              ) : null}
               {topFlavors.length > 0 ? (
                 <div className="space-y-2">
                   {topFlavors.map((flavor, index) => {

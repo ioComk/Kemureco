@@ -17,26 +17,21 @@ export type Flavor = {
 
 export type FlavorWithBrand = Flavor & { brand: Brand | null };
 
-export type Mix = {
+export type SessionFlavor = {
   id: number;
-  user_id: string;
-  title: string;
-  description: string | null;
-  created_at: string | null;
-};
-
-export type MixComponent = {
-  mix_id: number;
-  flavor_id: number;
-  ratio_percent: number;
+  session_id: number;
+  flavor_id: number | null;
+  custom_flavor_name: string | null;
+  custom_brand_name: string | null;
+  ratio_percent: number | null;
   grams: number | null;
   layer_order: number;
+  created_at: string | null;
 };
 
 export type Session = {
   id: number;
   user_id: string;
-  mix_id: number | null;
   started_at: string | null;
   location_text: string | null;
   location_place_id: string | null;
@@ -74,31 +69,6 @@ export type Database = {
           }
         ];
       };
-      mixes: {
-        Row: Mix;
-        Insert: Omit<Mix, "id" | "created_at"> & { id?: number; created_at?: string | null };
-        Update: Partial<Omit<Mix, "id">> & { id?: number };
-        Relationships: [];
-      };
-      mix_components: {
-        Row: MixComponent;
-        Insert: MixComponent;
-        Update: Partial<MixComponent>;
-        Relationships: [
-          {
-            foreignKeyName: "mix_components_mix_id_fkey";
-            columns: ["mix_id"];
-            referencedRelation: "mixes";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "mix_components_flavor_id_fkey";
-            columns: ["flavor_id"];
-            referencedRelation: "flavors";
-            referencedColumns: ["id"];
-          }
-        ];
-      };
       sessions: {
         Row: Session;
         Insert: Omit<Session, "id" | "started_at"> & {
@@ -106,11 +76,26 @@ export type Database = {
           started_at?: string | null;
         };
         Update: Partial<Omit<Session, "id">> & { id?: number };
+        Relationships: [];
+      };
+      session_flavors: {
+        Row: SessionFlavor;
+        Insert: Omit<SessionFlavor, "id" | "created_at"> & {
+          id?: number;
+          created_at?: string | null;
+        };
+        Update: Partial<Omit<SessionFlavor, "id">> & { id?: number };
         Relationships: [
           {
-            foreignKeyName: "sessions_mix_id_fkey";
-            columns: ["mix_id"];
-            referencedRelation: "mixes";
+            foreignKeyName: "session_flavors_session_id_fkey";
+            columns: ["session_id"];
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "session_flavors_flavor_id_fkey";
+            columns: ["flavor_id"];
+            referencedRelation: "flavors";
             referencedColumns: ["id"];
           }
         ];

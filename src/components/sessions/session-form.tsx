@@ -11,13 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { Droplets, Plus, ShieldAlert, ThumbsUp, Trash2, Sparkles, Package } from "lucide-react";
+import { Droplets, Plus, ThumbsUp, Trash2, Sparkles, Package } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { LocationPlacesCombobox, type PlaceValue } from "@/components/sessions/location-places-combobox";
-import { formatCustomFlavorEntry } from "@/components/sessions/session-utils";
 
-type MixOption = Pick<Database["public"]["Tables"]["mixes"]["Row"], "id" | "title">;
 type FlavorOption = Flavor & { brand?: { id: number; name: string } | null };
 
 type FormState = {
@@ -78,11 +76,8 @@ const JP_QUERY_MAP: Array<{ jp: string; en: string }> = [
   { jp: "デザート", en: "dessert" }
 ];
 
-type MixInsert = Database["public"]["Tables"]["mixes"]["Insert"];
-
-type MixComponentInsert = Database["public"]["Tables"]["mix_components"]["Insert"];
-
 type SessionInsert = Database["public"]["Tables"]["sessions"]["Insert"];
+type SessionFlavorInsert = Database["public"]["Tables"]["session_flavors"]["Insert"];
 
 const toJstDatetimeValue = (date: Date) => {
   const parts = new Intl.DateTimeFormat("ja-JP", {
@@ -143,10 +138,8 @@ export function SessionForm() {
   const { user, loading: authLoading } = useAuth();
 
   const [authUserId, setAuthUserId] = useState<string | null>(null);
-  const [mixColumnAvailable, setMixColumnAvailable] = useState(true);
-  const [mixes, setMixes] = useState<MixOption[]>([]);
   const [flavors, setFlavors] = useState<FlavorOption[]>([]);
-  const dataFetchedRef = useRef<string | null>(null); // データ取得済みユーザーID
+  const dataFetchedRef = useRef<string | null>(null);
   const [formState, setFormState] = useState<FormState>(DEFAULT_FORM_STATE);
   const [locationPlace, setLocationPlace] = useState<PlaceValue | null>(null);
   const [hoverSatisfaction, setHoverSatisfaction] = useState<number | null>(null);
@@ -156,7 +149,6 @@ export function SessionForm() {
   const [flavorQuery, setFlavorQuery] = useState("");
   const flavorById = useMemo(() => new Map(flavors.map((flavor) => [String(flavor.id), flavor])), [flavors]);
 
-  // image_pathからSupabase StorageのPublic URLへのマッピングをキャッシュ
   const flavorImageUrls = useMemo(() => {
     const map = new Map<number, string>();
     flavors.forEach((flavor) => {
@@ -177,14 +169,11 @@ export function SessionForm() {
     const userId = user?.id ?? null;
     setAuthUserId(userId);
     if (userId) {
-      // 同じユーザーIDで既に取得済みなら再取得しない
       if (dataFetchedRef.current === userId) return;
       dataFetchedRef.current = userId;
-      void fetchMixes();
       void fetchFlavors();
     } else {
       dataFetchedRef.current = null;
-      setMixes([]);
       setFlavors([]);
     }
   }, [authLoading, user?.id]);
@@ -234,24 +223,12 @@ export function SessionForm() {
     void ensureSelectedFlavors();
   }, [searchParams, flavorById, supabase]);
 
-  const fetchMixes = async () => {
-    const { data } = await supabase.from("mixes").select("id,title").order("created_at", { ascending: false });
-    setMixes(data ?? []);
-  };
-
   const fetchFlavors = async () => {
-    // #region agent log
-    const startTime = Date.now();
-    fetch('http://127.0.0.1:7242/ingest/627f6a83-0837-4204-a620-6f09c7612d3e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'session-form.tsx:fetchFlavors:start',message:'フレーバー取得開始',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     const { data, error } = await supabase
       .from("flavors")
       .select("id,name,brand_id,created_at,created_by,tags,image_path,brands(id,name,jp_available)")
       .order("created_at", { ascending: false })
       .limit(100);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/627f6a83-0837-4204-a620-6f09c7612d3e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'session-form.tsx:fetchFlavors:end',message:'フレーバー取得完了',data:{duration:Date.now()-startTime,count:data?.length??0,hasError:!!error},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     if (error) {
       console.error("fetch flavors error", error);
       return;
@@ -345,20 +322,6 @@ export function SessionForm() {
       return;
     }
 
-    const customFlavorNotes = components
-      .filter((component) => component.mode === "custom" && component.customName.trim().length > 0)
-      .map((component) =>
-        formatCustomFlavorEntry({
-          name: component.customName,
-          brand: component.customBrand,
-          grams: getGramsValue(component.grams)
-        })
-      )
-      .filter((entry) => entry.length > 0);
-    const notesPayload = [formState.notes.trim(), customFlavorNotes.length ? `自由入力フレーバー: ${customFlavorNotes.join(", ")}` : ""]
-      .filter((value) => value.length > 0)
-      .join("\n");
-
     const basePayload: SessionInsert = {
       user_id: authUserId,
       location_text: (locationPlace?.name ?? formState.location.trim()) || null,
@@ -368,48 +331,33 @@ export function SessionForm() {
       location_lat: locationPlace?.lat ?? null,
       location_lng: locationPlace?.lng ?? null,
       location_distance_km: locationPlace?.distanceKm ?? null,
-      notes: notesPayload || null,
+      notes: formState.notes.trim() || null,
       satisfaction: formState.satisfaction,
-      started_at: new Date(formState.startedAt).toISOString(),
-      mix_id: null
+      started_at: new Date(formState.startedAt).toISOString()
     };
 
     startTransition(async () => {
-      let mixIdToUse: number | null = null;
+      // セッションを作成
+      const { data: sessionData, error: sessionError } = await supabase
+        .from("sessions")
+        .insert(basePayload)
+        .select("id")
+        .single();
 
-      if (mixColumnAvailable && canSubmitFlavors && customFlavorNotes.length === 0) {
+      if (sessionError || !sessionData) {
+        console.error("insert session error", sessionError);
+        toast({
+          title: "記録の保存に失敗しました",
+          description: sessionError?.message ?? "保存に失敗しました",
+          variant: "destructive"
+        });
+        return;
+      }
 
-        const title = `記録フレーバー ${new Date(formState.startedAt).toLocaleString("ja-JP", {
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit"
-        })}`;
+      const sessionId = sessionData.id;
 
-        const mixPayload: MixInsert = {
-          title,
-          description: null,
-          user_id: authUserId
-        };
-
-        const { data: mixData, error: mixError } = await supabase
-          .from("mixes")
-          .insert(mixPayload)
-          .select("id")
-          .single();
-
-        if (mixError || !mixData) {
-          console.error("insert mix error", mixError);
-          toast({
-            title: "ミックス作成に失敗しました",
-            description: "フレーバー構成の保存に失敗しました。",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        mixIdToUse = mixData.id;
-
+      // フレーバー情報を保存
+      if (canSubmitFlavors && components.length > 0) {
         const deriveRatios = () => {
           if (!useCustomRatio) {
             const equal = Math.floor(100 / components.length);
@@ -440,77 +388,27 @@ export function SessionForm() {
 
         const ratios = deriveRatios();
 
-        const componentsPayload: MixComponentInsert[] = components
-          .filter((c) => c.flavorId !== "" && !isNaN(Number(c.flavorId)))
-          .map((component, index) => ({
-            mix_id: mixData.id,
-            flavor_id: Number(component.flavorId),
-            ratio_percent: ratios[index] ?? 0,
-            grams: typeof component.grams === "number" ? component.grams : null,
-            layer_order: index + 1
-          }));
+        const sessionFlavorsPayload: SessionFlavorInsert[] = components.map((component, index) => ({
+          session_id: sessionId,
+          flavor_id: component.mode === "existing" && component.flavorId ? Number(component.flavorId) : null,
+          custom_flavor_name: component.mode === "custom" ? component.customName.trim() || null : null,
+          custom_brand_name: component.mode === "custom" ? component.customBrand.trim() || null : null,
+          ratio_percent: ratios[index] ?? 0,
+          grams: typeof component.grams === "number" ? component.grams : null,
+          layer_order: index + 1
+        }));
 
-        console.log("mix_components insert payload:", componentsPayload);
-
-        if (componentsPayload.length === 0) {
-          console.error("No valid flavor components to insert");
+        const { error: flavorError } = await supabase.from("session_flavors").insert(sessionFlavorsPayload);
+        if (flavorError) {
+          console.error("insert session_flavors error", flavorError);
           toast({
-            title: "ミックス作成に失敗しました",
-            description: "有効なフレーバーが選択されていません。",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        const { error: compError } = await supabase.from("mix_components").insert(componentsPayload);
-        if (compError) {
-          const errorDetail = JSON.stringify(compError, Object.getOwnPropertyNames(compError));
-          console.error("insert mix components error", errorDetail, "payload", componentsPayload);
-          toast({
-            title: "ミックス作成に失敗しました",
-            description: compError.message || "フレーバー構成の保存に失敗しました。",
+            title: "フレーバー情報の保存に失敗しました",
+            description: flavorError.message,
             variant: "destructive"
           });
           return;
         }
       }
-
-      const attemptInsert = async (
-        payload: SessionInsert,
-        allowRetry: boolean,
-        allowMixColumn: boolean
-      ): Promise<boolean> => {
-        const insertPayload: SessionInsert =
-          allowMixColumn && mixColumnAvailable ? { ...payload, mix_id: mixIdToUse ?? null } : { ...payload, mix_id: null };
-        const { error } = await supabase.from("sessions").insert(insertPayload);
-        if (error) {
-          const errorDetail =
-            error && typeof error === "object" ? JSON.stringify(error, Object.getOwnPropertyNames(error)) : String(error);
-          console.error("insert session error", errorDetail, "payload", payload);
-
-          const missingMixColumn =
-            typeof error === "object" &&
-            error !== null &&
-            ("message" in error ? String((error as any).message) : "").includes("mix_id");
-
-          if (allowRetry && mixColumnAvailable && missingMixColumn) {
-            setMixColumnAvailable(false);
-            return attemptInsert(basePayload, false, false);
-          }
-
-          const message = (error as { message?: string; code?: string })?.message ?? "保存に失敗しました";
-          toast({
-            title: "記録の保存に失敗しました",
-            description: message,
-            variant: "destructive"
-          });
-          return false;
-        }
-        return true;
-      };
-
-      const ok = await attemptInsert(basePayload, true, mixColumnAvailable);
-      if (!ok) return;
 
       toast({ title: "記録しました" });
       setFormState({ ...DEFAULT_FORM_STATE, startedAt: toJstDatetimeValue(new Date()) });
@@ -529,349 +427,369 @@ export function SessionForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6 pb-24 sm:pb-6">
-          {mixColumnAvailable ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-base">フレーバー構成</Label>
-                  {useCustomRatio ? <p className="text-xs text-muted-foreground">合計: {totalGrams}g</p> : null}
-                </div>
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={handleAddComponent} disabled={components.length >= MAX_COMPONENTS}>
-                    <Plus className="h-4 w-4" /> 追加
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setComponents(createDefaultComponents(2))}>
-                    リセット
-                  </Button>
-                </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-base">フレーバー構成</Label>
+                {useCustomRatio ? <p className="text-xs text-muted-foreground">合計: {totalGrams}g</p> : null}
               </div>
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={useCustomRatio}
-                  onChange={(event) => {
-                    const next = event.target.checked;
-                    setUseCustomRatio(next);
-                    if (next) {
-                      setComponents((prev) => evenDistribution(prev));
-                    }
-                  }}
-                  className="h-4 w-4 accent-primary"
-                />
-                グラム数を自分で設定する
-              </label>
-              <div className="grid gap-4 md:grid-cols-2">
-                {components.map((component, index) => {
-                  const selectedFlavor = component.flavorId ? flavorById.get(component.flavorId) : null;
-                  const isSelected = component.mode === "existing" ? !!selectedFlavor : component.customName.trim().length > 0;
-                  
-                  return (
-                  <div 
-                    key={index} 
-                    className={`relative rounded-xl border p-4 space-y-4 transition-all duration-300 hover:shadow-md ${
-                      isSelected 
-                        ? "border-foreground/30 bg-gray-100 dark:bg-zinc-800" 
-                        : "border-border bg-white dark:bg-zinc-900 hover:border-border/80"
-                    }`}
-                  >
-                    {/* カード番号バッジ */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-8 w-8 items-center justify-center rounded-full font-bold text-sm transition-colors ${
-                          isSelected 
-                            ? "bg-foreground text-background" 
-                            : "bg-muted-foreground/20 text-muted-foreground"
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <div>
-                          <Label className="text-sm font-semibold">フレーバー #{index + 1}</Label>
-                          {isSelected && selectedFlavor && (
-                            <p className="text-xs text-muted-foreground truncate max-w-[150px]">{selectedFlavor.brand?.name ?? "ブランド未設定"}</p>
-                          )}
-                        </div>
-                      </div>
-                      {components.length > MIN_COMPONENTS ? (
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleRemoveComponent(index)} 
-                          aria-label="削除"
-                          className="h-8 w-8 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                    </div>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={handleAddComponent} disabled={components.length >= MAX_COMPONENTS}>
+                  <Plus className="h-4 w-4" /> 追加
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setComponents(createDefaultComponents(2))}>
+                  リセット
+                </Button>
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={useCustomRatio}
+                onChange={(event) => {
+                  const next = event.target.checked;
+                  setUseCustomRatio(next);
+                  if (next) {
+                    setComponents((prev) => evenDistribution(prev));
+                  }
+                }}
+                className="h-4 w-4 accent-primary"
+              />
+              グラム数を自分で設定する
+            </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              {components.map((component, index) => {
+                const selectedFlavor = component.flavorId ? flavorById.get(component.flavorId) : null;
+                const isSelected = component.mode === "existing" ? !!selectedFlavor : component.customName.trim().length > 0;
 
-                    {/* 選択されたフレーバー表示エリア */}
-                    {isSelected && component.mode === "existing" && selectedFlavor && (
-                      <div className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-zinc-800 border border-border">
-                        {flavorImageUrls.get(selectedFlavor.id) ? (
-                          <img 
-                            src={flavorImageUrls.get(selectedFlavor.id)} 
-                            alt={selectedFlavor.name}
-                            className="h-12 w-12 rounded-lg object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                            <Package className="h-6 w-6 text-muted-foreground" />
-                          </div>
+                return (
+                <div
+                  key={index}
+                  className={`relative rounded-xl border p-4 space-y-4 transition-all duration-300 hover:shadow-md ${
+                    isSelected
+                      ? "border-foreground/30 bg-gray-100 dark:bg-zinc-800"
+                      : "border-border bg-white dark:bg-zinc-900 hover:border-border/80"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full font-bold text-sm transition-colors ${
+                        isSelected
+                          ? "bg-foreground text-background"
+                          : "bg-muted-foreground/20 text-muted-foreground"
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold">フレーバー #{index + 1}</Label>
+                        {isSelected && selectedFlavor && (
+                          <p className="text-xs text-muted-foreground truncate max-w-[150px]">{selectedFlavor.brand?.name ?? "ブランド未設定"}</p>
                         )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{selectedFlavor.name}</p>
-                          {useCustomRatio && (
-                            <p className="text-sm text-muted-foreground">{getGramsValue(component.grams)}g</p>
-                          )}
-                        </div>
-                        <Sparkles className="h-4 w-4 text-muted-foreground/50" />
                       </div>
-                    )}
-
-                    {useCustomRatio && getGramsValue(component.grams) <= 0 ? (
-                      <p className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded">0gのフレーバーは保存できません。</p>
-                    ) : null}
-
-                    {/* モード切替タブ */}
-                    <div className="flex rounded-lg bg-muted/50 p-1">
-                      <button
-                        type="button"
-                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                          component.mode === "existing" 
-                            ? "bg-background shadow-sm text-foreground" 
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                        onClick={() => handleComponentChange(index, { mode: "existing" })}
-                      >
-                        既存から選ぶ
-                      </button>
-                      <button
-                        type="button"
-                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                          component.mode === "custom" 
-                            ? "bg-background shadow-sm text-foreground" 
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                        onClick={() => handleComponentChange(index, { mode: "custom" })}
-                      >
-                        自由入力
-                      </button>
                     </div>
-                    {component.mode === "existing" ? (
-                      <div className="space-y-2">
-                        <Dialog
-                          open={flavorModalIndex === index}
-                          onOpenChange={(open) => {
-                            setFlavorModalIndex(open ? index : null);
-                            if (!open) {
-                              setFlavorQuery("");
-                            }
+                    {components.length > MIN_COMPONENTS ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveComponent(index)}
+                        aria-label="削除"
+                        className="h-8 w-8 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  {isSelected && component.mode === "existing" && selectedFlavor && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-zinc-800 border border-border">
+                      {flavorImageUrls.get(selectedFlavor.id) ? (
+                        <img
+                          src={flavorImageUrls.get(selectedFlavor.id)}
+                          alt={selectedFlavor.name}
+                          className="h-12 w-12 rounded-lg object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                          <Package className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{selectedFlavor.name}</p>
+                        {useCustomRatio && (
+                          <p className="text-sm text-muted-foreground">{getGramsValue(component.grams)}g</p>
+                        )}
+                      </div>
+                      <Sparkles className="h-4 w-4 text-muted-foreground/50" />
+                    </div>
+                  )}
+
+                  {useCustomRatio && getGramsValue(component.grams) <= 0 ? (
+                    <p className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded">0gのフレーバーは保存できません。</p>
+                  ) : null}
+
+                  <div className="flex rounded-lg bg-muted/50 p-1">
+                    <button
+                      type="button"
+                      className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                        component.mode === "existing"
+                          ? "bg-background shadow-sm text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      onClick={() => handleComponentChange(index, { mode: "existing" })}
+                    >
+                      既存から選ぶ
+                    </button>
+                    <button
+                      type="button"
+                      className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                        component.mode === "custom"
+                          ? "bg-background shadow-sm text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      onClick={() => handleComponentChange(index, { mode: "custom" })}
+                    >
+                      自由入力
+                    </button>
+                  </div>
+                  {component.mode === "existing" ? (
+                    <div className="space-y-2">
+                      <Dialog
+                        open={flavorModalIndex === index}
+                        onOpenChange={(open) => {
+                          setFlavorModalIndex(open ? index : null);
+                          if (!open) {
+                            setFlavorQuery("");
+                          }
+                        }}
+                      >
+                        <Button
+                          type="button"
+                          variant={selectedFlavor ? "outline" : "default"}
+                          className={`w-full justify-center gap-2 h-11 ${
+                            !selectedFlavor
+                              ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200"
+                              : "border-dashed hover:bg-muted/50"
+                          }`}
+                          onClick={() => {
+                            setFlavorModalIndex(index);
+                            setFlavorQuery("");
                           }}
                         >
-                          <Button
-                            type="button"
-                            variant={selectedFlavor ? "outline" : "default"}
-                            className={`w-full justify-center gap-2 h-11 ${
-                              !selectedFlavor 
-                                ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200" 
-                                : "border-dashed hover:bg-muted/50"
-                            }`}
-                            onClick={() => {
-                              setFlavorModalIndex(index);
-                              setFlavorQuery("");
-                            }}
-                          >
-                            {selectedFlavor ? (
-                              <>
-                                <span className="text-sm">フレーバーを変更</span>
-                              </>
-                            ) : (
-                              <>
-                                <Plus className="h-4 w-4" />
-                                <span>フレーバーを選択</span>
-                              </>
-                            )}
-                          </Button>
-                          <DialogContent className="max-w-lg bg-white dark:bg-zinc-900">
-                            <DialogHeader>
-                              <DialogTitle>既存フレーバーを選択</DialogTitle>
-                              <DialogDescription>ブランド名やフレーバー名で絞り込めます。</DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-3">
-                              <Input
-                                placeholder="検索 (例: ミント / レモン)"
-                                value={flavorQuery}
-                                onChange={(event) => setFlavorQuery(event.target.value)}
-                              />
-                              <div className="max-h-80 overflow-auto rounded-md border border-border bg-white dark:bg-zinc-800">
-                                {filteredFlavors.length === 0 ? (
-                                  <p className="px-3 py-6 text-center text-sm text-muted-foreground">候補が見つかりませんでした。</p>
-                                ) : (
-                                  <div className="divide-y divide-border">
-                                    {filteredFlavors.map((flavor) => (
-                                      <button
-                                        key={flavor.id}
-                                        type="button"
-                                        className="flex w-full items-start gap-3 px-3 py-3 text-left text-sm transition hover:bg-accent/50"
-                                        onClick={() => {
-                                          handleComponentChange(index, {
-                                            flavorId: String(flavor.id),
-                                            mode: "existing",
-                                            customName: "",
-                                            customBrand: ""
-                                          });
-                                          setFlavorModalIndex(null);
-                                          setFlavorQuery("");
-                                        }}
-                                      >
-                                        {flavorImageUrls.get(flavor.id) ? (
-                                          <img 
-                                            src={flavorImageUrls.get(flavor.id)} 
-                                            alt={flavor.name}
-                                            className="h-12 w-12 rounded-md object-cover flex-shrink-0"
-                                            loading="lazy"
-                                          />
-                                        ) : (
-                                          <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
-                                            <Package className="h-5 w-5 text-muted-foreground" />
-                                          </div>
-                                        )}
-                                        <div className="flex-1 min-w-0 space-y-1">
-                                          <p className="font-medium truncate">{flavor.name}</p>
-                                          <p className="text-xs text-muted-foreground truncate">{flavor.brand?.name ?? "ブランド未設定"}</p>
-                                          {flavor.tags && flavor.tags.length > 0 && (
-                                            <div className="flex flex-wrap gap-1">
-                                              {flavor.tags.slice(0, 5).map((tag) => (
-                                                <span
-                                                  key={tag}
-                                                  className="inline-flex items-center rounded-full bg-muted/80 dark:bg-muted px-2 py-0.5 text-[10px] text-foreground/70"
-                                                >
-                                                  {tag}
-                                                </span>
-                                              ))}
-                                              {flavor.tags.length > 5 && (
-                                                <span className="text-[10px] text-muted-foreground">+{flavor.tags.length - 5}</span>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                        {useCustomRatio && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <Label className="text-xs text-muted-foreground whitespace-nowrap">グラム数:</Label>
-                            <div className="flex items-center gap-1 rounded-lg border bg-background px-3 py-1.5 shadow-sm">
-                              <Input
-                                type="number"
-                                min={0}
-                                step={1}
-                                value={component.grams === "" ? "" : component.grams}
-                                onChange={(event) => {
-                                  const raw = event.target.value;
-                                  if (raw === "") {
-                                    handleComponentChange(index, { grams: "" });
-                                    return;
-                                  }
-                                  const nextValue = Number(raw);
-                                  handleComponentChange(index, {
-                                    grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0
-                                  });
-                                }}
-                                className="h-7 w-16 border-0 p-0 text-center font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
-                              />
-                              <span className="text-sm text-muted-foreground font-medium">g</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {/* 自由入力選択時の表示エリア */}
-                        {component.customName.trim().length > 0 && (
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-zinc-800 border border-border">
-                            <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                              <Sparkles className="h-6 w-6 text-muted-foreground" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">{component.customName}</p>
-                              <p className="text-sm text-muted-foreground truncate">
-                                {component.customBrand || "ブランド未設定"}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                        <Input
-                          placeholder="フレーバー名 (例: ミント)"
-                          value={component.customName}
-                          onChange={(event) => handleComponentChange(index, { customName: event.target.value })}
-                          className="h-11"
-                        />
-                        {component.customName.trim().length > 0 ? (
-                          <div className="rounded-lg border bg-background/90 overflow-hidden">
-                            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">
-                              💡 もしかして...
-                            </div>
-                            {(() => {
-                              const suggestions = getFlavorSuggestions(component.customName);
-                              if (!suggestions.length) {
-                                return <p className="px-3 py-4 text-sm text-muted-foreground text-center">候補が見つかりませんでした</p>;
-                              }
-                              return (
-                                <div className="max-h-40 overflow-auto divide-y">
-                                  {suggestions.map((flavor) => (
+                          {selectedFlavor ? (
+                            <>
+                              <span className="text-sm">フレーバーを変更</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-4 w-4" />
+                              <span>フレーバーを選択</span>
+                            </>
+                          )}
+                        </Button>
+                        <DialogContent className="max-w-lg bg-white dark:bg-zinc-900">
+                          <DialogHeader>
+                            <DialogTitle>既存フレーバーを選択</DialogTitle>
+                            <DialogDescription>ブランド名やフレーバー名で絞り込めます。</DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-3">
+                            <Input
+                              placeholder="検索 (例: ミント / レモン)"
+                              value={flavorQuery}
+                              onChange={(event) => setFlavorQuery(event.target.value)}
+                            />
+                            <div className="max-h-80 overflow-auto rounded-md border border-border bg-white dark:bg-zinc-800">
+                              {filteredFlavors.length === 0 ? (
+                                <p className="px-3 py-6 text-center text-sm text-muted-foreground">候補が見つかりませんでした。</p>
+                              ) : (
+                                <div className="divide-y divide-border">
+                                  {filteredFlavors.map((flavor) => (
                                     <button
                                       key={flavor.id}
                                       type="button"
-                                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-accent/50 transition-colors"
-                                      onClick={() =>
+                                      className="flex w-full items-start gap-3 px-3 py-3 text-left text-sm transition hover:bg-accent/50"
+                                      onClick={() => {
                                         handleComponentChange(index, {
                                           flavorId: String(flavor.id),
                                           mode: "existing",
                                           customName: "",
                                           customBrand: ""
-                                        })
-                                      }
+                                        });
+                                        setFlavorModalIndex(null);
+                                        setFlavorQuery("");
+                                      }}
                                     >
                                       {flavorImageUrls.get(flavor.id) ? (
-                                        <img src={flavorImageUrls.get(flavor.id)} alt="" className="h-8 w-8 rounded object-cover" loading="lazy" />
+                                        <img
+                                          src={flavorImageUrls.get(flavor.id)}
+                                          alt={flavor.name}
+                                          className="h-12 w-12 rounded-md object-cover flex-shrink-0"
+                                          loading="lazy"
+                                        />
                                       ) : (
-                                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
-                                          <Package className="h-4 w-4 text-muted-foreground" />
+                                        <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                                          <Package className="h-5 w-5 text-muted-foreground" />
                                         </div>
                                       )}
-                                      <span className="flex-1 truncate font-medium">{flavor.name}</span>
-                                      <span className="text-xs text-muted-foreground">
-                                        {flavor.brand?.name ?? "ブランド未設定"}
-                                      </span>
+                                      <div className="flex-1 min-w-0 space-y-1">
+                                        <p className="font-medium truncate">{flavor.name}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{flavor.brand?.name ?? "ブランド未設定"}</p>
+                                        {flavor.tags && flavor.tags.length > 0 && (
+                                          <div className="flex flex-wrap gap-1">
+                                            {flavor.tags.slice(0, 5).map((tag) => (
+                                              <span
+                                                key={tag}
+                                                className="inline-flex items-center rounded-full bg-muted/80 dark:bg-muted px-2 py-0.5 text-[10px] text-foreground/70"
+                                              >
+                                                {tag}
+                                              </span>
+                                            ))}
+                                            {flavor.tags.length > 5 && (
+                                              <span className="text-[10px] text-muted-foreground">+{flavor.tags.length - 5}</span>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
                                     </button>
                                   ))}
                                 </div>
-                      );
-                    })()}
-                  </div>
-                ) : null}
-                <Input
-                  placeholder="ブランド名 (任意: 例 オリジナル)"
-                  value={component.customBrand}
-                  onChange={(event) => handleComponentChange(index, { customBrand: event.target.value })}
-                  className="border-dashed"
-                />
-              </div>
-            )}
-          </div>
-        );
-      })}
-              </div>
+                              )}
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                      {useCustomRatio && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <Label className="text-xs text-muted-foreground whitespace-nowrap">グラム数:</Label>
+                          <div className="flex items-center gap-1 rounded-lg border bg-background px-3 py-1.5 shadow-sm">
+                            <Input
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={component.grams === "" ? "" : component.grams}
+                              onChange={(event) => {
+                                const raw = event.target.value;
+                                if (raw === "") {
+                                  handleComponentChange(index, { grams: "" });
+                                  return;
+                                }
+                                const nextValue = Number(raw);
+                                handleComponentChange(index, {
+                                  grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0
+                                });
+                              }}
+                              className="h-7 w-16 border-0 p-0 text-center font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
+                            />
+                            <span className="text-sm text-muted-foreground font-medium">g</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {component.customName.trim().length > 0 && (
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-zinc-800 border border-border">
+                          <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                            <Sparkles className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{component.customName}</p>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {component.customBrand || "ブランド未設定"}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      <Input
+                        placeholder="フレーバー名 (例: ミント)"
+                        value={component.customName}
+                        onChange={(event) => handleComponentChange(index, { customName: event.target.value })}
+                        className="h-11"
+                      />
+                      {component.customName.trim().length > 0 ? (
+                        <div className="rounded-lg border bg-background/90 overflow-hidden">
+                          <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">
+                            もしかして...
+                          </div>
+                          {(() => {
+                            const suggestions = getFlavorSuggestions(component.customName);
+                            if (!suggestions.length) {
+                              return <p className="px-3 py-4 text-sm text-muted-foreground text-center">候補が見つかりませんでした</p>;
+                            }
+                            return (
+                              <div className="max-h-40 overflow-auto divide-y">
+                                {suggestions.map((flavor) => (
+                                  <button
+                                    key={flavor.id}
+                                    type="button"
+                                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-accent/50 transition-colors"
+                                    onClick={() =>
+                                      handleComponentChange(index, {
+                                        flavorId: String(flavor.id),
+                                        mode: "existing",
+                                        customName: "",
+                                        customBrand: ""
+                                      })
+                                    }
+                                  >
+                                    {flavorImageUrls.get(flavor.id) ? (
+                                      <img src={flavorImageUrls.get(flavor.id)} alt="" className="h-8 w-8 rounded object-cover" loading="lazy" />
+                                    ) : (
+                                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                                        <Package className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                    )}
+                                    <span className="flex-1 truncate font-medium">{flavor.name}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {flavor.brand?.name ?? "ブランド未設定"}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      ) : null}
+                      <Input
+                        placeholder="ブランド名 (任意: 例 オリジナル)"
+                        value={component.customBrand}
+                        onChange={(event) => handleComponentChange(index, { customBrand: event.target.value })}
+                        className="border-dashed"
+                      />
+                      {useCustomRatio && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <Label className="text-xs text-muted-foreground whitespace-nowrap">グラム数:</Label>
+                          <div className="flex items-center gap-1 rounded-lg border bg-background px-3 py-1.5 shadow-sm">
+                            <Input
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={component.grams === "" ? "" : component.grams}
+                              onChange={(event) => {
+                                const raw = event.target.value;
+                                if (raw === "") {
+                                  handleComponentChange(index, { grams: "" });
+                                  return;
+                                }
+                                const nextValue = Number(raw);
+                                handleComponentChange(index, {
+                                  grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0
+                                });
+                              }}
+                              className="h-7 w-16 border-0 p-0 text-center font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
+                            />
+                            <span className="text-sm text-muted-foreground font-medium">g</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             </div>
-          ) : null}
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="startedAt">日時</Label>
@@ -912,8 +830,8 @@ export function SessionForm() {
                     }}
                     onMouseLeave={() => setHoverSatisfaction(null)}
                     className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${
-                      active 
-                        ? "border-amber-500 bg-amber-500/20 text-amber-500 dark:border-amber-400 dark:bg-amber-400/20 dark:text-amber-400" 
+                      active
+                        ? "border-amber-500 bg-amber-500/20 text-amber-500 dark:border-amber-400 dark:bg-amber-400/20 dark:text-amber-400"
                         : "border-gray-300 dark:border-gray-600 bg-transparent text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-500"
                     }`}
                     aria-label={`満足度 ${score}`}
@@ -937,7 +855,7 @@ export function SessionForm() {
         <CardFooter className="sticky bottom-0 z-10 flex flex-col justify-end gap-3 border-t bg-background/95 py-4 backdrop-blur sm:flex-row">
           <Button
             type="submit"
-            disabled={isPending || (mixColumnAvailable && !canSubmitFlavors)}
+            disabled={isPending || !canSubmitFlavors}
             className="w-full text-white dark:bg-muted dark:text-white sm:w-auto"
           >
             {isPending ? "保存中..." : "記録する"}

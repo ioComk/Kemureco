@@ -44,26 +44,26 @@
 }
 
 .dark {
-  --background: oklch(14.1% .005 285.823);
-  /* --background: oklch(14.1% .005 285.823); */
-  --foreground: 210 40% 98%;
-  --card: oklch(14.1% .005 285.823);
-  --card-foreground: 210 40% 98%;
-  --popover: oklch(14.1% .005 285.823);
-  --popover-foreground: 210 40% 98%;
-  --primary: 0 0% 19%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 0 0% 19%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 0 0% 25%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 0 0% 70% / 0.12;
-  --input: 0 0% 70% / 0.12;
-  --ring: 224.3 76.3% 48%;
+  /* アンバー・ナイト: 温かみのあるアンバーをアクセントにした夜の雰囲気 */
+  --background: 220 13% 13%;
+  --foreground: 220 5% 94%;
+  --card: 220 10% 17%;
+  --card-foreground: 220 5% 94%;
+  --popover: 220 10% 17%;
+  --popover-foreground: 220 5% 94%;
+  --primary: 35 80% 55%;
+  --primary-foreground: 35 10% 10%;
+  --secondary: 220 8% 25%;
+  --secondary-foreground: 220 5% 94%;
+  --muted: 30 8% 22%;
+  --muted-foreground: 30 5% 65%;
+  --accent: 35 50% 25%;
+  --accent-foreground: 35 5% 95%;
+  --destructive: 0 62.8% 50%;
+  --destructive-foreground: 0 5% 98%;
+  --border: 30 8% 30%;
+  --input: 30 8% 30%;
+  --ring: 35 80% 55%;
 }
 
 * {
