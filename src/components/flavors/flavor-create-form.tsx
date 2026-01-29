@@ -72,8 +72,7 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
       let brandId: number | null = null;
       if (formState.brandMode === "new") {
         const brandValues: Database["public"]["Tables"]["brands"]["Insert"] = {
-          name: formState.newBrandName.trim(),
-          jp_available: true
+          name: formState.newBrandName.trim()
         };
         const { data, error } = await supabase
           .from("brands")

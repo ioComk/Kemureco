@@ -248,10 +248,10 @@ export function SessionForm() {
       if (missing.length === 0) return;
       const { data, error } = await supabase
         .from("flavors")
-        .select("id,name,brand_id,created_at,created_by,tags,image_path,brands(id,name,jp_available)")
+        .select("id,name,brand_id,created_at,created_by,tags,image_path,brands(id,name)")
         .in("id", missing);
       if (error || !data) return;
-      type FlavorQuery = Flavor & { brands?: { id: number; name: string; jp_available: boolean } | null };
+      type FlavorQuery = Flavor & { brands?: { id: number; name: string } | null };
       const rows = data as FlavorQuery[];
       const mapped = rows.map((row) => ({ ...row, brand: row.brands ?? null, brands: undefined }));
       setFlavors((prev) => {
@@ -266,14 +266,14 @@ export function SessionForm() {
   const fetchFlavors = async () => {
     const { data, error } = await supabase
       .from("flavors")
-      .select("id,name,brand_id,created_at,created_by,tags,image_path,brands(id,name,jp_available)")
+      .select("id,name,brand_id,created_at,created_by,tags,image_path,brands(id,name)")
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) {
       console.error("fetch flavors error", error);
       return;
     }
-    type FlavorQuery = Flavor & { brands?: { id: number; name: string; jp_available: boolean } | null };
+    type FlavorQuery = Flavor & { brands?: { id: number; name: string } | null };
     const rows = (data as FlavorQuery[]) ?? [];
     setFlavors(rows.map((row) => ({ ...row, brand: row.brands ?? null, brands: undefined })));
   };

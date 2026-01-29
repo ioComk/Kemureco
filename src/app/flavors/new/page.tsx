@@ -8,7 +8,7 @@ export const runtime = "edge";
 
 async function loadBrands(): Promise<Brand[]> {
   const supabase = createSupabaseClient();
-  const { data, error } = await supabase.from("brands").select("id,name,jp_available").order("name", { ascending: true });
+  const { data, error } = await supabase.from("brands").select("id,name").order("name", { ascending: true });
 
   if (error) {
     console.error("Failed to fetch brands", error);

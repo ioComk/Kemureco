@@ -223,7 +223,7 @@ export function FlavorsExplorer({
     const fetchFlavors = async () => {
       const { data, error } = await supabase
         .from("flavors")
-        .select("id,name,tags,image_path,brand_id,created_at,created_by,brands(id,name,jp_available)")
+        .select("id,name,tags,image_path,brand_id,created_at,created_by,brands(id,name)")
         .limit(500);
       if (error) {
         console.warn("flavors fetch failed", error);
@@ -314,7 +314,7 @@ export function FlavorsExplorer({
     if (!isAdmin) return;
     if (brands.length > 0) return;
     const fetchBrands = async () => {
-      const { data, error } = await supabase.from("brands").select("id,name,jp_available").order("name");
+      const { data, error } = await supabase.from("brands").select("id,name").order("name");
       if (error) {
         console.warn("brands fetch failed", error);
         return;
@@ -459,10 +459,9 @@ export function FlavorsExplorer({
     });
 
     const scoreByPopularity = (flavor: FlavorWithBrand) => {
-      const base = flavor.brand?.jp_available ? 10 : 0;
       const tagScore = flavor.tags?.length ?? 0;
       const freshness = flavor.created_at ? new Date(flavor.created_at).getTime() / 1_000_000_000 : 0;
-      return base + tagScore + freshness;
+      return tagScore + freshness;
     };
 
     const result = [...filtered].sort((a, b) => {
@@ -1165,7 +1164,7 @@ export function FlavorsExplorer({
                 </option>
                 {brands.map((brand) => (
                   <option key={brand.id} value={brand.id}>
-                    {brand.name} {brand.jp_available ? "(国内)" : "(海外)"}
+                    {brand.name}
                   </option>
                 ))}
               </select>

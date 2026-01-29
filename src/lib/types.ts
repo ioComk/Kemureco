@@ -1,7 +1,6 @@
 export type Brand = {
   id: number;
   name: string;
-  jp_available: boolean;
 };
 
 export type Flavor = {
