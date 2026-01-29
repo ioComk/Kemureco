@@ -1,0 +1,143 @@
+insert into public.brands (name, jp_available)
+values ('SEBERO', true)
+on conflict (name) do update set jp_available = excluded.jp_available;
+
+insert into public.flavors (brand_id, name, tags, image_path, created_by)
+select b.id, f.name, f.tags::text[], f.image_path, null
+from (
+  values
+    ('SEBERO', 'Thai', '{guava,passion fruit,papaya,tropical}', 'flavors/SEBERO/Thai.webp'),
+    ('SEBERO', 'Arctic', '{menthol,mint,cool}', 'flavors/SEBERO/Arctic.webp'),
+    ('SEBERO', 'HO-HO-HO', '{mint,cool}', 'flavors/SEBERO/HO-HO-HO.webp'),
+    ('SEBERO', 'Cactus', '{cactus,herbal}', 'flavors/SEBERO/Cactus.webp'),
+    ('SEBERO', 'Blueberry', '{blueberry,berry}', 'flavors/SEBERO/Blueberry.webp'),
+    ('SEBERO', 'Vanilla', '{vanilla,dessert}', 'flavors/SEBERO/Vanilla.webp'),
+    ('SEBERO', 'Barberry', '{barberry,berry,candy}', 'flavors/SEBERO/Barberry.webp'),
+    ('SEBERO', 'Banana Cream', '{banana,cream,dessert}', 'flavors/SEBERO/Banana Cream.webp'),
+    ('SEBERO', 'Pomegranate-Cherry', '{pomegranate,cherry,berry}', 'flavors/SEBERO/Pomegranate-Cherry.webp'),
+    ('SEBERO', 'Grape', '{grape}', 'flavors/SEBERO/Grape.webp'),
+    ('SEBERO', 'Watermelon-Melon', '{watermelon,melon}', 'flavors/SEBERO/Watermelon-Melon.webp'),
+    ('SEBERO', 'Bubblegum', '{bubblegum,candy,cinnamon}', 'flavors/SEBERO/Bubblegum.webp'),
+    ('SEBERO', 'Green Pear', '{pear,guava}', 'flavors/SEBERO/Green Pear.webp'),
+    ('SEBERO', 'Green Apple', '{apple,green apple}', 'flavors/SEBERO/Green Apple.webp'),
+    ('SEBERO', 'Limoncello', '{lemon,citrus,limoncello}', 'flavors/SEBERO/Limoncello.webp'),
+    ('SEBERO', 'Bilberry', '{bilberry,berry}', 'flavors/SEBERO/Bilberry.webp'),
+    ('SEBERO', 'Thyme', '{thyme,herbal,tea}', 'flavors/SEBERO/Thyme.webp'),
+    ('SEBERO', 'Cucumber-Basil', '{cucumber,basil,herbal}', 'flavors/SEBERO/Cucumber-Basil.webp'),
+    ('SEBERO', 'Spiced Tea', '{tea,spice,herbal}', 'flavors/SEBERO/Spiced Tea.webp'),
+    ('SEBERO', 'Tomato', '{tomato,savory}', 'flavors/SEBERO/Tomato.webp'),
+    ('SEBERO', 'Corn', '{corn,savory}', 'flavors/SEBERO/Corn.webp'),
+    ('SEBERO', 'Cola', '{cola}', 'flavors/SEBERO/Cola.webp'),
+    ('SEBERO', 'Banana-Chocolate', '{banana,chocolate,dessert}', 'flavors/SEBERO/Banana-Chocolate.webp'),
+    ('SEBERO', 'Chocolate', '{chocolate,dessert}', 'flavors/SEBERO/Chocolate.webp'),
+    ('SEBERO', 'Orange-Chocolate', '{orange,chocolate,citrus,dessert}', 'flavors/SEBERO/Orange-Chocolate.webp'),
+    ('SEBERO', 'Waffles', '{waffle,chocolate,dessert}', 'flavors/SEBERO/Waffles.webp'),
+    ('SEBERO', 'Banana-Strawberry', '{banana,strawberry,berry}', 'flavors/SEBERO/Banana-Strawberry.webp'),
+    ('SEBERO', 'Guava-Strawberry', '{guava,strawberry,berry}', 'flavors/SEBERO/Guava-Strawberry.webp'),
+    ('SEBERO', 'Apricot', '{apricot}', 'flavors/SEBERO/Apricot.webp'),
+    ('SEBERO', 'Herbal Currant', '{currant,herbal,berry}', 'flavors/SEBERO/Herbal Currant.webp'),
+    ('SEBERO', 'Pineapple', '{pineapple,tropical}', 'flavors/SEBERO/Pineapple.webp'),
+    ('SEBERO', 'Banana', '{banana}', 'flavors/SEBERO/Banana.webp'),
+    ('SEBERO', 'Strawberry', '{strawberry,berry}', 'flavors/SEBERO/Strawberry.webp'),
+    ('SEBERO', 'Orange', '{orange,citrus}', 'flavors/SEBERO/Orange.webp'),
+    ('SEBERO', 'Mint', '{mint,cool}', 'flavors/SEBERO/Mint.webp'),
+    ('SEBERO', 'Lychee', '{lychee,tropical}', 'flavors/SEBERO/Lychee.webp'),
+    ('SEBERO', 'Mango', '{mango,tropical}', 'flavors/SEBERO/Mango.webp'),
+    ('SEBERO', 'Grapefruit', '{grapefruit,citrus}', 'flavors/SEBERO/Grapefruit.webp'),
+    ('SEBERO', 'Cherry', '{cherry,berry}', 'flavors/SEBERO/Cherry.webp'),
+    ('SEBERO', 'Pomegranate', '{pomegranate}', 'flavors/SEBERO/Pomegranate.webp'),
+    ('SEBERO', 'Rhubarb-Black Currant', '{rhubarb,currant,berry}', 'flavors/SEBERO/Rhubarb-Black Currant.webp'),
+    ('SEBERO', 'Black Currant and Wild Berries', '{currant,berry,wild berries}', 'flavors/SEBERO/Black Currant and Wild Berries.webp'),
+    ('SEBERO', 'Lemon Waffle', '{lemon,waffle,dessert,citrus}', 'flavors/SEBERO/Lemon Waffle.webp'),
+    ('SEBERO', 'Cookie Monster', '{coconut,nut,cookie,dessert}', 'flavors/SEBERO/Cookie Monster.webp'),
+    ('SEBERO', 'TOP 2', '{apple,lemon,grape,mix}', 'flavors/SEBERO/TOP 2.webp'),
+    ('SEBERO', 'TOP', '{mix}', 'flavors/SEBERO/TOP.webp'),
+    ('SEBERO', 'Cream Berry', '{blueberry,vanilla,cherry,pomegranate,tea,mint,mix}', 'flavors/SEBERO/Cream Berry.webp'),
+    ('SEBERO', 'Jelly Fruit', '{citrus,candy,mix}', 'flavors/SEBERO/Jelly Fruit.webp'),
+    ('SEBERO', 'Corn Soda', '{corn,soda,mix}', 'flavors/SEBERO/Corn Soda.webp'),
+    ('SEBERO', 'Thai Land', '{cola,tropical,mix}', 'flavors/SEBERO/Thai Land.webp'),
+    ('SEBERO', 'Fresh Time', '{thyme,cherry,mango,lemon,mint,mix}', 'flavors/SEBERO/Fresh Time.webp'),
+    ('SEBERO', 'Spice Fruit', '{tea,spice,guava,strawberry,rhubarb,currant,mint,mix}', 'flavors/SEBERO/Spice Fruit.webp'),
+    ('SEBERO', 'Tarragon', '{basil,cucumber,cola,apricot,banana,strawberry,mint,mix}', 'flavors/SEBERO/Tarragon.webp'),
+    ('SEBERO', 'Cactus Pear', '{cactus,pear,lemon,mint,mix}', 'flavors/SEBERO/Cactus Pear.webp'),
+    ('SEBERO', 'Bubble Fruit', '{bubblegum,grape,blueberry,mango,mint,mix}', 'flavors/SEBERO/Bubble Fruit.webp'),
+    ('SEBERO', 'Sour Citrus', '{lemon,cherry,rhubarb,orange,citrus,mint,mix}', 'flavors/SEBERO/Sour Citrus.webp'),
+    ('SEBERO', 'Tropic Berry', '{strawberry,lychee,rhubarb,mint,berry,mix}', 'flavors/SEBERO/Tropic Berry.webp'),
+    ('SEBERO', 'Vanilla Fruit', '{vanilla,cola,cherry,melon,mint,mix}', 'flavors/SEBERO/Vanilla Fruit.webp')
+) as f(brand_name, name, tags, image_path)
+join public.brands b on b.name = f.brand_name
+where not exists (
+  select 1
+  from public.flavors existing
+  where existing.brand_id = b.id
+    and existing.name = f.name
+);
+
+update public.flavors as f
+set tags = v.tags::text[],
+    image_path = v.image_path,
+    created_by = null
+from (
+  values
+    ('SEBERO', 'Thai', '{guava,passion fruit,papaya,tropical}', 'flavors/SEBERO/Thai.webp'),
+    ('SEBERO', 'Arctic', '{menthol,mint,cool}', 'flavors/SEBERO/Arctic.webp'),
+    ('SEBERO', 'HO-HO-HO', '{mint,cool}', 'flavors/SEBERO/HO-HO-HO.webp'),
+    ('SEBERO', 'Cactus', '{cactus,herbal}', 'flavors/SEBERO/Cactus.webp'),
+    ('SEBERO', 'Blueberry', '{blueberry,berry}', 'flavors/SEBERO/Blueberry.webp'),
+    ('SEBERO', 'Vanilla', '{vanilla,dessert}', 'flavors/SEBERO/Vanilla.webp'),
+    ('SEBERO', 'Barberry', '{barberry,berry,candy}', 'flavors/SEBERO/Barberry.webp'),
+    ('SEBERO', 'Banana Cream', '{banana,cream,dessert}', 'flavors/SEBERO/Banana Cream.webp'),
+    ('SEBERO', 'Pomegranate-Cherry', '{pomegranate,cherry,berry}', 'flavors/SEBERO/Pomegranate-Cherry.webp'),
+    ('SEBERO', 'Grape', '{grape}', 'flavors/SEBERO/Grape.webp'),
+    ('SEBERO', 'Watermelon-Melon', '{watermelon,melon}', 'flavors/SEBERO/Watermelon-Melon.webp'),
+    ('SEBERO', 'Bubblegum', '{bubblegum,candy,cinnamon}', 'flavors/SEBERO/Bubblegum.webp'),
+    ('SEBERO', 'Green Pear', '{pear,guava}', 'flavors/SEBERO/Green Pear.webp'),
+    ('SEBERO', 'Green Apple', '{apple,green apple}', 'flavors/SEBERO/Green Apple.webp'),
+    ('SEBERO', 'Limoncello', '{lemon,citrus,limoncello}', 'flavors/SEBERO/Limoncello.webp'),
+    ('SEBERO', 'Bilberry', '{bilberry,berry}', 'flavors/SEBERO/Bilberry.webp'),
+    ('SEBERO', 'Thyme', '{thyme,herbal,tea}', 'flavors/SEBERO/Thyme.webp'),
+    ('SEBERO', 'Cucumber-Basil', '{cucumber,basil,herbal}', 'flavors/SEBERO/Cucumber-Basil.webp'),
+    ('SEBERO', 'Spiced Tea', '{tea,spice,herbal}', 'flavors/SEBERO/Spiced Tea.webp'),
+    ('SEBERO', 'Tomato', '{tomato,savory}', 'flavors/SEBERO/Tomato.webp'),
+    ('SEBERO', 'Corn', '{corn,savory}', 'flavors/SEBERO/Corn.webp'),
+    ('SEBERO', 'Cola', '{cola}', 'flavors/SEBERO/Cola.webp'),
+    ('SEBERO', 'Banana-Chocolate', '{banana,chocolate,dessert}', 'flavors/SEBERO/Banana-Chocolate.webp'),
+    ('SEBERO', 'Chocolate', '{chocolate,dessert}', 'flavors/SEBERO/Chocolate.webp'),
+    ('SEBERO', 'Orange-Chocolate', '{orange,chocolate,citrus,dessert}', 'flavors/SEBERO/Orange-Chocolate.webp'),
+    ('SEBERO', 'Waffles', '{waffle,chocolate,dessert}', 'flavors/SEBERO/Waffles.webp'),
+    ('SEBERO', 'Banana-Strawberry', '{banana,strawberry,berry}', 'flavors/SEBERO/Banana-Strawberry.webp'),
+    ('SEBERO', 'Guava-Strawberry', '{guava,strawberry,berry}', 'flavors/SEBERO/Guava-Strawberry.webp'),
+    ('SEBERO', 'Apricot', '{apricot}', 'flavors/SEBERO/Apricot.webp'),
+    ('SEBERO', 'Herbal Currant', '{currant,herbal,berry}', 'flavors/SEBERO/Herbal Currant.webp'),
+    ('SEBERO', 'Pineapple', '{pineapple,tropical}', 'flavors/SEBERO/Pineapple.webp'),
+    ('SEBERO', 'Banana', '{banana}', 'flavors/SEBERO/Banana.webp'),
+    ('SEBERO', 'Strawberry', '{strawberry,berry}', 'flavors/SEBERO/Strawberry.webp'),
+    ('SEBERO', 'Orange', '{orange,citrus}', 'flavors/SEBERO/Orange.webp'),
+    ('SEBERO', 'Mint', '{mint,cool}', 'flavors/SEBERO/Mint.webp'),
+    ('SEBERO', 'Lychee', '{lychee,tropical}', 'flavors/SEBERO/Lychee.webp'),
+    ('SEBERO', 'Mango', '{mango,tropical}', 'flavors/SEBERO/Mango.webp'),
+    ('SEBERO', 'Grapefruit', '{grapefruit,citrus}', 'flavors/SEBERO/Grapefruit.webp'),
+    ('SEBERO', 'Cherry', '{cherry,berry}', 'flavors/SEBERO/Cherry.webp'),
+    ('SEBERO', 'Pomegranate', '{pomegranate}', 'flavors/SEBERO/Pomegranate.webp'),
+    ('SEBERO', 'Rhubarb-Black Currant', '{rhubarb,currant,berry}', 'flavors/SEBERO/Rhubarb-Black Currant.webp'),
+    ('SEBERO', 'Black Currant and Wild Berries', '{currant,berry,wild berries}', 'flavors/SEBERO/Black Currant and Wild Berries.webp'),
+    ('SEBERO', 'Lemon Waffle', '{lemon,waffle,dessert,citrus}', 'flavors/SEBERO/Lemon Waffle.webp'),
+    ('SEBERO', 'Cookie Monster', '{coconut,nut,cookie,dessert}', 'flavors/SEBERO/Cookie Monster.webp'),
+    ('SEBERO', 'TOP 2', '{apple,lemon,grape,mix}', 'flavors/SEBERO/TOP 2.webp'),
+    ('SEBERO', 'TOP', '{mix}', 'flavors/SEBERO/TOP.webp'),
+    ('SEBERO', 'Cream Berry', '{blueberry,vanilla,cherry,pomegranate,tea,mint,mix}', 'flavors/SEBERO/Cream Berry.webp'),
+    ('SEBERO', 'Jelly Fruit', '{citrus,candy,mix}', 'flavors/SEBERO/Jelly Fruit.webp'),
+    ('SEBERO', 'Corn Soda', '{corn,soda,mix}', 'flavors/SEBERO/Corn Soda.webp'),
+    ('SEBERO', 'Thai Land', '{cola,tropical,mix}', 'flavors/SEBERO/Thai Land.webp'),
+    ('SEBERO', 'Fresh Time', '{thyme,cherry,mango,lemon,mint,mix}', 'flavors/SEBERO/Fresh Time.webp'),
+    ('SEBERO', 'Spice Fruit', '{tea,spice,guava,strawberry,rhubarb,currant,mint,mix}', 'flavors/SEBERO/Spice Fruit.webp'),
+    ('SEBERO', 'Tarragon', '{basil,cucumber,cola,apricot,banana,strawberry,mint,mix}', 'flavors/SEBERO/Tarragon.webp'),
+    ('SEBERO', 'Cactus Pear', '{cactus,pear,lemon,mint,mix}', 'flavors/SEBERO/Cactus Pear.webp'),
+    ('SEBERO', 'Bubble Fruit', '{bubblegum,grape,blueberry,mango,mint,mix}', 'flavors/SEBERO/Bubble Fruit.webp'),
+    ('SEBERO', 'Sour Citrus', '{lemon,cherry,rhubarb,orange,citrus,mint,mix}', 'flavors/SEBERO/Sour Citrus.webp'),
+    ('SEBERO', 'Tropic Berry', '{strawberry,lychee,rhubarb,mint,berry,mix}', 'flavors/SEBERO/Tropic Berry.webp'),
+    ('SEBERO', 'Vanilla Fruit', '{vanilla,cola,cherry,melon,mint,mix}', 'flavors/SEBERO/Vanilla Fruit.webp')
+) as v(brand_name, name, tags, image_path)
+join public.brands b on b.name = v.brand_name
+where f.brand_id = b.id
+  and f.name = v.name;

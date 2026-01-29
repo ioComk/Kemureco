@@ -479,3 +479,23 @@ Kemureco is a web platform for shisha users, focused on accurate session/flavor 
 
 ### 2026-01-27 追加: カレンダー詳細ダイアログの閉じタグ整理
 - DialogContent直前の余分な閉じdivを削除し、JSX構文エラーを解消
+
+---
+
+### 2026-01-28 追加: SEBERO BLACK フレーバー登録
+- 公式コレクション2ページから35件抽出し、英名ベースで登録
+- 画像を取得して @squoosh/cli (Node24対策のpreload付き) でWebP化し、Storage `flavor-images` に `flavors/SEBERO BLACK/<name>.webp` でアップロード
+- 追加マイグレーション: `supabase/migrations/20260128123000_sebero_black_flavors_seed.sql`
+- タグは名称から推測し、曖昧なものは `mix` 扱い（Western / TOP / Nitro）
+
+---
+
+### 2026-01-28 追加: SEBERO フレーバー登録
+- https://sebero.ru からBasic Collection / Limited Edition / Arctic Mixの全66種類を抽出
+- ロシア語フレーバー名を英語に翻訳して登録（58種類、重複を除外）
+- 画像をダウンロードし、sharp (quality 85, effort 6) でWebP圧縮
+- Storage `flavor-images` に `flavors/SEBERO/<name>.webp` でアップロード
+- 追加マイグレーション: `supabase/migrations/20260128130000_sebero_flavors_seed.sql`
+- タグはフレーバー説明から推測（トロピカル / ベリー / ミント / デザート / ハーブ等）
+- Supabase CLI v2.72.7 に更新してStorage API互換性問題を解決
+- マイグレーション適用後、`http://localhost:3000` でHTTP 200確認

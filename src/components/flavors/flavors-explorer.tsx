@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowUp, LayoutGrid, List, RotateCcw, X } from "lucide-react";
+import { ArrowUp, ChevronDown, LayoutGrid, List, RotateCcw, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
 import { LazyImage } from "@/components/ui/lazy-image";
@@ -186,7 +186,10 @@ export function FlavorsExplorer({
   const [isComposing, setIsComposing] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [expandedTagIds, setExpandedTagIds] = useState<Set<number>>(new Set());
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isHeaderHovered, setIsHeaderHovered] = useState(false);
   const maxCollapsedTags = 8;
   const initialTagSync = useRef(true);
   const hasClientData = useRef(false);
@@ -221,7 +224,7 @@ export function FlavorsExplorer({
       const { data, error } = await supabase
         .from("flavors")
         .select("id,name,tags,image_path,brand_id,created_at,created_by,brands(id,name,jp_available)")
-        .limit(200);
+        .limit(500);
       if (error) {
         console.warn("flavors fetch failed", error);
         return;
@@ -243,7 +246,11 @@ export function FlavorsExplorer({
   }, [authLoading, supabase, user?.id]);
 
   useEffect(() => {
-    const handleScroll = () => setShowScrollTop(window.scrollY > 500);
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 500);
+      const scrolled = window.scrollY > 100;
+      setIsScrolled(scrolled);
+    };
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -786,186 +793,216 @@ export function FlavorsExplorer({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-2">
-            <div className="space-y-1">
-              <CardTitle>フレーバーライブラリ</CardTitle>
-              <CardDescription>ブランドやタグで絞り込んで、次のミックス候補を探しましょう。</CardDescription>
+      <div
+        className="sticky top-16 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 transition-all duration-300"
+        onMouseEnter={() => setIsHeaderHovered(true)}
+        onMouseLeave={() => setIsHeaderHovered(false)}
+      >
+        <Card className="border-x-0 border-t-0 shadow-none">
+          <CardHeader className={`flex flex-col gap-2 transition-all duration-300 sm:flex-row sm:items-center sm:justify-between ${
+            isScrolled && !isHeaderHovered ? "py-2" : "py-4"
+          }`}>
+            <div className="flex items-center gap-2">
+              <CardTitle className={`transition-all duration-300 ${
+                isScrolled && !isHeaderHovered ? "text-base" : "text-xl"
+              }`}>フレーバーライブラリ</CardTitle>
+              <Badge variant="secondary" className="text-xs">{items.length || totalCount}</Badge>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <Badge variant="secondary">{items.length || totalCount}</Badge>
-              <span>件のフレーバーが登録されています。</span>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2" aria-label="表示切り替え">
-            <Button
-              type="button"
-              size="icon"
-                variant={viewMode === "grid" ? "default" : "outline"}
-                onClick={() => setViewMode("grid")}
-                aria-pressed={viewMode === "grid"}
-              >
-                <LayoutGrid className="h-4 w-4" />
-                <span className="sr-only">グリッド</span>
-              </Button>
+            <div className="flex flex-wrap gap-2" aria-label="表示切り替え">
               <Button
                 type="button"
                 size="icon"
-                variant={viewMode === "list" ? "default" : "outline"}
-                onClick={() => setViewMode("list")}
-                aria-pressed={viewMode === "list"}
-              >
-                <List className="h-4 w-4" />
-                <span className="sr-only">リスト</span>
-              </Button>
-            </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="flavor-search">フレーバー名またはブランド名</Label>
-              <Input
-                id="flavor-search"
-                placeholder="例: ミント / Trifecta"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={(event) => {
-                  setIsSearchFocused(false);
-                  updateSearchParam("q", event.currentTarget.value.trim() || undefined);
-                }}
-                onCompositionStart={() => setIsComposing(true)}
-                onCompositionEnd={(event) => {
-                  setIsComposing(false);
-                  setQuery(event.currentTarget.value);
-                  updateSearchParam("q", event.currentTarget.value.trim() || undefined);
-                }}
+                  variant={viewMode === "grid" ? "default" : "outline"}
+                  onClick={() => setViewMode("grid")}
+                  aria-pressed={viewMode === "grid"}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  <span className="sr-only">グリッド</span>
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={viewMode === "list" ? "default" : "outline"}
+                  onClick={() => setViewMode("list")}
+                  aria-pressed={viewMode === "list"}
+                >
+                  <List className="h-4 w-4" />
+                  <span className="sr-only">リスト</span>
+                </Button>
+              </div>
+          </CardHeader>
+          <CardContent className={`transition-all duration-300 ${
+            isScrolled && !isHeaderHovered ? "space-y-2 pb-2" : "space-y-4 pb-4"
+          }`}>
+          <div className="flex gap-2">
+            <Input
+              id="flavor-search"
+              placeholder="フレーバー名・ブランド名で検索"
+              className="flex-1"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={(event) => {
+                setIsSearchFocused(false);
+                updateSearchParam("q", event.currentTarget.value.trim() || undefined);
+              }}
+              onCompositionStart={() => setIsComposing(true)}
+              onCompositionEnd={(event) => {
+                setIsComposing(false);
+                setQuery(event.currentTarget.value);
+                updateSearchParam("q", event.currentTarget.value.trim() || undefined);
+              }}
+            />
+            <Select value={sort} onValueChange={handleSortChange}>
+              <SelectTrigger id="flavor-sort" className="w-[140px]">
+                <SelectValue placeholder="並び替え" />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((prev) => !prev)}
+              className="flex w-full items-center justify-between rounded-lg border bg-muted/20 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/30"
+              aria-expanded={filtersOpen}
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-medium">フィルター</span>
+                {(activeBrand || activeTags.length > 0 || group !== "none") && (
+                  <Badge variant="secondary" className="h-4 min-w-[1rem] px-1 text-xs">
+                    {[activeBrand ? 1 : 0, activeTags.length, group !== "none" ? 1 : 0].reduce((a, b) => a + b, 0)}
+                  </Badge>
+                )}
+              </div>
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform duration-200 ${filtersOpen ? "rotate-180" : ""}`}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="flavor-sort">並び替え</Label>
-              <Select value={sort} onValueChange={handleSortChange}>
-                <SelectTrigger id="flavor-sort">
-                  <SelectValue placeholder="並び替えを選択" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex flex-nowrap items-center gap-3 overflow-x-auto">
-            <Label className="whitespace-nowrap">グループ化</Label>
-            <div className="flex flex-nowrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={group === "none" ? "default" : "outline"}
-                onClick={() => setGroup("none")}
-              >
-                なし
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={group === "brand" ? "default" : "outline"}
-                onClick={() => setGroup("brand")}
-              >
-                ブランド
-              </Button>
-            </div>
-          </div>
-          {availableBrands.length ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Label>メーカーで絞り込み</Label>
-                  {activeBrand ? (
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleBrandToggle("")}
-                      aria-label="メーカー絞り込みをクリア"
-                      className="h-6 w-6"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {availableBrands.map((brand) => (
+            </button>
+            <div
+              className={`space-y-4 transition-all duration-200 ${
+                filtersOpen ? "opacity-100" : "pointer-events-none h-0 overflow-hidden opacity-0"
+              }`}
+            >
+              <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
+                <Label className="whitespace-nowrap text-xs">グループ化</Label>
+                <div className="flex flex-nowrap items-center gap-1.5">
                   <Button
-                    key={brand.id}
                     type="button"
                     size="sm"
-                    variant={activeBrand === String(brand.id) ? "default" : "outline"}
-                    onClick={() => handleBrandToggle(String(brand.id))}
+                    variant={group === "none" ? "default" : "outline"}
+                    onClick={() => setGroup("none")}
+                    className="h-8 px-3 text-xs"
                   >
-                    {brand.name}
+                    なし
                   </Button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-          {availableTags.length ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Label>タグで絞り込み</Label>
-                  {activeTags.length > 0 ? (
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      onClick={clearTags}
-                      aria-label="タグ絞り込みをクリア"
-                      className="h-6 w-6"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-              <div
-                className={
-                  tagsOpen
-                    ? "flex flex-wrap gap-2"
-                    : "flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] sm:pb-0"
-                }
-              >
-                {(tagsOpen ? availableTags : availableTags.slice(0, maxCollapsedTags)).map((tag) => (
                   <Button
-                    key={tag}
                     type="button"
                     size="sm"
-                    variant={activeTags.includes(tag) ? "default" : "outline"}
-                    onClick={() => handleTagToggle(tag)}
-                    className="shrink-0"
+                    variant={group === "brand" ? "default" : "outline"}
+                    onClick={() => setGroup("brand")}
+                    className="h-8 px-3 text-xs"
                   >
-                    {tag}
+                    ブランド
                   </Button>
-                ))}
-                {availableTags.length > maxCollapsedTags ? (
-                  <button
-                    type="button"
-                    className="shrink-0 text-xs text-muted-foreground underline-offset-4 hover:underline"
-                    onClick={() => setTagsOpen((prev) => !prev)}
-                  >
-                    {tagsOpen ? "閉じる" : "もっと見る"}
-                  </button>
-                ) : null}
+                </div>
               </div>
+              {availableBrands.length ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs">メーカーで絞り込み</Label>
+                      {activeBrand ? (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleBrandToggle("")}
+                          aria-label="メーカー絞り込みをクリア"
+                          className="h-5 w-5"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableBrands.map((brand) => (
+                      <Button
+                        key={brand.id}
+                        type="button"
+                        size="sm"
+                        variant={activeBrand === String(brand.id) ? "default" : "outline"}
+                        onClick={() => handleBrandToggle(String(brand.id))}
+                        className="h-7 px-2.5 text-xs"
+                      >
+                        {brand.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {availableTags.length ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs">タグで絞り込み</Label>
+                      {activeTags.length > 0 ? (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={clearTags}
+                          aria-label="タグ絞り込みをクリア"
+                          className="h-5 w-5"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div
+                    className={
+                      tagsOpen
+                        ? "flex flex-wrap gap-1.5"
+                        : "flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin] sm:pb-0"
+                    }
+                  >
+                    {(tagsOpen ? availableTags : availableTags.slice(0, maxCollapsedTags)).map((tag) => (
+                      <Button
+                        key={tag}
+                        type="button"
+                        size="sm"
+                        variant={activeTags.includes(tag) ? "default" : "outline"}
+                        onClick={() => handleTagToggle(tag)}
+                        className="h-7 shrink-0 px-2.5 text-xs"
+                      >
+                        {tag}
+                      </Button>
+                    ))}
+                    {availableTags.length > maxCollapsedTags ? (
+                      <button
+                        type="button"
+                        className="shrink-0 text-[10px] text-muted-foreground underline-offset-4 hover:underline"
+                        onClick={() => setTagsOpen((prev) => !prev)}
+                      >
+                        {tagsOpen ? "閉じる" : "もっと見る"}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
-          ) : null}
+          </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
 
       {filteredFlavors.length === 0 ? (
         <Card>

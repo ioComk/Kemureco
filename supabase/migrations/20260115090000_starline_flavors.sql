@@ -24,5 +24,3 @@ where not exists (
   where existing.brand_id = b.id
     and existing.name = f.name
 );
-
-update public.flavors

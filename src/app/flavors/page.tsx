@@ -11,7 +11,7 @@ async function loadFlavors(): Promise<FlavorWithBrand[]> {
   const { data, error } = await supabase
     .from("flavors")
     .select("id,name,tags,image_path,brand_id,created_at,created_by,brands(id,name,jp_available)")
-    .limit(200);
+    .limit(500);
 
   if (error) {
     console.error("Failed to fetch flavors", error);

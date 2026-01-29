@@ -34,6 +34,7 @@ type ComponentState = {
 };
 
 const JP_QUERY_MAP: Array<{ jp: string; en: string }> = [
+  // フレーバー
   { jp: "みんと", en: "mint" },
   { jp: "ミント", en: "mint" },
   { jp: "れもん", en: "lemon" },
@@ -73,7 +74,43 @@ const JP_QUERY_MAP: Array<{ jp: string; en: string }> = [
   { jp: "すぱいす", en: "spice" },
   { jp: "スパイス", en: "spice" },
   { jp: "でざーと", en: "dessert" },
-  { jp: "デザート", en: "dessert" }
+  { jp: "デザート", en: "dessert" },
+  // ブランド名
+  { jp: "あるふぁーへる", en: "al fakher" },
+  { jp: "アルファーヘル", en: "al fakher" },
+  { jp: "アルファヘル", en: "al fakher" },
+  { jp: "すたーばず", en: "starbuzz" },
+  { jp: "スターバズ", en: "starbuzz" },
+  { jp: "ふみゃり", en: "fumari" },
+  { jp: "フミャリ", en: "fumari" },
+  { jp: "ふまり", en: "fumari" },
+  { jp: "フマリ", en: "fumari" },
+  { jp: "そしある", en: "social smoke" },
+  { jp: "ソシアル", en: "social smoke" },
+  { jp: "ソーシャル", en: "social smoke" },
+  { jp: "たんじあーず", en: "tangiers" },
+  { jp: "タンジアーズ", en: "tangiers" },
+  { jp: "なはら", en: "nakhla" },
+  { jp: "ナハラ", en: "nakhla" },
+  { jp: "ナクラ", en: "nakhla" },
+  { jp: "ロミオワイジュリエット", en: "romeo y julieta" },
+  { jp: "ロミオ", en: "romeo" },
+  { jp: "あずーる", en: "azure" },
+  { jp: "アズール", en: "azure" },
+  { jp: "へいぜ", en: "haze" },
+  { jp: "ヘイズ", en: "haze" },
+  { jp: "あどりあ", en: "adalya" },
+  { jp: "アドリア", en: "adalya" },
+  { jp: "アダリヤ", en: "adalya" },
+  { jp: "さつぃーる", en: "serbetli" },
+  { jp: "サツィール", en: "serbetli" },
+  { jp: "セルベトリ", en: "serbetli" },
+  { jp: "せべろ", en: "sebero" },
+  { jp: "セベロ", en: "sebero" },
+  { jp: "だーくさいど", en: "darkside" },
+  { jp: "ダークサイド", en: "darkside" },
+  { jp: "ブラッククラウド", en: "black cloud" },
+  { jp: "ぶらっくくらうど", en: "black cloud" }
 ];
 
 type SessionInsert = Database["public"]["Tables"]["sessions"]["Insert"];
@@ -139,11 +176,12 @@ export function SessionForm() {
 
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [flavors, setFlavors] = useState<FlavorOption[]>([]);
+  const [brands, setBrands] = useState<Array<{ id: number; name: string }>>([]);
   const dataFetchedRef = useRef<string | null>(null);
   const [formState, setFormState] = useState<FormState>(DEFAULT_FORM_STATE);
   const [locationPlace, setLocationPlace] = useState<PlaceValue | null>(null);
   const [hoverSatisfaction, setHoverSatisfaction] = useState<number | null>(null);
-  const [components, setComponents] = useState<ComponentState[]>(() => createDefaultComponents(2));
+  const [components, setComponents] = useState<ComponentState[]>(() => createDefaultComponents(1));
   const [useCustomRatio, setUseCustomRatio] = useState(false);
   const [flavorModalIndex, setFlavorModalIndex] = useState<number | null>(null);
   const [flavorQuery, setFlavorQuery] = useState("");
@@ -172,9 +210,11 @@ export function SessionForm() {
       if (dataFetchedRef.current === userId) return;
       dataFetchedRef.current = userId;
       void fetchFlavors();
+      void fetchBrands();
     } else {
       dataFetchedRef.current = null;
       setFlavors([]);
+      setBrands([]);
     }
   }, [authLoading, user?.id]);
 
@@ -238,6 +278,18 @@ export function SessionForm() {
     setFlavors(rows.map((row) => ({ ...row, brand: row.brands ?? null, brands: undefined })));
   };
 
+  const fetchBrands = async () => {
+    const { data, error } = await supabase
+      .from("brands")
+      .select("id,name")
+      .order("name", { ascending: true });
+    if (error) {
+      console.error("fetch brands error", error);
+      return;
+    }
+    setBrands(data ?? []);
+  };
+
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setFormState((prev) => ({ ...prev, [key]: value }));
   };
@@ -268,6 +320,17 @@ export function SessionForm() {
     return flavors
       .filter((flavor) => {
         const haystack = [flavor.name, flavor.brand?.name ?? "", ...(flavor.tags ?? [])].join(" ").toLowerCase();
+        return tokenList.some((token) => haystack.includes(token));
+      })
+      .slice(0, max);
+  };
+
+  const getBrandSuggestions = (query: string, max = 6) => {
+    const tokenList = getFlavorSearchTokens(query); // 同じ検索ロジックを使用
+    if (!tokenList.length) return [];
+    return brands
+      .filter((brand) => {
+        const haystack = brand.name.toLowerCase();
         return tokenList.some((token) => haystack.includes(token));
       })
       .slice(0, max);
@@ -412,7 +475,7 @@ export function SessionForm() {
 
       toast({ title: "記録しました" });
       setFormState({ ...DEFAULT_FORM_STATE, startedAt: toJstDatetimeValue(new Date()) });
-      setComponents(createDefaultComponents(2));
+      setComponents(createDefaultComponents(1));
       setLocationPlace(null);
       router.push("/sessions");
     });
@@ -437,7 +500,7 @@ export function SessionForm() {
                 <Button type="button" variant="outline" size="sm" onClick={handleAddComponent} disabled={components.length >= MAX_COMPONENTS}>
                   <Plus className="h-4 w-4" /> 追加
                 </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setComponents(createDefaultComponents(2))}>
+                <Button type="button" variant="outline" size="sm" onClick={() => setComponents(createDefaultComponents(1))}>
                   リセット
                 </Button>
               </div>
@@ -529,262 +592,143 @@ export function SessionForm() {
                     <p className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded">0gのフレーバーは保存できません。</p>
                   ) : null}
 
-                  <div className="flex rounded-lg bg-muted/50 p-1">
-                    <button
-                      type="button"
-                      className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                        component.mode === "existing"
-                          ? "bg-background shadow-sm text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      onClick={() => handleComponentChange(index, { mode: "existing" })}
-                    >
-                      既存から選ぶ
-                    </button>
-                    <button
-                      type="button"
-                      className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                        component.mode === "custom"
-                          ? "bg-background shadow-sm text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      onClick={() => handleComponentChange(index, { mode: "custom" })}
-                    >
-                      自由入力
-                    </button>
-                  </div>
-                  {component.mode === "existing" ? (
-                    <div className="space-y-2">
-                      <Dialog
-                        open={flavorModalIndex === index}
-                        onOpenChange={(open) => {
-                          setFlavorModalIndex(open ? index : null);
-                          if (!open) {
-                            setFlavorQuery("");
-                          }
-                        }}
-                      >
-                        <Button
-                          type="button"
-                          variant={selectedFlavor ? "outline" : "default"}
-                          className={`w-full justify-center gap-2 h-11 ${
-                            !selectedFlavor
-                              ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200"
-                              : "border-dashed hover:bg-muted/50"
-                          }`}
-                          onClick={() => {
-                            setFlavorModalIndex(index);
-                            setFlavorQuery("");
-                          }}
-                        >
-                          {selectedFlavor ? (
-                            <>
-                              <span className="text-sm">フレーバーを変更</span>
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="h-4 w-4" />
-                              <span>フレーバーを選択</span>
-                            </>
-                          )}
-                        </Button>
-                        <DialogContent className="max-w-lg bg-white dark:bg-zinc-900">
-                          <DialogHeader>
-                            <DialogTitle>既存フレーバーを選択</DialogTitle>
-                            <DialogDescription>ブランド名やフレーバー名で絞り込めます。</DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-3">
-                            <Input
-                              placeholder="検索 (例: ミント / レモン)"
-                              value={flavorQuery}
-                              onChange={(event) => setFlavorQuery(event.target.value)}
-                            />
-                            <div className="max-h-80 overflow-auto rounded-md border border-border bg-white dark:bg-zinc-800">
-                              {filteredFlavors.length === 0 ? (
-                                <p className="px-3 py-6 text-center text-sm text-muted-foreground">候補が見つかりませんでした。</p>
-                              ) : (
-                                <div className="divide-y divide-border">
-                                  {filteredFlavors.map((flavor) => (
-                                    <button
-                                      key={flavor.id}
-                                      type="button"
-                                      className="flex w-full items-start gap-3 px-3 py-3 text-left text-sm transition hover:bg-accent/50"
-                                      onClick={() => {
-                                        handleComponentChange(index, {
-                                          flavorId: String(flavor.id),
-                                          mode: "existing",
-                                          customName: "",
-                                          customBrand: ""
-                                        });
-                                        setFlavorModalIndex(null);
-                                        setFlavorQuery("");
-                                      }}
-                                    >
-                                      {flavorImageUrls.get(flavor.id) ? (
-                                        <img
-                                          src={flavorImageUrls.get(flavor.id)}
-                                          alt={flavor.name}
-                                          className="h-12 w-12 rounded-md object-cover flex-shrink-0"
-                                          loading="lazy"
-                                        />
-                                      ) : (
-                                        <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
-                                          <Package className="h-5 w-5 text-muted-foreground" />
-                                        </div>
-                                      )}
-                                      <div className="flex-1 min-w-0 space-y-1">
-                                        <p className="font-medium truncate">{flavor.name}</p>
-                                        <p className="text-xs text-muted-foreground truncate">{flavor.brand?.name ?? "ブランド未設定"}</p>
-                                        {flavor.tags && flavor.tags.length > 0 && (
-                                          <div className="flex flex-wrap gap-1">
-                                            {flavor.tags.slice(0, 5).map((tag) => (
-                                              <span
-                                                key={tag}
-                                                className="inline-flex items-center rounded-full bg-muted/80 dark:bg-muted px-2 py-0.5 text-[10px] text-foreground/70"
-                                              >
-                                                {tag}
-                                              </span>
-                                            ))}
-                                            {flavor.tags.length > 5 && (
-                                              <span className="text-[10px] text-muted-foreground">+{flavor.tags.length - 5}</span>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                      {useCustomRatio && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <Label className="text-xs text-muted-foreground whitespace-nowrap">グラム数:</Label>
-                          <div className="flex items-center gap-1 rounded-lg border bg-background px-3 py-1.5 shadow-sm">
-                            <Input
-                              type="number"
-                              min={0}
-                              step={1}
-                              value={component.grams === "" ? "" : component.grams}
-                              onChange={(event) => {
-                                const raw = event.target.value;
-                                if (raw === "") {
-                                  handleComponentChange(index, { grams: "" });
-                                  return;
-                                }
-                                const nextValue = Number(raw);
-                                handleComponentChange(index, {
-                                  grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0
-                                });
-                              }}
-                              className="h-7 w-16 border-0 p-0 text-center font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
-                            />
-                            <span className="text-sm text-muted-foreground font-medium">g</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {component.customName.trim().length > 0 && (
-                        <div className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-zinc-800 border border-border">
-                          <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                            <Sparkles className="h-6 w-6 text-muted-foreground" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{component.customName}</p>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {component.customBrand || "ブランド未設定"}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      <Input
-                        placeholder="フレーバー名 (例: ミント)"
-                        value={component.customName}
-                        onChange={(event) => handleComponentChange(index, { customName: event.target.value })}
-                        className="h-11"
-                      />
-                      {component.customName.trim().length > 0 ? (
-                        <div className="rounded-lg border bg-background/90 overflow-hidden">
-                          <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">
-                            もしかして...
-                          </div>
+                  <div className="space-y-3">
+                    <Input
+                      placeholder="フレーバー名を入力 (例: ミント)"
+                      value={component.customName}
+                      onChange={(event) => {
+                        handleComponentChange(index, {
+                          customName: event.target.value,
+                          // 入力時は一旦カスタムモードに戻す（候補から選ばれていない状態）
+                          flavorId: "",
+                          mode: "custom"
+                        });
+                      }}
+                      className="h-11"
+                    />
+
+                    {component.customName.trim().length > 0 ? (
+                      <div className="rounded-lg border bg-background/90 overflow-hidden">
+                        <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">
                           {(() => {
                             const suggestions = getFlavorSuggestions(component.customName);
-                            if (!suggestions.length) {
-                              return <p className="px-3 py-4 text-sm text-muted-foreground text-center">候補が見つかりませんでした</p>;
-                            }
+                            return suggestions.length > 0 ? "既存のフレーバーから選択" : "新しいフレーバーとして記録します";
+                          })()}
+                        </div>
+                        {(() => {
+                          const suggestions = getFlavorSuggestions(component.customName);
+                          if (!suggestions.length) {
                             return (
-                              <div className="max-h-40 overflow-auto divide-y">
-                                {suggestions.map((flavor) => (
+                              <div className="px-3 py-4 space-y-2">
+                                <p className="text-sm text-muted-foreground text-center">
+                                  「{component.customName}」として記録されます
+                                </p>
+                                {!component.customBrand && (
+                                  <p className="text-xs text-muted-foreground text-center">
+                                    必要に応じて下のブランド名も入力してください
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="max-h-40 overflow-auto divide-y">
+                              {suggestions.map((flavor) => (
+                                <button
+                                  key={flavor.id}
+                                  type="button"
+                                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-accent/50 transition-colors"
+                                  onClick={() =>
+                                    handleComponentChange(index, {
+                                      flavorId: String(flavor.id),
+                                      mode: "existing",
+                                      customName: flavor.name,
+                                      customBrand: ""
+                                    })
+                                  }
+                                >
+                                  {flavorImageUrls.get(flavor.id) ? (
+                                    <img src={flavorImageUrls.get(flavor.id)} alt="" className="h-8 w-8 rounded object-cover" loading="lazy" />
+                                  ) : (
+                                    <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                                      <Package className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                  )}
+                                  <span className="flex-1 truncate font-medium">{flavor.name}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {flavor.brand?.name ?? "ブランド未設定"}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : null}
+
+                    {component.mode === "custom" && (
+                      <>
+                        <Input
+                          placeholder="ブランド名 (任意: 例 オリジナル)"
+                          value={component.customBrand}
+                          onChange={(event) => handleComponentChange(index, { customBrand: event.target.value })}
+                          className="border-dashed"
+                        />
+
+                        {component.customBrand.trim().length > 0 && (() => {
+                          const brandSuggestions = getBrandSuggestions(component.customBrand);
+                          if (brandSuggestions.length === 0) return null;
+                          return (
+                            <div className="rounded-lg border bg-background/90 overflow-hidden">
+                              <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">
+                                既存のブランドから選択
+                              </div>
+                              <div className="max-h-32 overflow-auto divide-y">
+                                {brandSuggestions.map((brand) => (
                                   <button
-                                    key={flavor.id}
+                                    key={brand.id}
                                     type="button"
-                                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-accent/50 transition-colors"
-                                    onClick={() =>
-                                      handleComponentChange(index, {
-                                        flavorId: String(flavor.id),
-                                        mode: "existing",
-                                        customName: "",
-                                        customBrand: ""
-                                      })
-                                    }
+                                    className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-accent/50 transition-colors"
+                                    onClick={() => handleComponentChange(index, { customBrand: brand.name })}
                                   >
-                                    {flavorImageUrls.get(flavor.id) ? (
-                                      <img src={flavorImageUrls.get(flavor.id)} alt="" className="h-8 w-8 rounded object-cover" loading="lazy" />
-                                    ) : (
-                                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
-                                        <Package className="h-4 w-4 text-muted-foreground" />
-                                      </div>
-                                    )}
-                                    <span className="flex-1 truncate font-medium">{flavor.name}</span>
-                                    <span className="text-xs text-muted-foreground">
-                                      {flavor.brand?.name ?? "ブランド未設定"}
-                                    </span>
+                                    <Package className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <span className="flex-1 truncate font-medium">{brand.name}</span>
                                   </button>
                                 ))}
                               </div>
-                            );
-                          })()}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+
+                    {useCustomRatio && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <Label className="text-xs text-muted-foreground whitespace-nowrap">グラム数:</Label>
+                        <div className="flex items-center gap-1 rounded-lg border bg-background px-3 py-1.5 shadow-sm">
+                          <Input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={component.grams === "" ? "" : component.grams}
+                            onChange={(event) => {
+                              const raw = event.target.value;
+                              if (raw === "") {
+                                handleComponentChange(index, { grams: "" });
+                                return;
+                              }
+                              const nextValue = Number(raw);
+                              handleComponentChange(index, {
+                                grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0
+                              });
+                            }}
+                            className="h-7 w-16 border-0 p-0 text-center font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
+                          />
+                          <span className="text-sm text-muted-foreground font-medium">g</span>
                         </div>
-                      ) : null}
-                      <Input
-                        placeholder="ブランド名 (任意: 例 オリジナル)"
-                        value={component.customBrand}
-                        onChange={(event) => handleComponentChange(index, { customBrand: event.target.value })}
-                        className="border-dashed"
-                      />
-                      {useCustomRatio && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <Label className="text-xs text-muted-foreground whitespace-nowrap">グラム数:</Label>
-                          <div className="flex items-center gap-1 rounded-lg border bg-background px-3 py-1.5 shadow-sm">
-                            <Input
-                              type="number"
-                              min={0}
-                              step={1}
-                              value={component.grams === "" ? "" : component.grams}
-                              onChange={(event) => {
-                                const raw = event.target.value;
-                                if (raw === "") {
-                                  handleComponentChange(index, { grams: "" });
-                                  return;
-                                }
-                                const nextValue = Number(raw);
-                                handleComponentChange(index, {
-                                  grams: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0
-                                });
-                              }}
-                              className="h-7 w-16 border-0 p-0 text-center font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
-                            />
-                            <span className="text-sm text-muted-foreground font-medium">g</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
