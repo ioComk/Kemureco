@@ -28,16 +28,18 @@ export function FloatingRecordButton() {
     >
       <div
         id="floating-action-menu"
-        className={`mb-3 flex flex-col items-end gap-2 transition-all ${
+        role="group"
+        aria-label="クイックアクション"
+        className={`mb-3 flex flex-col items-end gap-2 transition-all duration-200 ${
           open ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"
         }`}
       >
-        <Button asChild size="sm" className="rounded-full shadow-lg">
+        <Button asChild size="sm" className="rounded-full shadow-lg transition-transform duration-150 active:scale-95">
           <Link href={`/${locale}/flavors/new`} onClick={handleSelect}>
             フレーバーを登録する
           </Link>
         </Button>
-        <Button asChild size="sm" variant="secondary" className="rounded-full shadow-lg">
+        <Button asChild size="sm" variant="secondary" className="rounded-full shadow-lg transition-transform duration-150 active:scale-95">
           <Link href={`/${locale}/sessions/new`} onClick={handleSelect} className="text-black">
             記録する
           </Link>
@@ -46,14 +48,14 @@ export function FloatingRecordButton() {
       <Button
         type="button"
         size="lg"
-        className="h-16 w-16 rounded-full shadow-lg p-0"
+        className={`h-16 w-16 rounded-full shadow-lg p-0 transition-all duration-200 active:scale-95 ${open ? "rotate-45" : "rotate-0"}`}
         aria-expanded={open}
         aria-controls="floating-action-menu"
+        aria-label={open ? "メニューを閉じる" : "記録・登録メニューを開く"}
         onMouseEnter={() => setOpen(true)}
         onClick={() => setOpen((prev) => !prev)}
       >
-        <span className="text-2xl leading-none">＋</span>
-        <span className="sr-only">{open ? "閉じる" : "記録する"}</span>
+        <span className="text-2xl leading-none" aria-hidden="true">＋</span>
       </Button>
     </div>
   );
