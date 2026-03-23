@@ -5,23 +5,7 @@ Kemurecoは、シーシャ利用者がフレーバーの記録・管理・共有
 
 ---
 
-## Absolute Rules (最優先)
-- すべての出力・コメントは **日本語** で記述すること
-- **破壊的変更は禁止**
-- **冪等性のあるロジック** を維持すること
-- 不明点がある場合は **実装前に確認** すること
-
----
-
-## Development Flow
-- 新機能・新トピックは **`main` ブランチから分岐** すること
-- マージ完了後のブランチは削除すること
-- 仕様変更時は `doc/specification.md` を更新すること
-
----
-
 ## Design & Reference Rules
-- フロントエンドの設計は `doc/SKILL.md` に従うこと
 - UIは **shadcn/ui** を優先使用
 - 認可・制限は **Supabase RLS** で実装
 
@@ -31,34 +15,6 @@ Kemurecoは、シーシャ利用者がフレーバーの記録・管理・共有
 - **Frontend**: Next.js 14 (App Router) + TypeScript + shadcn/ui
 - **Backend**: Supabase (PostgREST + Auth + RLS + Edge Functions)
 - **Deploy**: Cloudflare Pages (フロント) + Supabase (DB/API/ストレージ)
-- **将来拡張**: Cloudflare Workers (BFF/キャッシュ), Cloudflare R2 (画像)
-
----
-
-## LOG.md Policy (コンテキスト効率化)
-- `LOG.md` はプロジェクトの進捗・決定事項の **唯一の情報源**
-- 新しいセッション開始時は `LOG.md` を参照して現状を把握する
-- 不足しているコンテキストがあれば、具体的に質問すること
-- 実装・決定・動作変更は **必ず `LOG.md` に追記** すること
-- 簡潔で構造化されたログを心がける
-
----
-
-## Session Handover Rules
-- `LOG.md` 全体の再読み込みは明示的に指示がない限り不要
-- コンテキストが不足している場合は以下を確認：
-  - どのセクションか
-  - どの時期か
-  - どの決定事項か
-- 変更は `LOG.md` だけで再現可能であること
-
----
-
-## Priority Order for References
-1. この `CLAUDE.md`
-2. `LOG.md`
-3. `doc/specification.md`
-4. ソースコード
 
 ---
 
@@ -108,7 +64,7 @@ Kemurecoは、シーシャ利用者がフレーバーの記録・管理・共有
 - shadcn/ui（Button, Dialog, Toast, Table, Select, Slider など）
 - ライト/ダーク切替（Tailwind class）
 - Toast通知（成功/失敗/警告）
-- レスポンシブ（スマホ優先、幅400px以上想定）
+- レスポンシブ（スマホ優先）
 
 ---
 
@@ -125,14 +81,6 @@ Kemurecoは、シーシャ利用者がフレーバーの記録・管理・共有
 - mixes -> mix_components (1:N)
 - brands -> flavors (1:N)
 - users -> sessions (1:N)
-
----
-
-## コーディング規約
-- TypeScriptの型安全性を重視
-- コンポーネントは関数コンポーネント + hooks
-- エラーハンドリングは適切に行う
-- 日本語コメント可（必要に応じて）
 
 ---
 
