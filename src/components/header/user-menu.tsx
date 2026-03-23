@@ -7,6 +7,7 @@ import { AuthStatus } from "@/components/auth/auth-status";
 import { createSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useTranslations } from "next-intl";
 
 const SignOutIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
@@ -22,6 +23,7 @@ const SignOutIcon = ({ className }: { className?: string }) => (
 );
 
 export function UserMenu() {
+  const t = useTranslations("userMenu");
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -40,7 +42,7 @@ export function UserMenu() {
 
     if (error) {
       toast({
-        title: "サインアウトに失敗しました",
+        title: t("signOutError"),
         description: error.message,
         variant: "destructive"
       });
@@ -49,7 +51,7 @@ export function UserMenu() {
 
     setOpen(false);
     toast({
-      title: "サインアウトしました"
+      title: t("signOutSuccess")
     });
   };
 
@@ -97,7 +99,7 @@ export function UserMenu() {
                 target="_blank"
                 rel="noreferrer"
               >
-                バグ報告・お問い合わせ
+                {t("bugReport")}
               </a>
             </Button>
             {user?.email ? (
@@ -110,7 +112,7 @@ export function UserMenu() {
               >
                 <span className="flex items-center gap-2">
                   <SignOutIcon className="h-4 w-4" />
-                  {signingOut ? "処理中..." : "サインアウト"}
+                  {signingOut ? t("signingOut") : t("signOut")}
                 </span>
               </Button>
             ) : null}

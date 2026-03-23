@@ -16,6 +16,8 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { LocationPlacesCombobox, type PlaceValue } from "@/components/sessions/location-places-combobox";
 import { JP_QUERY_MAP } from "@/lib/flavor-constants";
+import { useTranslations } from "next-intl";
+import { usePathname } from "next/navigation";
 
 type FlavorOption = Flavor & { brand?: { id: number; name: string } | null };
 
@@ -88,9 +90,12 @@ function evenDistribution(list: ComponentState[], totalOverride?: number): Compo
 }
 
 export function SessionForm() {
+  const t = useTranslations("sessionForm");
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
+  const locale = pathname.split("/")[1] ?? "ja";
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const { user, loading: authLoading } = useAuth();
@@ -302,7 +307,7 @@ export function SessionForm() {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!authUserId) {
-      toast({ title: "サインインが必要です", description: "記録には Supabase Auth へのサインインが必要です。", variant: "destructive" });
+      toast({ title: t("signInRequired"), description: t("signInRequiredDesc"), variant: "destructive" });
       return;
     }
 
@@ -331,8 +336,8 @@ export function SessionForm() {
       if (sessionError || !sessionData) {
         console.error("insert session error", sessionError);
         toast({
-          title: "記録の保存に失敗しました",
-          description: sessionError?.message ?? "保存に失敗しました",
+          title: t("saveError"),
+          description: sessionError?.message ?? t("saveFailed"),
           variant: "destructive"
         });
         return;
@@ -386,7 +391,7 @@ export function SessionForm() {
         if (flavorError) {
           console.error("insert session_flavors error", flavorError);
           toast({
-            title: "フレーバー情報の保存に失敗しました",
+            title: t("flavorSaveError"),
             description: flavorError.message,
             variant: "destructive"
           });
@@ -394,11 +399,11 @@ export function SessionForm() {
         }
       }
 
-      toast({ title: "記録しました" });
+      toast({ title: t("saveSuccess") });
       setFormState({ ...DEFAULT_FORM_STATE, startedAt: toJstDatetimeValue(new Date()) });
       setComponents(createDefaultComponents(1));
       setLocationPlace(null);
-      router.push("/sessions");
+      router.push(`/${locale}/sessions`);
     });
   };
 
@@ -406,7 +411,7 @@ export function SessionForm() {
     <Card className="mx-auto max-w-4xl border-0 shadow-none">
       <CardHeader className="space-y-2">
         <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
-          <Droplets className="h-5 w-5" /> フレーバーを記録
+          <Droplets className="h-5 w-5" /> {t("title")}
         </CardTitle>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -414,15 +419,15 @@ export function SessionForm() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-base">フレーバー構成</Label>
-                {useCustomRatio ? <p className="text-xs text-muted-foreground">合計: {totalGrams}g</p> : null}
+                <Label className="text-base">{t("flavorComposition")}</Label>
+                {useCustomRatio ? <p className="text-xs text-muted-foreground">{t("total", { grams: totalGrams })}</p> : null}
               </div>
               <div className="flex gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={handleAddComponent} disabled={components.length >= MAX_COMPONENTS}>
-                  <Plus className="h-4 w-4" /> 追加
+                  <Plus className="h-4 w-4" /> {t("add")}
                 </Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => setComponents(createDefaultComponents(1))}>
-                  リセット
+                  {t("reset")}
                 </Button>
               </div>
             </div>
@@ -439,7 +444,7 @@ export function SessionForm() {
                 }}
                 className="h-4 w-4 accent-primary"
               />
-              グラム数を自分で設定する
+              {t("customRatioLabel")}
             </label>
             <div className="grid gap-4 md:grid-cols-2">
               {components.map((component, index) => {
@@ -465,9 +470,9 @@ export function SessionForm() {
                         {index + 1}
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold">フレーバー #{index + 1}</Label>
+                        <Label className="text-sm font-semibold">{t("flavor", { index: index + 1 })}</Label>
                         {isSelected && selectedFlavor && (
-                          <p className="text-xs text-muted-foreground truncate max-w-[150px]">{selectedFlavor.brand?.name ?? "ブランド未設定"}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[150px]">{selectedFlavor.brand?.name ?? t("brandNotSet")}</p>
                         )}
                       </div>
                     </div>
@@ -510,12 +515,12 @@ export function SessionForm() {
                   )}
 
                   {useCustomRatio && getGramsValue(component.grams) <= 0 ? (
-                    <p className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded">0gのフレーバーは保存できません。</p>
+                    <p className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded">{t("zeroGramsError")}</p>
                   ) : null}
 
                   <div className="space-y-3">
                     <Input
-                      placeholder="フレーバー名を入力 (例: ミント)"
+                      placeholder={t("flavorNamePlaceholder")}
                       value={component.customName}
                       onChange={(event) => {
                         handleComponentChange(index, {
@@ -533,7 +538,7 @@ export function SessionForm() {
                         <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">
                           {(() => {
                             const suggestions = getFlavorSuggestions(component.customName);
-                            return suggestions.length > 0 ? "既存のフレーバーから選択" : "新しいフレーバーとして記録します";
+                            return suggestions.length > 0 ? t("selectFromExisting") : t("recordAsNew");
                           })()}
                         </div>
                         {(() => {
@@ -542,11 +547,11 @@ export function SessionForm() {
                             return (
                               <div className="px-3 py-4 space-y-2">
                                 <p className="text-sm text-muted-foreground text-center">
-                                  「{component.customName}」として記録されます
+                                  {t("willBeRecordedAs", { name: component.customName })}
                                 </p>
                                 {!component.customBrand && (
                                   <p className="text-xs text-muted-foreground text-center">
-                                    必要に応じて下のブランド名も入力してください
+                                    {t("enterBrandIfNeeded")}
                                   </p>
                                 )}
                               </div>
@@ -577,7 +582,7 @@ export function SessionForm() {
                                   )}
                                   <span className="flex-1 truncate font-medium">{flavor.name}</span>
                                   <span className="text-xs text-muted-foreground">
-                                    {flavor.brand?.name ?? "ブランド未設定"}
+                                    {flavor.brand?.name ?? t("brandNotSet")}
                                   </span>
                                 </button>
                               ))}
@@ -590,7 +595,7 @@ export function SessionForm() {
                     {component.mode === "custom" && (
                       <>
                         <Input
-                          placeholder="ブランド名 (任意: 例 オリジナル)"
+                          placeholder={t("brandPlaceholder")}
                           value={component.customBrand}
                           onChange={(event) => handleComponentChange(index, { customBrand: event.target.value })}
                           className="border-dashed"
@@ -602,7 +607,7 @@ export function SessionForm() {
                           return (
                             <div className="rounded-lg border bg-background/90 overflow-hidden">
                               <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">
-                                既存のブランドから選択
+                                {t("selectFromExistingBrand")}
                               </div>
                               <div className="max-h-32 overflow-auto divide-y">
                                 {brandSuggestions.map((brand) => (
@@ -625,7 +630,7 @@ export function SessionForm() {
 
                     {useCustomRatio && (
                       <div className="flex items-center gap-2 mt-2">
-                        <Label className="text-xs text-muted-foreground whitespace-nowrap">グラム数:</Label>
+                        <Label className="text-xs text-muted-foreground whitespace-nowrap">{t("gramsLabel")}</Label>
                         <div className="flex items-center gap-1 rounded-lg border bg-background px-3 py-1.5 shadow-sm">
                           <Input
                             type="number"
@@ -657,7 +662,7 @@ export function SessionForm() {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="startedAt">日時</Label>
+              <Label htmlFor="startedAt">{t("dateTime")}</Label>
               <DateTimePicker
                 id="startedAt"
                 value={formState.startedAt}
@@ -666,20 +671,20 @@ export function SessionForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="location">場所</Label>
+              <Label htmlFor="location">{t("location")}</Label>
               <LocationPlacesCombobox
                 value={locationPlace}
                 onChange={(nextValue) => {
                   setLocationPlace(nextValue);
                   handleChange("location", nextValue?.name ?? "");
                 }}
-                placeholder="店舗名で検索"
+                placeholder={t("locationPlaceholder")}
               />
             </div>
           </div>
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
-              満足度 <span className="text-sm font-medium">{hoverSatisfaction ?? formState.satisfaction}/5</span>
+              {t("satisfaction")} <span className="text-sm font-medium">{hoverSatisfaction ?? formState.satisfaction}/5</span>
             </Label>
             <div className="flex flex-wrap gap-2">
               {[1, 2, 3, 4, 5].map((score) => {
@@ -699,7 +704,7 @@ export function SessionForm() {
                         ? "border-amber-500 bg-amber-500/20 text-amber-500 dark:border-amber-400 dark:bg-amber-400/20 dark:text-amber-400"
                         : "border-gray-300 dark:border-gray-600 bg-transparent text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-500"
                     }`}
-                    aria-label={`満足度 ${score}`}
+                    aria-label={t("satisfactionLabel", { score })}
                   >
                     <ThumbsUp className="h-5 w-5" />
                   </button>
@@ -708,10 +713,10 @@ export function SessionForm() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="notes">メモ</Label>
+            <Label htmlFor="notes">{t("notes")}</Label>
             <Textarea
               id="notes"
-              placeholder="設定や感想をメモ"
+              placeholder={t("notesPlaceholder")}
               value={formState.notes}
               onChange={(event) => handleChange("notes", event.target.value)}
             />
@@ -723,7 +728,7 @@ export function SessionForm() {
             disabled={isPending || !canSubmitFlavors}
             className="w-full text-white dark:bg-muted dark:text-white sm:w-auto"
           >
-            {isPending ? "保存中..." : "記録する"}
+            {isPending ? t("saving") : t("save")}
           </Button>
         </CardFooter>
       </form>

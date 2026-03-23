@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { GoogleFill } from "akar-icons";
 import { Mail } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
+import { usePathname } from "next/navigation";
 
 const XIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 1024 1024" aria-hidden="true">
@@ -22,6 +23,8 @@ type AuthStatusProps = {
 
 export function AuthStatus({ onSignInClick }: AuthStatusProps) {
   const { user, loading } = useAuth();
+  const pathname = usePathname();
+  const locale = pathname.split("/")[1] ?? "ja";
 
   if (loading) {
     return (
@@ -34,7 +37,7 @@ export function AuthStatus({ onSignInClick }: AuthStatusProps) {
   if (!user?.email) {
     return (
       <Button asChild size="sm" className="w-full justify-center">
-        <Link href="/auth" onClick={onSignInClick}>
+        <Link href={`/${locale}/auth`} onClick={onSignInClick}>
           サインイン
         </Link>
       </Button>

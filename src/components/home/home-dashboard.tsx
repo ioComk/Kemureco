@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Kaisei_Decol, Zen_Kaku_Gothic_New } from "next/font/google";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,13 +57,15 @@ const workflowSteps = [
 export function HomeDashboard() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const locale = pathname.split("/")[1] ?? "ja";
 
   useEffect(() => {
     if (authLoading) return;
     if (user?.id) {
-      router.replace("/sessions");
+      router.replace(`/${locale}/sessions`);
     }
-  }, [authLoading, user?.id, router]);
+  }, [authLoading, user?.id, router, locale]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -136,11 +138,11 @@ export function HomeDashboard() {
             <div className="flex flex-col gap-3 sm:flex-row">
               {user ? (
                 <Button asChild className="bg-[#2f2218] text-white hover:bg-[#3a2a1f] dark:bg-[#f3d8b2] dark:text-[#2a2018] dark:hover:bg-[#e9cfa4]">
-                  <Link href="/sessions/new">今日の記録を残す</Link>
+                  <Link href={`/${locale}/sessions/new`}>今日の記録を残す</Link>
                 </Button>
               ) : (
                 <Button asChild className="bg-[#2f2218] text-white hover:bg-[#3a2a1f] dark:bg-[#f3d8b2] dark:text-[#2a2018] dark:hover:bg-[#e9cfa4]">
-                  <Link href="/auth">はじめる</Link>
+                  <Link href={`/${locale}/auth`}>はじめる</Link>
                 </Button>
               )}
             </div>
@@ -255,7 +257,7 @@ export function HomeDashboard() {
               今の記録
             </h2>
             <Button asChild variant="ghost" className="text-[#6d4c2f] dark:text-[#d8b98c]">
-              <Link href="/sessions">記録一覧へ</Link>
+              <Link href={`/${locale}/sessions`}>記録一覧へ</Link>
             </Button>
           </div>
           <HomeSessionsCalendar />
@@ -273,7 +275,7 @@ export function HomeDashboard() {
               </p>
             </div>
             <Button asChild className="bg-[#2f2218] text-white hover:bg-[#3a2a1f] dark:bg-[#f3d8b2] dark:text-[#2a2018] dark:hover:bg-[#e9cfa4]">
-              <Link href="/auth">無料で始める</Link>
+              <Link href={`/${locale}/auth`}>無料で始める</Link>
             </Button>
           </div>
         </section>

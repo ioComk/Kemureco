@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Loader2, Mail } from "lucide-react";
 import { GoogleFill } from "akar-icons";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useTranslations } from "next-intl";
 
 type AuthScreenProps = {
   onSignedIn?: () => void;
@@ -27,10 +28,14 @@ const XIcon = ({ className }: { className?: string }) => (
 );
 
 export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
+  const t = useTranslations("auth");
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  // パス先頭の /[locale] を取得 (例: /ja → "ja")
+  const locale = pathname.split("/")[1] ?? "ja";
   const authMethodStorageKey = "kemureco-auth-method";
 
   const siteUrl =
@@ -59,7 +64,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
     if (user?.email && !notifiedSignedIn) {
       setNotifiedSignedIn(true);
       onSignedIn?.();
-      router.replace("/sessions");
+      router.replace(`/${locale}/sessions`);
     }
   }, [user?.email, onSignedIn, notifiedSignedIn, router]);
 
@@ -105,7 +110,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
   const handleOtpSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!email) {
-      setEmailError("メールアドレスを入力してください。");
+      setEmailError(t("emailRequired"));
       return;
     }
     if (isMagicCooldownActive) return;
@@ -124,7 +129,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
     if (error) {
       setFormError(error.message);
       toast({
-        title: "メール送信に失敗しました",
+        title: t("emailSendError"),
         description: error.message,
         variant: "destructive"
       });
@@ -132,8 +137,8 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
     }
 
     toast({
-      title: "認証メールを送信しました",
-      description: `${email} を確認してください。`
+      title: t("magicLinkSent"),
+      description: t("checkEmail", { email })
     });
     setSentEmail(email);
     setResendCooldown(30);
@@ -143,11 +148,11 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
     event.preventDefault();
     let hasError = false;
     if (!email) {
-      setEmailError("メールアドレスを入力してください。");
+      setEmailError(t("emailRequired"));
       hasError = true;
     }
     if (!password) {
-      setPasswordError("パスワードを入力してください。");
+      setPasswordError(t("passwordRequired"));
       hasError = true;
     }
     if (hasError) return;
@@ -160,13 +165,13 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
       if (error) {
         setFormError(error.message);
         toast({
-          title: "サインインに失敗しました",
+          title: t("signInError"),
           description: error.message,
           variant: "destructive"
         });
         return;
       }
-      toast({ title: "サインインしました" });
+      toast({ title: t("signInSuccess") });
       return;
     }
 
@@ -175,15 +180,15 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
     if (error) {
       setFormError(error.message);
       toast({
-        title: "サインアップに失敗しました",
+        title: t("signUpError"),
         description: error.message,
         variant: "destructive"
       });
       return;
     }
     toast({
-      title: "確認メールを送信しました",
-      description: `${email} を確認してください。`
+      title: t("confirmEmailSent"),
+      description: t("checkEmail", { email })
     });
   };
 
@@ -202,7 +207,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
     if (error) {
       setFormError(error.message);
       toast({
-        title: "Google サインインに失敗しました",
+        title: t("googleSignInError"),
         description: error.message,
         variant: "destructive"
       });
@@ -223,7 +228,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
     if (error) {
       setFormError(error.message);
       toast({
-        title: "X サインインに失敗しました",
+        title: t("xSignInError"),
         description: error.message,
         variant: "destructive"
       });
@@ -240,14 +245,14 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
           className="text-muted-foreground underline-offset-4 hover:underline"
           onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}
         >
-          {mode === "sign-in" ? "サインアップへ" : "サインインへ"}
+          {mode === "sign-in" ? t("goToSignUp") : t("goToSignIn")}
         </button>
       </div>
 
       <div className="space-y-8">
         <div className="space-y-3 text-center">
           <h1 className="text-3xl font-semibold sm:text-4xl">
-            {mode === "sign-in" ? "アカウントにサインイン" : "アカウントを作成"}
+            {mode === "sign-in" ? t("signInTitle") : t("signUpTitle")}
           </h1>
         </div>
 
@@ -262,7 +267,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
                 className="h-12 gap-2 rounded-full"
               >
                 {isGoogleSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleFill size={18} />}
-                Googleで続ける
+                {t("continueWithGoogle")}
               </Button>
               <Button
                 type="button"
@@ -272,13 +277,13 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
                 className="h-12 gap-2 rounded-full"
               >
                 {isTwitterSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <XIcon className="h-4 w-4" />}
-                Xで続ける
+                {t("continueWithX")}
               </Button>
             </div>
 
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span className="h-px flex-1 bg-border" />
-              メールで続ける
+              {t("continueWithEmail")}
               <span className="h-px flex-1 bg-border" />
             </div>
 
@@ -290,7 +295,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
                 }`}
                 onClick={() => setAuthMethod("magic")}
               >
-                マジックリンク
+                {t("magicLink")}
               </button>
               <button
                 type="button"
@@ -299,7 +304,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
                 }`}
                 onClick={() => setAuthMethod("password")}
               >
-                パスワード
+                {t("password")}
               </button>
             </div>
           </>
@@ -310,7 +315,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
           onSubmit={authMethod === "magic" ? handleOtpSignIn : handlePasswordAuth}
         >
           <div className="space-y-2">
-            <Label htmlFor="auth-email">メールアドレス</Label>
+            <Label htmlFor="auth-email">{t("email")}</Label>
             <Input
               id="auth-email"
               type="email"
@@ -339,7 +344,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
           {authMethod === "password" ? (
             <>
               <div className="space-y-2">
-                <Label htmlFor="auth-password">パスワード</Label>
+                <Label htmlFor="auth-password">{t("password")}</Label>
                 <div className="relative">
                   <Input
                     id="auth-password"
@@ -364,7 +369,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
                     type="button"
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示"}
+                    aria-label={showPassword ? t("hidePassword") : t("showPassword")}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -388,19 +393,19 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
               <Mail className="mr-2 h-4 w-4" />
             ) : null}
             {isOtpSubmitting || isPasswordSubmitting
-              ? "送信中..."
+              ? t("sending")
               : authMethod === "magic"
-                ? "マジックリンクを送信"
+                ? t("sendMagicLink")
                 : mode === "sign-in"
-                  ? "サインイン"
-                  : "アカウントを作成"}
+                  ? t("signIn")
+                  : t("createAccount")}
           </Button>
           {sentEmail && authMethod === "magic" ? (
             <div className="rounded-2xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">認証メールを送信しました</p>
+              <p className="font-medium text-foreground">{t("magicLinkSent")}</p>
               <p className="mt-1 text-xs">{sentEmail}</p>
               <p className="mt-2 text-xs">
-                {resendCooldown > 0 ? `再送まで ${resendCooldown} 秒` : "再送できます"}
+                {resendCooldown > 0 ? t("resendIn", { seconds: resendCooldown }) : t("canResend")}
               </p>
               <button
                 type="button"
@@ -411,7 +416,7 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
                   setEmail("");
                 }}
               >
-                別のメールで送信
+                {t("sendWithDifferentEmail")}
               </button>
             </div>
           ) : null}
@@ -421,18 +426,18 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
             </p>
           ) : null}
           {user?.email ? (
-            <p className="text-center text-xs text-muted-foreground">ログイン中: {user.email}</p>
+            <p className="text-center text-xs text-muted-foreground">{t("loggedInAs", { email: user.email })}</p>
           ) : null}
           <p className="text-center text-xs text-muted-foreground">
-            続行することで{" "}
-            <Link href="/terms" className="underline-offset-4 hover:underline">
-              利用規約
+            {t("agreeToTerms")}{" "}
+            <Link href={`/${locale}/terms`} className="underline-offset-4 hover:underline">
+              {t("termsLink")}
             </Link>
             {" / "}
-            <Link href="/privacy" className="underline-offset-4 hover:underline">
-              プライバシーポリシー
+            <Link href={`/${locale}/privacy`} className="underline-offset-4 hover:underline">
+              {t("privacyLink")}
             </Link>
-            に同意したものとみなされます。
+            {t("agreeToTermsSuffix")}
           </p>
         </form>
       </div>
