@@ -11,13 +11,14 @@ import { Button } from "@/components/ui/button";
 
 export function BottomNav() {
   const pathname = usePathname();
+  const locale = pathname.split("/")[1] ?? "ja";
   const { user, loading: authLoading } = useAuth();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   // ボトムナビゲーションを非表示にするパス
-  const HIDDEN_PATHS = ["/sessions/new", "/flavors/new", "/auth"];
+  const HIDDEN_PATHS = [`/${locale}/sessions/new`, `/${locale}/flavors/new`, `/${locale}/auth`];
 
   // メニュー外クリックで閉じる
   useEffect(() => {
@@ -44,19 +45,19 @@ export function BottomNav() {
 
   const navItems: Array<{ href: Route; label: string; icon: LucideIcon; exact: boolean }> = [
     {
-      href: "/",
+      href: `/${locale}` as Route,
       label: "ホーム",
       icon: Home,
       exact: true
     },
     {
-      href: "/flavors",
+      href: `/${locale}/flavors` as Route,
       label: "フレーバー",
       icon: Package,
       exact: false
     },
     {
-      href: "/sessions",
+      href: `/${locale}/sessions` as Route,
       label: "記録",
       icon: Calendar,
       exact: false
@@ -77,13 +78,13 @@ export function BottomNav() {
         <div className="fixed inset-x-0 bottom-20 z-40 px-4 sm:hidden" ref={menuRef}>
           <div className="mx-auto flex max-w-sm flex-col gap-2 rounded-lg border bg-background p-2 shadow-lg">
             <Button asChild size="sm" variant="outline" className="w-full justify-start">
-              <Link href="/sessions/new" onClick={() => setOpen(false)}>
+              <Link href={`/${locale}/sessions/new`} onClick={() => setOpen(false)}>
                 <Calendar className="mr-2 h-4 w-4" />
                 セッションを記録
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline" className="w-full justify-start">
-              <Link href="/flavors/new" onClick={() => setOpen(false)}>
+              <Link href={`/${locale}/flavors/new`} onClick={() => setOpen(false)}>
                 <Package className="mr-2 h-4 w-4" />
                 フレーバーを登録
               </Link>
@@ -129,7 +130,7 @@ export function BottomNav() {
             </button>
           ) : (
             <Link
-              href="/auth"
+              href={`/${locale}/auth`}
               className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-all"
               aria-label="ログイン"
             >

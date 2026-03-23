@@ -4,8 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 
-export function NavMenu() {
+type NavMenuProps = {
+  locale: string;
+};
+
+export function NavMenu({ locale }: NavMenuProps) {
+  const t = useTranslations("nav");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -35,32 +41,32 @@ export function NavMenu() {
         <div className="absolute right-0 z-50 mt-2 w-44 rounded-md border bg-popover p-2 shadow-lg">
           <nav className="flex flex-col gap-1 text-sm">
             <Link
-              href="/flavors"
+              href={`/${locale}/flavors`}
               className="rounded-md px-3 py-2.5 hover:bg-accent hover:text-accent-foreground min-h-[44px] flex items-center"
               onClick={() => setOpen(false)}
             >
-              Flavors
+              {t("flavors")}
             </Link>
             <Link
-              href="/sessions"
+              href={`/${locale}/sessions`}
               className="rounded-md px-3 py-2.5 hover:bg-accent hover:text-accent-foreground min-h-[44px] flex items-center"
               onClick={() => setOpen(false)}
             >
-              My records
+              {t("myRecords")}
             </Link>
             <Link
-              href="/terms"
+              href={`/${locale}/terms`}
               className="rounded-md px-3 py-2.5 hover:bg-accent hover:text-accent-foreground min-h-[44px] flex items-center"
               onClick={() => setOpen(false)}
             >
-              利用規約
+              {t("terms")}
             </Link>
             <Link
-              href="/privacy"
+              href={`/${locale}/privacy`}
               className="rounded-md px-3 py-2.5 hover:bg-accent hover:text-accent-foreground min-h-[44px] flex items-center"
               onClick={() => setOpen(false)}
             >
-              プライバシー
+              {t("privacy")}
             </Link>
           </nav>
         </div>

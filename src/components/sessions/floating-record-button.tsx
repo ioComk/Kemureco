@@ -6,14 +6,15 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
 
-// フローティングボタンを非表示にするパス
-const HIDDEN_PATHS = ["/sessions/new", "/flavors/new"];
-
 export function FloatingRecordButton() {
   const { user, loading: authLoading } = useAuth();
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const locale = pathname.split("/")[1] ?? "ja";
   const handleSelect = () => setOpen(false);
+
+  // フローティングボタンを非表示にするパス
+  const HIDDEN_PATHS = [`/${locale}/sessions/new`, `/${locale}/flavors/new`];
 
   // 記録・登録ページでは非表示
   if (authLoading || !user || HIDDEN_PATHS.includes(pathname)) {
@@ -32,12 +33,12 @@ export function FloatingRecordButton() {
         }`}
       >
         <Button asChild size="sm" className="rounded-full shadow-lg">
-          <Link href="/flavors/new" onClick={handleSelect}>
+          <Link href={`/${locale}/flavors/new`} onClick={handleSelect}>
             フレーバーを登録する
           </Link>
         </Button>
         <Button asChild size="sm" variant="secondary" className="rounded-full shadow-lg">
-          <Link href="/sessions/new" onClick={handleSelect} className="text-black">
+          <Link href={`/${locale}/sessions/new`} onClick={handleSelect} className="text-black">
             記録する
           </Link>
         </Button>

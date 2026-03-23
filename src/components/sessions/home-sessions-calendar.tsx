@@ -18,6 +18,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { Ellipsis, ExternalLink, MapPin, Package, Pencil, Plus, Share2, Sparkles, ThumbsUp, Trash2 } from "lucide-react";
 import { LocationPlacesCombobox, type PlaceValue, getGoogleMapsLink } from "@/components/sessions/location-places-combobox";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { JP_QUERY_MAP } from "@/lib/flavor-constants";
 import { fetchSessionFlavorsMap } from "@/lib/session-service";
 
@@ -62,6 +63,8 @@ export function HomeSessionsCalendar() {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
+  const pathname = usePathname();
+  const locale = pathname.split("/")[1] ?? "ja";
   const [sessionState, setSessionState] = useState<{ loading: boolean; userId?: string }>({ loading: true });
   const [flavors, setFlavors] = useState<Array<{ id: number; name: string; brandName?: string | null; image_path?: string | null; tags?: string[] | null }>>([]);
   const [brands, setBrands] = useState<Array<{ id: number; name: string }>>([]);
@@ -795,7 +798,7 @@ export function HomeSessionsCalendar() {
                 <div className="rounded-3xl border border-dashed border-border/70 bg-background/70 p-6 text-center">
                   <p className="text-sm text-muted-foreground">この日の記録はまだありません。</p>
                   <Button asChild className="mt-4 gap-2 rounded-full px-5" variant="outline">
-                    <Link href="/sessions/new">
+                    <Link href={`/${locale}/sessions/new`}>
                       <Plus className="h-4 w-4" />
                       記録を追加する
                     </Link>
@@ -1321,7 +1324,7 @@ export function HomeSessionsCalendar() {
                   <Card className="sticky bottom-0 z-20 border-0 bg-background/95 backdrop-blur">
                     <CardContent className="p-4">
                       <Button asChild className="w-full gap-2 rounded-full">
-                        <Link href="/sessions/new">
+                        <Link href={`/${locale}/sessions/new`}>
                           <Plus className="h-4 w-4" />
                           この日に記録を追加
                         </Link>

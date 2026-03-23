@@ -18,6 +18,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
 import { LazyImage } from "@/components/ui/lazy-image";
 import { JP_QUERY_MAP } from "@/lib/flavor-constants";
+import { useTranslations } from "next-intl";
 
 type SortOption = "name" | "brand" | "popular";
 type ViewMode = "grid" | "list";
@@ -66,10 +67,10 @@ const writeCachedFlavors = (userId: string | null, items: FlavorWithBrand[]) => 
 };
 
 
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: "name", label: "名前順" },
-  { value: "brand", label: "ブランド順" },
-  { value: "popular", label: "人気順" }
+const SORT_OPTIONS: { value: SortOption; labelKey: "sortByName" | "sortByBrand" | "sortByPopular" }[] = [
+  { value: "name", labelKey: "sortByName" },
+  { value: "brand", labelKey: "sortByBrand" },
+  { value: "popular", labelKey: "sortByPopular" }
 ];
 
 type FlavorsExplorerProps = {
@@ -89,6 +90,7 @@ export function FlavorsExplorer({
   initialSort,
   totalCount
 }: FlavorsExplorerProps) {
+  const t = useTranslations("flavorsExplorer");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -218,7 +220,7 @@ export function FlavorsExplorer({
   const toggleSelectedFlavor = (flavorId: number) => {
     const alreadySelected = selectedFlavorIds.includes(flavorId);
     if (!alreadySelected && selectedFlavorIds.length >= 4) {
-      toast({ title: "フレーバーは最大4つまで選択できます", variant: "destructive" });
+      toast({ title: t("maxFlavorsError"), variant: "destructive" });
       return;
     }
     setSelectedFlavorIds((prev) =>
@@ -781,13 +783,18 @@ export function FlavorsExplorer({
               }}
             />
             <Select value={sort} onValueChange={handleSortChange}>
+<<<<<<< HEAD
+              <SelectTrigger id="flavor-sort" className="w-[140px]">
+                <SelectValue placeholder={t("sortLabel")} />
+=======
               <SelectTrigger id="flavor-sort" className="w-[110px] sm:w-[140px]">
                 <SelectValue placeholder="並び替え" />
+>>>>>>> origin/main
               </SelectTrigger>
               <SelectContent>
                 {SORT_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.labelKey)}
                   </SelectItem>
                 ))}
               </SelectContent>

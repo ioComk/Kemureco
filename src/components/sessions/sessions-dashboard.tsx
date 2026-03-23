@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { Session } from "@/lib/types";
 import type { SessionItem } from "@/components/sessions/types";
@@ -17,6 +18,8 @@ export function SessionsDashboard() {
   const supabase = useMemo(() => createSupabaseClient(), []);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
+  const pathname = usePathname();
+  const locale = pathname.split("/")[1] ?? "ja";
 
   const [sessionState, setSessionState] = useState<{ loading: boolean; userId?: string }>({ loading: true });
   const [sessions, setSessions] = useState<SessionItem[]>([]);
@@ -92,7 +95,7 @@ export function SessionsDashboard() {
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link href="/auth">サインインページへ</Link>
+            <Link href={`/${locale}/auth`}>サインインページへ</Link>
           </Button>
         </CardContent>
       </Card>
