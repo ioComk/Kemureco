@@ -40,6 +40,8 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
     selectedBrandId: brands[0] ? String(brands[0].id) : ""
   }));
   const [isPending, startTransition] = useTransition();
+  const [flavorNameError, setFlavorNameError] = useState<string | null>(null);
+  const [brandError, setBrandError] = useState<string | null>(null);
   const supabase = useMemo(() => createSupabaseClient(), []);
   const router = useRouter();
   const { toast } = useToast();
@@ -48,6 +50,9 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
 
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setFormState((prev) => ({ ...prev, [key]: value }));
+    // バリデーションエラーをクリア
+    if (key === "flavorName") setFlavorNameError(null);
+    if (key === "newBrandName" || key === "selectedBrandId") setBrandError(null);
   };
 
   const canSubmit =
@@ -58,7 +63,21 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSubmit || isPending) return;
+    // インラインバリデーション
+    let hasError = false;
+    if (!formState.flavorName.trim()) {
+      setFlavorNameError("フレーバー名を入力してください。");
+      hasError = true;
+    }
+    if (formState.brandMode === "new" && !formState.newBrandName.trim()) {
+      setBrandError("ブランド名を入力してください。");
+      hasError = true;
+    }
+    if (formState.brandMode === "select" && !formState.selectedBrandId.trim()) {
+      setBrandError("ブランドを選択してください。");
+      hasError = true;
+    }
+    if (hasError || !canSubmit || isPending) return;
 
     startTransition(async () => {
       if (authLoading || !user) {
@@ -201,8 +220,12 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
                 <Label htmlFor="brand-select">ブランド</Label>
                 <select
                   id="brand-select"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className={`w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    brandError ? "border-destructive" : "border-input"
+                  }`}
                   value={formState.selectedBrandId}
+                  aria-invalid={Boolean(brandError)}
+                  aria-describedby={brandError ? "brand-select-error" : undefined}
                   onChange={(event) => handleChange("selectedBrandId", event.target.value)}
                 >
                   <option value="" disabled>
@@ -214,6 +237,11 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
                     </option>
                   ))}
                 </select>
+                {brandError ? (
+                  <p id="brand-select-error" className="text-xs text-destructive" role="alert">
+                    {brandError}
+                  </p>
+                ) : null}
               </div>
             ) : (
               <div className="space-y-4 rounded-md border p-4">
@@ -223,8 +251,16 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
                     id="new-brand-name"
                     placeholder="例: Trifecta"
                     value={formState.newBrandName}
+                    aria-invalid={Boolean(brandError)}
+                    aria-describedby={brandError ? "new-brand-error" : undefined}
+                    className={brandError ? "border-destructive" : undefined}
                     onChange={(event) => handleChange("newBrandName", event.target.value)}
                   />
+                  {brandError ? (
+                    <p id="new-brand-error" className="text-xs text-destructive" role="alert">
+                      {brandError}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             )}
@@ -237,8 +273,17 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
                 id="flavor-name"
                 placeholder="例: Lemon Muffin"
                 value={formState.flavorName}
+                aria-invalid={Boolean(flavorNameError)}
+                aria-describedby={flavorNameError ? "flavor-name-error" : undefined}
+                aria-required="true"
+                className={flavorNameError ? "border-destructive" : undefined}
                 onChange={(event) => handleChange("flavorName", event.target.value)}
               />
+              {flavorNameError ? (
+                <p id="flavor-name-error" className="text-xs text-destructive" role="alert">
+                  {flavorNameError}
+                </p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="flavor-tags">タグ（カンマ区切り）</Label>
@@ -282,6 +327,8 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
               className="w-full sm:w-auto"
               onClick={() => {
                 setFormState(INITIAL_STATE);
+                setFlavorNameError(null);
+                setBrandError(null);
                 if (fileInputRef.current) {
                   fileInputRef.current.value = "";
                 }
