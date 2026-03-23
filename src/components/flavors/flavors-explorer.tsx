@@ -560,6 +560,7 @@ export function FlavorsExplorer({
                 type="button"
                 size="sm"
                 variant="outline"
+                aria-label={`${flavor.name} を編集`}
                 onClick={(event) => {
                   event.stopPropagation();
                   handleOpenEdit(flavor);
@@ -573,6 +574,7 @@ export function FlavorsExplorer({
                 type="button"
                 size="sm"
                 variant="ghost"
+                aria-label={`${flavor.name} を削除`}
                 onClick={(event) => {
                   event.stopPropagation();
                   handleDeleteFlavor(flavor);
@@ -598,7 +600,8 @@ export function FlavorsExplorer({
                 {canExpand ? (
                   <button
                     type="button"
-                    className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                    aria-expanded={isExpanded}
+                    className="text-xs text-muted-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                     onClick={(event) => {
                       event.stopPropagation();
                       toggleTagExpand(flavor.id);
@@ -661,6 +664,7 @@ export function FlavorsExplorer({
                 type="button"
                 size="sm"
                 variant="outline"
+                aria-label={`${flavor.name} を編集`}
                 onClick={(event) => {
                   event.stopPropagation();
                   handleOpenEdit(flavor);
@@ -674,6 +678,7 @@ export function FlavorsExplorer({
                 type="button"
                 size="sm"
                 variant="ghost"
+                aria-label={`${flavor.name} を削除`}
                 onClick={(event) => {
                   event.stopPropagation();
                   handleDeleteFlavor(flavor);
@@ -701,6 +706,7 @@ export function FlavorsExplorer({
                       type="button"
                       size="sm"
                       variant="ghost"
+                      aria-expanded={isExpanded}
                       onClick={(event) => {
                         event.stopPropagation();
                         toggleTagExpand(flavor.id);
