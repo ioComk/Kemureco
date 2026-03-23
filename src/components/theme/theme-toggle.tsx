@@ -20,8 +20,8 @@ export function ThemeToggle() {
       variant="ghost"
       size="sm"
       onClick={toggle}
-      aria-label="Toggle theme"
-      className="rounded-full px-2"
+      aria-label={currentTheme === "dark" ? "ライトモードに切替" : "ダークモードに切替"}
+      className="rounded-full px-2 transition-transform duration-150 active:scale-95"
       disabled={!mounted}
     >
       {currentTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

@@ -202,7 +202,7 @@ export function HomeDashboard() {
         {featureHighlights.map((feature) => (
           <Card
             key={feature.title}
-            className="scroll-fade border-[#9a7b4f]/20 bg-white/70 shadow-sm dark:border-[#6f5a3a]/40 dark:bg-[#232019]/80"
+            className="scroll-fade border-[#9a7b4f]/20 bg-white/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-[#6f5a3a]/40 dark:bg-[#232019]/80"
             data-scroll
           >
             <CardHeader>
@@ -230,7 +230,7 @@ export function HomeDashboard() {
           {workflowSteps.map((step, index) => (
             <Card
               key={step.title}
-              className="scroll-fade border-[#9a7b4f]/20 bg-white/80 shadow-sm dark:border-[#6f5a3a]/40 dark:bg-[#232019]/80"
+              className="scroll-fade border-[#9a7b4f]/20 bg-white/80 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-[#6f5a3a]/40 dark:bg-[#232019]/80"
               data-scroll
               style={{ "--scroll-delay": `${index * 120}ms` } as CSSProperties}
             >
