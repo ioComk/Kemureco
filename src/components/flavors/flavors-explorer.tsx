@@ -362,9 +362,6 @@ export function FlavorsExplorer({
   }, [items, supabase]);
 
   const filteredFlavors = useMemo(() => {
-    // #region agent log
-    const startTime = Date.now();
-    // #endregion
     const normalizedQuery = deferredQuery.trim().toLowerCase();
     const normalizedTags = activeTags.map((tag) => tag.trim().toLowerCase()).filter((tag) => tag.length > 0);
     const normalizedBrand = activeBrand.trim();
@@ -411,9 +408,6 @@ export function FlavorsExplorer({
 
       return a.name.localeCompare(b.name, "ja");
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/627f6a83-0837-4204-a620-6f09c7612d3e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flavors-explorer.tsx:filteredFlavors',message:'フィルタリング完了',data:{duration:Date.now()-startTime,total:items.length,filtered:result.length,query:deferredQuery},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     return result;
   }, [activeBrand, activeTags, deferredQuery, items, sort]);
 
@@ -787,7 +781,7 @@ export function FlavorsExplorer({
               }}
             />
             <Select value={sort} onValueChange={handleSortChange}>
-              <SelectTrigger id="flavor-sort" className="w-[140px]">
+              <SelectTrigger id="flavor-sort" className="w-[110px] sm:w-[140px]">
                 <SelectValue placeholder="並び替え" />
               </SelectTrigger>
               <SelectContent>

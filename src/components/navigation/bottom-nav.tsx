@@ -102,7 +102,7 @@ export function BottomNav() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-1.5 transition-colors",
+                  "flex flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-1.5 min-h-[44px] transition-colors",
                   active
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"

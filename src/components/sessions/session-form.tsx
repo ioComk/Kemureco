@@ -467,7 +467,7 @@ export function SessionForm() {
                       <div>
                         <Label className="text-sm font-semibold">フレーバー #{index + 1}</Label>
                         {isSelected && selectedFlavor && (
-                          <p className="text-xs text-muted-foreground truncate max-w-[150px]">{selectedFlavor.brand?.name ?? "ブランド未設定"}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[120px] sm:max-w-[200px]">{selectedFlavor.brand?.name ?? "ブランド未設定"}</p>
                         )}
                       </div>
                     </div>

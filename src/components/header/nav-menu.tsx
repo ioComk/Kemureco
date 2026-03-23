@@ -36,28 +36,28 @@ export function NavMenu() {
           <nav className="flex flex-col gap-1 text-sm">
             <Link
               href="/flavors"
-              className="rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+              className="rounded-md px-3 py-2.5 hover:bg-accent hover:text-accent-foreground min-h-[44px] flex items-center"
               onClick={() => setOpen(false)}
             >
               Flavors
             </Link>
             <Link
               href="/sessions"
-              className="rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+              className="rounded-md px-3 py-2.5 hover:bg-accent hover:text-accent-foreground min-h-[44px] flex items-center"
               onClick={() => setOpen(false)}
             >
               My records
             </Link>
             <Link
               href="/terms"
-              className="rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+              className="rounded-md px-3 py-2.5 hover:bg-accent hover:text-accent-foreground min-h-[44px] flex items-center"
               onClick={() => setOpen(false)}
             >
               利用規約
             </Link>
             <Link
               href="/privacy"
-              className="rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+              className="rounded-md px-3 py-2.5 hover:bg-accent hover:text-accent-foreground min-h-[44px] flex items-center"
               onClick={() => setOpen(false)}
             >
               プライバシー
