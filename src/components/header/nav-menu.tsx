@@ -42,28 +42,28 @@ export function NavMenu({ locale }: NavMenuProps) {
           <nav className="flex flex-col gap-1 text-sm">
             <Link
               href={`/${locale}/flavors`}
-              className="rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+              className="rounded-md px-3 py-2.5 hover:bg-accent hover:text-accent-foreground min-h-[44px] flex items-center"
               onClick={() => setOpen(false)}
             >
               {t("flavors")}
             </Link>
             <Link
               href={`/${locale}/sessions`}
-              className="rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+              className="rounded-md px-3 py-2.5 hover:bg-accent hover:text-accent-foreground min-h-[44px] flex items-center"
               onClick={() => setOpen(false)}
             >
               {t("myRecords")}
             </Link>
             <Link
               href={`/${locale}/terms`}
-              className="rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+              className="rounded-md px-3 py-2.5 hover:bg-accent hover:text-accent-foreground min-h-[44px] flex items-center"
               onClick={() => setOpen(false)}
             >
               {t("terms")}
             </Link>
             <Link
               href={`/${locale}/privacy`}
-              className="rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+              className="rounded-md px-3 py-2.5 hover:bg-accent hover:text-accent-foreground min-h-[44px] flex items-center"
               onClick={() => setOpen(false)}
             >
               {t("privacy")}

@@ -274,10 +274,11 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
               <p className="text-xs text-muted-foreground">PNG/JPEG/WEBP、最大5MBまで。</p>
             </div>
           </div>
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
             <Button
               type="reset"
               variant="ghost"
+              className="w-full sm:w-auto"
               onClick={() => {
                 setFormState(INITIAL_STATE);
                 if (fileInputRef.current) {
@@ -288,7 +289,7 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
             >
               リセット
             </Button>
-            <Button type="submit" disabled={!canSubmit || isPending}>
+            <Button type="submit" disabled={!canSubmit || isPending} className="w-full sm:w-auto">
               {isPending ? "登録中..." : "フレーバーを登録"}
             </Button>
           </div>
