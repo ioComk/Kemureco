@@ -26,18 +26,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     let mounted = true;
-    // #region agent log
-    const startTime = Date.now();
-    fetch('http://127.0.0.1:7242/ingest/627f6a83-0837-4204-a620-6f09c7612d3e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-provider.tsx:getSession:start',message:'認証状態取得開始',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
 
     supabase.auth
       .getSession()
       .then(({ data }) => {
         if (!mounted) return;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/627f6a83-0837-4204-a620-6f09c7612d3e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-provider.tsx:getSession:end',message:'認証状態取得完了',data:{duration:Date.now()-startTime,hasSession:!!data.session},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-        // #endregion
         setState({
           loading: false,
           session: data.session ?? null,

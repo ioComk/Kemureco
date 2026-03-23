@@ -102,10 +102,6 @@ export function LocationPlacesCombobox({ value, onChange, className, placeholder
     historyFetchedRef.current = true;
 
     const fetchHistoryPlaces = async () => {
-      // #region agent log
-      const startTime = Date.now();
-      fetch('http://127.0.0.1:7242/ingest/627f6a83-0837-4204-a620-6f09c7612d3e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'location-places-combobox.tsx:fetchHistoryPlaces:start',message:'履歴取得開始',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -115,10 +111,6 @@ export function LocationPlacesCombobox({ value, onChange, className, placeholder
         .eq("user_id", user.id)
         .not("location_name", "is", null)
         .order("started_at", { ascending: false });
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/627f6a83-0837-4204-a620-6f09c7612d3e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'location-places-combobox.tsx:fetchHistoryPlaces:end',message:'履歴取得完了',data:{duration:Date.now()-startTime,count:data?.length??0,hasError:!!error},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
 
       if (error) {
         console.error("[Supabase] 履歴取得エラー:", error);
@@ -178,10 +170,6 @@ export function LocationPlacesCombobox({ value, onChange, className, placeholder
   // Mapbox Searchbox API - Suggest
   const fetchSuggestions = useCallback(
     async (searchQuery: string) => {
-      // #region agent log
-      const startTime = Date.now();
-      fetch('http://127.0.0.1:7242/ingest/627f6a83-0837-4204-a620-6f09c7612d3e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'location-places-combobox.tsx:fetchSuggestions:start',message:'Mapbox検索開始',data:{query:searchQuery,hasApiKey:!!apiKey},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       if (!searchQuery.trim() || !apiKey) {
         setSuggestions([]);
         return;
@@ -257,9 +245,6 @@ export function LocationPlacesCombobox({ value, onChange, className, placeholder
         setSuggestions([]);
         setError(true);
       } finally {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/627f6a83-0837-4204-a620-6f09c7612d3e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'location-places-combobox.tsx:fetchSuggestions:end',message:'Mapbox検索完了',data:{duration:Date.now()-startTime,query:searchQuery},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         setLoading(false);
         setSearchCompleted(true);
       }
