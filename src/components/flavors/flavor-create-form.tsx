@@ -21,6 +21,7 @@ type FormState = {
   selectedBrandId: string;
   newBrandName: string;
   flavorName: string;
+  flavorNameJa: string;
   tagsInput: string;
   imageFile: File | null;
 };
@@ -30,6 +31,7 @@ const INITIAL_STATE: FormState = {
   selectedBrandId: "",
   newBrandName: "",
   flavorName: "",
+  flavorNameJa: "",
   tagsInput: "",
   imageFile: null
 };
@@ -155,6 +157,7 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
 
       const { error: flavorError } = await supabase.from("flavors").insert({
         name: formState.flavorName.trim(),
+        name_ja: formState.flavorNameJa.trim() || null,
         brand_id: brandId,
         tags: tags.length ? tags : null,
         image_path: imagePath,
@@ -268,7 +271,7 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
           <div className="h-px bg-border" />
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="flavor-name">フレーバー名</Label>
+              <Label htmlFor="flavor-name">フレーバー名（英語）</Label>
               <Input
                 id="flavor-name"
                 placeholder="例: Lemon Muffin"
@@ -284,6 +287,18 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
                   {flavorNameError}
                 </p>
               ) : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="flavor-name-ja">
+                フレーバー名（日本語）
+                <span className="ml-1 text-xs font-normal text-muted-foreground">任意・日本語検索用</span>
+              </Label>
+              <Input
+                id="flavor-name-ja"
+                placeholder="例: レモンマフィン"
+                value={formState.flavorNameJa}
+                onChange={(event) => handleChange("flavorNameJa", event.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="flavor-tags">タグ（カンマ区切り）</Label>

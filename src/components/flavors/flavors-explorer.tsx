@@ -114,7 +114,7 @@ export function FlavorsExplorer({
   const [brands, setBrands] = useState<Brand[]>([]);
   const [editOpen, setEditOpen] = useState(false);
   const [editFlavor, setEditFlavor] = useState<FlavorWithBrand | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", brandId: "", tags: "" });
+  const [editForm, setEditForm] = useState({ name: "", nameJa: "", brandId: "", tags: "" });
   const [isSaving, setIsSaving] = useState(false);
   const [previewFlavor, setPreviewFlavor] = useState<FlavorWithBrand | null>(null);
   const [selectedFlavorIds, setSelectedFlavorIds] = useState<number[]>([]);
@@ -378,7 +378,7 @@ export function FlavorsExplorer({
     const tokens = Array.from(queryTokens).filter((token) => token.length > 0);
 
     const filtered = items.filter((flavor) => {
-      const haystack = [flavor.name, flavor.brand?.name ?? "", ...(flavor.tags ?? [])].join(" ").toLowerCase();
+      const haystack = [flavor.name, flavor.name_ja ?? "", flavor.brand?.name ?? "", ...(flavor.tags ?? [])].join(" ").toLowerCase();
       const matchesQuery = tokens.length > 0 ? tokens.some((token) => haystack.includes(token)) : true;
       const matchesTag = normalizedTags.length > 0
         ? normalizedTags.every((tag) => flavor.tags?.some((item) => item.toLowerCase() === tag))
@@ -454,6 +454,7 @@ export function FlavorsExplorer({
     setEditFlavor(flavor);
     setEditForm({
       name: flavor.name ?? "",
+      nameJa: flavor.name_ja ?? "",
       brandId: flavor.brand_id ? String(flavor.brand_id) : "",
       tags: flavor.tags?.join(", ") ?? ""
     });
@@ -485,11 +486,14 @@ export function FlavorsExplorer({
       .map((tag) => tag.trim())
       .filter((tag) => tag.length > 0);
 
+    const nameJa = editForm.nameJa.trim() || null;
+
     setIsSaving(true);
     const { error } = await supabase
       .from("flavors")
       .update({
         name,
+        name_ja: nameJa,
         brand_id: brandId,
         tags: tags.length ? tags : null
       })
@@ -509,7 +513,7 @@ export function FlavorsExplorer({
     setItems((prev) =>
       prev.map((item) =>
         item.id === editFlavor.id
-          ? { ...item, name, brand_id: brandId, tags: tags.length ? tags : null, brand: nextBrand }
+          ? { ...item, name, name_ja: nameJa, brand_id: brandId, tags: tags.length ? tags : null, brand: nextBrand }
           : item
       )
     );
@@ -792,17 +796,8 @@ export function FlavorsExplorer({
             />
             <Label htmlFor="flavor-sort" className="sr-only">並び替え</Label>
             <Select value={sort} onValueChange={handleSortChange}>
-<<<<<<< HEAD
-<<<<<<< HEAD
-              <SelectTrigger id="flavor-sort" className="w-[140px]">
-                <SelectValue placeholder={t("sortLabel")} />
-=======
-              <SelectTrigger id="flavor-sort" className="w-[110px] sm:w-[140px]">
-=======
               <SelectTrigger id="flavor-sort" className="w-[140px]" aria-label="並び替え">
->>>>>>> 6e5a921 (a11y: アクセシビリティ改善（aria属性・キーボード操作・nav要素）)
-                <SelectValue placeholder="並び替え" />
->>>>>>> origin/main
+                <SelectValue placeholder={t("sortLabel")} />
               </SelectTrigger>
               <SelectContent>
                 {SORT_OPTIONS.map((option) => (
@@ -1090,12 +1085,24 @@ export function FlavorsExplorer({
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleUpdateFlavor}>
             <div className="space-y-2">
-              <Label htmlFor="edit-flavor-name">フレーバー名</Label>
+              <Label htmlFor="edit-flavor-name">フレーバー名（英語）</Label>
               <Input
                 id="edit-flavor-name"
                 value={editForm.name}
                 onChange={(event) => handleEditChange("name", event.target.value)}
                 required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-flavor-name-ja">
+                フレーバー名（日本語）
+                <span className="ml-1 text-xs font-normal text-muted-foreground">任意・日本語検索用</span>
+              </Label>
+              <Input
+                id="edit-flavor-name-ja"
+                placeholder="例: レモンマフィン"
+                value={editForm.nameJa}
+                onChange={(event) => handleEditChange("nameJa", event.target.value)}
               />
             </div>
             <div className="space-y-2">
