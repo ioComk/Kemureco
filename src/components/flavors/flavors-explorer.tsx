@@ -764,11 +764,13 @@ export function FlavorsExplorer({
             isScrolled && !isHeaderHovered ? "space-y-2 pb-2" : "space-y-4 pb-4"
           }`}>
           <div className="flex gap-2">
+            <Label htmlFor="flavor-search" className="sr-only">フレーバー検索</Label>
             <Input
               id="flavor-search"
               placeholder="フレーバー名・ブランド名で検索"
               className="flex-1"
               value={query}
+              aria-label="フレーバー名・ブランド名で検索"
               onChange={(event) => setQuery(event.target.value)}
               onFocus={() => setIsSearchFocused(true)}
               onBlur={(event) => {
@@ -782,12 +784,17 @@ export function FlavorsExplorer({
                 updateSearchParam("q", event.currentTarget.value.trim() || undefined);
               }}
             />
+            <Label htmlFor="flavor-sort" className="sr-only">並び替え</Label>
             <Select value={sort} onValueChange={handleSortChange}>
+<<<<<<< HEAD
 <<<<<<< HEAD
               <SelectTrigger id="flavor-sort" className="w-[140px]">
                 <SelectValue placeholder={t("sortLabel")} />
 =======
               <SelectTrigger id="flavor-sort" className="w-[110px] sm:w-[140px]">
+=======
+              <SelectTrigger id="flavor-sort" className="w-[140px]" aria-label="並び替え">
+>>>>>>> 6e5a921 (a11y: アクセシビリティ改善（aria属性・キーボード操作・nav要素）)
                 <SelectValue placeholder="並び替え" />
 >>>>>>> origin/main
               </SelectTrigger>

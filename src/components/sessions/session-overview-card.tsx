@@ -292,25 +292,31 @@ export function SessionOverviewCard({ sessions, className }: SessionOverviewCard
                   件
                 </p>
               </div>
-              <div className="flex items-center gap-1 rounded-full bg-muted p-1 text-xs">
+              <div className="flex items-center gap-1 rounded-full bg-muted p-1 text-xs" role="group" aria-label="集計期間">
                 <button
                   type="button"
                   onClick={() => setPeriod("week")}
-                  className={`rounded-full px-2 py-0.5 ${period === "week" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                  aria-pressed={period === "week"}
+                  aria-label="直近1週間"
+                  className={`rounded-full px-2 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${period === "week" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   1週間
                 </button>
                 <button
                   type="button"
                   onClick={() => setPeriod("month")}
-                  className={`rounded-full px-2 py-0.5 ${period === "month" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                  aria-pressed={period === "month"}
+                  aria-label="直近1ヶ月"
+                  className={`rounded-full px-2 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${period === "month" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   1ヶ月
                 </button>
                 <button
                   type="button"
                   onClick={() => setPeriod("year")}
-                  className={`rounded-full px-2 py-0.5 ${period === "year" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                  aria-pressed={period === "year"}
+                  aria-label="直近1年"
+                  className={`rounded-full px-2 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${period === "year" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   1年
                 </button>

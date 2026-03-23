@@ -64,8 +64,17 @@ export function UserMenu() {
         setOpen(false);
       }
     };
+    const keyHandler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("keydown", keyHandler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", keyHandler);
+    };
   }, []);
 
   return (
@@ -74,7 +83,9 @@ export function UserMenu() {
         variant="ghost"
         size="sm"
         className="rounded-full"
-        aria-label="User menu"
+        aria-label={open ? "ユーザーメニューを閉じる" : "ユーザーメニューを開く"}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         onClick={() => setOpen((prev) => !prev)}
       >
         {avatarUrl && !avatarError ? (
@@ -90,7 +101,12 @@ export function UserMenu() {
         )}
       </Button>
       {open ? (
-        <div className="absolute right-0 z-50 mt-2 w-64 rounded-md border bg-background p-3 shadow-lg dark:bg-neutral-900">
+        <div
+          className="absolute right-0 z-50 mt-2 w-64 rounded-md border bg-background p-3 shadow-lg dark:bg-neutral-900"
+          role="dialog"
+          aria-modal="true"
+          aria-label="ユーザーメニュー"
+        >
           <div className="space-y-3">
             <AuthStatus onSignInClick={() => setOpen(false)} />
             <Button asChild variant="outline" size="sm" className="w-full">
