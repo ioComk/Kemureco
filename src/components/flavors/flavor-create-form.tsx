@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 
 type FlavorCreateFormProps = {
@@ -289,8 +290,15 @@ export function FlavorCreateForm({ brands }: FlavorCreateFormProps) {
             >
               リセット
             </Button>
-            <Button type="submit" disabled={!canSubmit || isPending} className="w-full sm:w-auto">
-              {isPending ? "登録中..." : "フレーバーを登録"}
+            <Button type="submit" disabled={!canSubmit || isPending} aria-busy={isPending} className="w-full sm:w-auto">
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                  登録中...
+                </>
+              ) : (
+                "フレーバーを登録"
+              )}
             </Button>
           </div>
         </form>

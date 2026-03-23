@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { Droplets, Plus, ThumbsUp, Trash2, Sparkles, Package } from "lucide-react";
+import { Droplets, Loader2, Plus, ThumbsUp, Trash2, Sparkles, Package } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { LocationPlacesCombobox, type PlaceValue } from "@/components/sessions/location-places-combobox";
@@ -726,9 +726,17 @@ export function SessionForm() {
           <Button
             type="submit"
             disabled={isPending || !canSubmitFlavors}
+            aria-busy={isPending}
             className="w-full text-white dark:bg-muted dark:text-white sm:w-auto"
           >
-            {isPending ? t("saving") : t("save")}
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                {t("saving")}
+              </>
+            ) : (
+              t("save")
+            )}
           </Button>
         </CardFooter>
       </form>
