@@ -10,6 +10,7 @@ import { SessionOverviewCard } from "@/components/sessions/session-overview-card
 import { fetchSessionFlavorsMap } from "@/lib/session-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -83,12 +84,46 @@ export function HomeSessionOverview() {
 
   if (sessionState.loading) {
     return (
-      <Card className="border-0 shadow-none">
-        <CardHeader>
-          <CardTitle>セッション概要</CardTitle>
-          <CardDescription>認証状態を確認しています...</CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="space-y-4" aria-label="読み込み中" aria-busy="true">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="lg:col-span-2 rounded-xl bg-muted/20 p-4 space-y-4">
+            <Skeleton className="h-4 w-24" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-4 w-3/5" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl bg-muted/20 p-4 space-y-3">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-4/5" />
+            <div className="pt-2 border-t space-y-2">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-6 w-20" />
+              <Skeleton className="h-2 w-full rounded-full" />
+            </div>
+          </div>
+          <div className="rounded-xl bg-muted/20 p-4 space-y-3">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-8 w-16" />
+            <Skeleton className="h-12 w-full" />
+            <div className="pt-2 border-t space-y-2">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-4/5" />
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 

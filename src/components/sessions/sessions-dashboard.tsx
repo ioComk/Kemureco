@@ -10,6 +10,7 @@ import { fetchSessionFlavorsMap } from "@/lib/session-service";
 import { SessionOverviewCard } from "@/components/sessions/session-overview-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
 import { HomeSessionsCalendar } from "@/components/sessions/home-sessions-calendar";
@@ -23,6 +24,7 @@ export function SessionsDashboard() {
 
   const [sessionState, setSessionState] = useState<{ loading: boolean; userId?: string }>({ loading: true });
   const [sessions, setSessions] = useState<SessionItem[]>([]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) {
@@ -38,6 +40,7 @@ export function SessionsDashboard() {
     }
   }, [authLoading, user?.id]);
   const fetchSessions = async (userId: string) => {
+    setFetchError(null);
     try {
       const { data, error } = await supabase
         .from("sessions")
@@ -78,12 +81,66 @@ export function SessionsDashboard() {
         (err as { message?: string; code?: string; hint?: string })?.message ??
         (err as { error_description?: string })?.error_description ??
         "不明なエラーが発生しました";
+      setFetchError(message);
       toast({ title: "記録の取得に失敗しました", description: message, variant: "destructive" });
     }
   };
 
   if (sessionState.loading) {
-    return <p className="text-sm text-muted-foreground">認証状態を確認しています...</p>;
+    return (
+      <div className="space-y-6" aria-label="読み込み中" aria-busy="true">
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="lg:col-span-2 rounded-xl bg-muted/20 p-4 space-y-4">
+              <Skeleton className="h-4 w-24" />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-4 w-3/5" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-4 w-3/5" />
+                </div>
+              </div>
+            </div>
+            <div className="rounded-xl bg-muted/20 p-4 space-y-3">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-4/5" />
+              <Skeleton className="h-4 w-3/5" />
+              <div className="pt-2 border-t space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-6 w-20" />
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+            </div>
+            <div className="rounded-xl bg-muted/20 p-4 space-y-3">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-12 w-full" />
+              <div className="pt-2 border-t space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-xl border p-4 space-y-3">
+          <Skeleton className="h-5 w-32" />
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: 35 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full rounded-md" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!sessionState.userId) {
@@ -96,6 +153,29 @@ export function SessionsDashboard() {
         <CardContent>
           <Button asChild>
             <Link href={`/${locale}/auth`}>サインインページへ</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>記録の取得に失敗しました</CardTitle>
+          <CardDescription>{fetchError}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (sessionState.userId) {
+                void fetchSessions(sessionState.userId);
+              }
+            }}
+          >
+            再試行
           </Button>
         </CardContent>
       </Card>
