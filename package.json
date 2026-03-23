@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:biome": "biome lint .",
+    "check:biome": "biome check .",
+    "format:biome": "biome format --write .",
     "build:cf": "npm run build && npx @cloudflare/next-on-pages@1.13.16",
     "preview:cf": "npx wrangler pages dev .vercel/output/static --compatibility-date=$(date +%Y-%m-%d)",
     "seed:flavors": "node scripts/register-flavors.mjs"
@@ -38,6 +41,7 @@
     "recharts": "^3.6.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.2",
     "@cloudflare/workers-types": "^4.20240208.0",
     "@types/node": "20.14.2",
     "@types/react": "18.3.3",
