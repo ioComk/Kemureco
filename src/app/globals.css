@@ -71,6 +71,16 @@
   @apply border-border;
 }
 
+/* キーボード操作時のみフォーカスリングを表示 */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
 body {
   @apply bg-background text-foreground;
 }
