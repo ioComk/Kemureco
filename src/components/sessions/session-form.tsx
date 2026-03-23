@@ -520,8 +520,11 @@ export function SessionForm() {
 
                   <div className="space-y-3">
                     <Input
+                      id={`flavor-input-${index}`}
                       placeholder={t("flavorNamePlaceholder")}
                       value={component.customName}
+                      aria-label={`フレーバー #${index + 1} の名前`}
+                      autoComplete="off"
                       onChange={(event) => {
                         handleComponentChange(index, {
                           customName: event.target.value,
@@ -558,12 +561,15 @@ export function SessionForm() {
                             );
                           }
                           return (
-                            <div className="max-h-40 overflow-auto divide-y">
+                            <div className="max-h-40 overflow-auto divide-y" role="listbox" aria-label="フレーバー候補">
                               {suggestions.map((flavor) => (
                                 <button
                                   key={flavor.id}
                                   type="button"
-                                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-accent/50 transition-colors"
+                                  role="option"
+                                  aria-selected={component.flavorId === String(flavor.id)}
+                                  aria-label={`${flavor.name}${flavor.brand?.name ? ` (${flavor.brand.name})` : ""} を選択`}
+                                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-accent/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                   onClick={() =>
                                     handleComponentChange(index, {
                                       flavorId: String(flavor.id),
