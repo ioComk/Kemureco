@@ -719,10 +719,9 @@ export function HomeSessionsCalendar() {
                 {daySummary.timeRange ? <p className="text-xs text-muted-foreground">{daySummary.timeRange}</p> : null}
               </div>
             </div>
-            </div>
             <ScrollArea className="flex-1 min-h-0 px-4 pb-6 sm:px-6">
             <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-3 grid-cols-2">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <Card className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
                 <CardContent className="space-y-1 p-3 sm:p-4">
                   <p className="text-xs text-muted-foreground">記録件数</p>
@@ -1334,6 +1333,7 @@ export function HomeSessionsCalendar() {
               </div>
             </div>
             </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
       <Dialog
