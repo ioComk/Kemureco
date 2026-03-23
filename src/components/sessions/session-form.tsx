@@ -689,12 +689,13 @@ export function SessionForm() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="flex items-center gap-2">
+            <Label id="satisfaction-label" className="flex items-center gap-2">
               {t("satisfaction")} <span className="text-sm font-medium">{hoverSatisfaction ?? formState.satisfaction}/5</span>
             </Label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="group" aria-labelledby="satisfaction-label">
               {[1, 2, 3, 4, 5].map((score) => {
                 const active = (hoverSatisfaction ?? formState.satisfaction) >= score;
+                const isSelected = formState.satisfaction === score;
                 return (
                   <button
                     key={score}
@@ -702,17 +703,18 @@ export function SessionForm() {
                     onClick={() => handleChange("satisfaction", score)}
                     onMouseEnter={() => {
                       setHoverSatisfaction(score);
-                      handleChange("satisfaction", score);
                     }}
                     onMouseLeave={() => setHoverSatisfaction(null)}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${
+                    aria-label={`満足度 ${score}`}
+                    aria-pressed={isSelected}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                       active
                         ? "border-amber-500 bg-amber-500/20 text-amber-500 dark:border-amber-400 dark:bg-amber-400/20 dark:text-amber-400"
                         : "border-gray-300 dark:border-gray-600 bg-transparent text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-500"
                     }`}
                     aria-label={t("satisfactionLabel", { score })}
                   >
-                    <ThumbsUp className="h-5 w-5" />
+                    <ThumbsUp className="h-5 w-5" aria-hidden="true" />
                   </button>
                 );
               })}
