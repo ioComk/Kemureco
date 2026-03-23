@@ -22,6 +22,7 @@ export function HomeSessionOverview() {
   const locale = pathname.split("/")[1] ?? "ja";
   const [sessionState, setSessionState] = useState<{ loading: boolean; userId?: string }>({ loading: true });
   const [sessions, setSessions] = useState<SessionItem[]>([]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) {
@@ -38,6 +39,7 @@ export function HomeSessionOverview() {
   }, [authLoading, user?.id]);
 
   const fetchSessions = async (userId: string) => {
+    setFetchError(null);
     try {
       const { data, error } = await supabase
         .from("sessions")
@@ -78,6 +80,7 @@ export function HomeSessionOverview() {
         (err as { message?: string; code?: string; hint?: string })?.message ??
         (err as { error_description?: string })?.error_description ??
         "不明なエラーが発生しました";
+      setFetchError(message);
       toast({ title: "記録の取得に失敗しました", description: message, variant: "destructive" });
     }
   };
@@ -137,6 +140,29 @@ export function HomeSessionOverview() {
         <CardContent>
           <Button asChild>
             <Link href={`/${locale}/auth`}>サインインページへ</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <Card className="border-0 shadow-none">
+        <CardHeader>
+          <CardTitle>セッション概要</CardTitle>
+          <CardDescription>記録の取得に失敗しました: {fetchError}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (sessionState.userId) {
+                void fetchSessions(sessionState.userId);
+              }
+            }}
+          >
+            再試行
           </Button>
         </CardContent>
       </Card>
