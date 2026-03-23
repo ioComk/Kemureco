@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Session } from "@/lib/types";
 import { createSupabaseClient } from "@/lib/supabase";
-import type { SessionItem, SessionFlavorInfo } from "@/components/sessions/types";
+import type { SessionItem } from "@/components/sessions/types";
 import { SessionOverviewCard } from "@/components/sessions/session-overview-card";
+import { fetchSessionFlavorsMap } from "@/lib/session-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -34,56 +35,17 @@ export function HomeSessionOverview() {
 
   const fetchSessions = async (userId: string) => {
     try {
-      // セッション取得
       const { data, error } = await supabase
         .from("sessions")
         .select("id, started_at, location_text, satisfaction, notes")
         .eq("user_id", userId)
         .order("started_at", { ascending: false });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       const rows: Session[] = Array.isArray(data) ? ((data as unknown) as Session[]) : [];
       const sessionIds = rows.map((row) => row.id);
-
-      // session_flavors取得
-      let flavorsMap = new Map<number, SessionFlavorInfo[]>();
-
-      if (sessionIds.length > 0) {
-        const { data: sfData, error: sfError } = await supabase
-          .from("session_flavors")
-          .select("id, session_id, flavor_id, custom_flavor_name, custom_brand_name, ratio_percent, grams, layer_order, flavors(name, image_path, brands(name))")
-          .in("session_id", sessionIds)
-          .order("layer_order", { ascending: true });
-
-        if (sfError) {
-          console.warn("session_flavors fetch failed", sfError);
-        } else {
-          const sfRows = Array.isArray(sfData) ? sfData : [];
-          for (const sf of sfRows) {
-            const sessionId = sf.session_id;
-            const flavorInfo: SessionFlavorInfo = {
-              id: sf.id,
-              flavorId: sf.flavor_id,
-              flavorName: sf.custom_flavor_name ?? sf.flavors?.name ?? "不明なフレーバー",
-              brandName: sf.custom_brand_name ?? sf.flavors?.brands?.name ?? null,
-              imageUrl: sf.flavors?.image_path
-                ? supabase.storage.from("flavor-images").getPublicUrl(sf.flavors.image_path).data.publicUrl
-                : null,
-              grams: sf.grams,
-              ratioPercent: sf.ratio_percent,
-              customFlavorName: sf.custom_flavor_name,
-              customBrandName: sf.custom_brand_name,
-              layerOrder: sf.layer_order
-            };
-            const existing = flavorsMap.get(sessionId) ?? [];
-            existing.push(flavorInfo);
-            flavorsMap.set(sessionId, existing);
-          }
-        }
-      }
+      const flavorsMap = await fetchSessionFlavorsMap(supabase, sessionIds);
 
       const normalized: SessionItem[] = rows.map((item) => ({
         id: item.id,
