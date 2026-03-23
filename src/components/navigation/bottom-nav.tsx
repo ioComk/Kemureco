@@ -94,7 +94,7 @@ export function BottomNav() {
       )}
 
       {/* ボトムナビゲーション */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:hidden" aria-label="ボトムナビゲーション">
         <div className="flex h-16 items-center justify-around px-2">
           {navItems.map((item) => {
             const active = isActive(item.href, item.exact);
@@ -102,14 +102,16 @@ export function BottomNav() {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={active ? "page" : undefined}
+                aria-label={item.label}
                 className={cn(
-                  "flex flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-1.5 min-h-[44px] transition-colors",
+                  "flex flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-1.5 min-h-[44px] transition-all duration-150 active:scale-95",
                   active
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <item.icon className={cn("h-5 w-5", active && "fill-current")} />
+                <item.icon className={cn("h-5 w-5 transition-transform duration-150", active && "fill-current")} />
                 <span className="text-xs font-medium">{item.label}</span>
               </Link>
             );
