@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { Session } from "@/lib/types";
-import type { SessionItem, SessionFlavorInfo } from "./types";
+import type { SessionItem } from "./types";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { Ellipsis, ExternalLink, MapPin, Package, Pencil, Plus, Share2, Sparkles, ThumbsUp, Trash2 } from "lucide-react";
 import { LocationPlacesCombobox, type PlaceValue, getGoogleMapsLink } from "@/components/sessions/location-places-combobox";
 import Link from "next/link";
+import { JP_QUERY_MAP } from "@/lib/flavor-constants";
+import { fetchSessionFlavorsMap } from "@/lib/session-service";
 
 type EditComponentState = {
   flavorId: string;
@@ -26,86 +28,6 @@ type EditComponentState = {
   customName: string;
   customBrand: string;
 };
-
-const JP_QUERY_MAP: Array<{ jp: string; en: string }> = [
-  // フレーバー
-  { jp: "みんと", en: "mint" },
-  { jp: "ミント", en: "mint" },
-  { jp: "れもん", en: "lemon" },
-  { jp: "レモン", en: "lemon" },
-  { jp: "おれんじ", en: "orange" },
-  { jp: "オレンジ", en: "orange" },
-  { jp: "あっぷる", en: "apple" },
-  { jp: "アップル", en: "apple" },
-  { jp: "りんご", en: "apple" },
-  { jp: "だぶるあっぷる", en: "two apples" },
-  { jp: "ダブルアップル", en: "two apples" },
-  { jp: "ぐれーぷ", en: "grape" },
-  { jp: "グレープ", en: "grape" },
-  { jp: "ぶどう", en: "grape" },
-  { jp: "ぶるーべりー", en: "blueberry" },
-  { jp: "ブルーベリー", en: "blueberry" },
-  { jp: "ちぇりー", en: "cherry" },
-  { jp: "チェリー", en: "cherry" },
-  { jp: "すいか", en: "watermelon" },
-  { jp: "スイカ", en: "watermelon" },
-  { jp: "めろん", en: "melon" },
-  { jp: "メロン", en: "melon" },
-  { jp: "ぴーち", en: "peach" },
-  { jp: "ピーチ", en: "peach" },
-  { jp: "ぱいなっぷる", en: "pineapple" },
-  { jp: "パイナップル", en: "pineapple" },
-  { jp: "ばにら", en: "vanilla" },
-  { jp: "バニラ", en: "vanilla" },
-  { jp: "ちょこ", en: "chocolate" },
-  { jp: "チョコ", en: "chocolate" },
-  { jp: "しとらす", en: "citrus" },
-  { jp: "シトラス", en: "citrus" },
-  { jp: "らいむ", en: "lime" },
-  { jp: "ライム", en: "lime" },
-  { jp: "ここなっつ", en: "coconut" },
-  { jp: "ココナッツ", en: "coconut" },
-  { jp: "すぱいす", en: "spice" },
-  { jp: "スパイス", en: "spice" },
-  { jp: "でざーと", en: "dessert" },
-  { jp: "デザート", en: "dessert" },
-  // ブランド名
-  { jp: "あるふぁーへる", en: "al fakher" },
-  { jp: "アルファーヘル", en: "al fakher" },
-  { jp: "アルファヘル", en: "al fakher" },
-  { jp: "すたーばず", en: "starbuzz" },
-  { jp: "スターバズ", en: "starbuzz" },
-  { jp: "ふみゃり", en: "fumari" },
-  { jp: "フミャリ", en: "fumari" },
-  { jp: "ふまり", en: "fumari" },
-  { jp: "フマリ", en: "fumari" },
-  { jp: "そしある", en: "social smoke" },
-  { jp: "ソシアル", en: "social smoke" },
-  { jp: "ソーシャル", en: "social smoke" },
-  { jp: "たんじあーず", en: "tangiers" },
-  { jp: "タンジアーズ", en: "tangiers" },
-  { jp: "なはら", en: "nakhla" },
-  { jp: "ナハラ", en: "nakhla" },
-  { jp: "ナクラ", en: "nakhla" },
-  { jp: "ロミオワイジュリエット", en: "romeo y julieta" },
-  { jp: "ロミオ", en: "romeo" },
-  { jp: "あずーる", en: "azure" },
-  { jp: "アズール", en: "azure" },
-  { jp: "へいぜ", en: "haze" },
-  { jp: "ヘイズ", en: "haze" },
-  { jp: "あどりあ", en: "adalya" },
-  { jp: "アドリア", en: "adalya" },
-  { jp: "アダリヤ", en: "adalya" },
-  { jp: "さつぃーる", en: "serbetli" },
-  { jp: "サツィール", en: "serbetli" },
-  { jp: "セルベトリ", en: "serbetli" },
-  { jp: "せべろ", en: "sebero" },
-  { jp: "セベロ", en: "sebero" },
-  { jp: "だーくさいど", en: "darkside" },
-  { jp: "ダークサイド", en: "darkside" },
-  { jp: "ブラッククラウド", en: "black cloud" },
-  { jp: "ぶらっくくらうど", en: "black cloud" }
-];
 
 const MIN_COMPONENTS = 1;
 const MAX_COMPONENTS = 4;
@@ -406,58 +328,23 @@ export function HomeSessionsCalendar() {
 
       const rows: Session[] = Array.isArray(data) ? ((data as unknown) as Session[]) : [];
       const sessionIds = rows.map((row) => row.id);
+      const sessionFlavorsMap = await fetchSessionFlavorsMap(supabase, sessionIds);
 
-      let sessionFlavorsMap = new Map<number, SessionFlavorInfo[]>();
-
-      if (sessionIds.length > 0) {
-        const { data: sfData, error: sfError } = await supabase
-          .from("session_flavors")
-          .select("id, session_id, flavor_id, custom_flavor_name, custom_brand_name, ratio_percent, grams, layer_order, flavors(name, image_path, brands(name))")
-          .in("session_id", sessionIds)
-          .order("layer_order", { ascending: true });
-
-        if (sfError) {
-          console.warn("session_flavors fetch error", sfError);
-        } else if (sfData) {
-          sfData.forEach((sf) => {
-            const sessionId = sf.session_id;
-            const existing = sessionFlavorsMap.get(sessionId) ?? [];
-            const flavorInfo: SessionFlavorInfo = {
-              id: sf.id,
-              flavorId: sf.flavor_id,
-              flavorName: sf.flavors?.name ?? sf.custom_flavor_name ?? "不明なフレーバー",
-              brandName: sf.flavors?.brands?.name ?? sf.custom_brand_name ?? null,
-              imageUrl: sf.flavors?.image_path
-                ? supabase.storage.from("flavor-images").getPublicUrl(sf.flavors.image_path).data.publicUrl
-                : null,
-              grams: sf.grams ?? null,
-              ratioPercent: sf.ratio_percent ?? null,
-              customFlavorName: sf.custom_flavor_name,
-              customBrandName: sf.custom_brand_name,
-              layerOrder: sf.layer_order
-            };
-            existing.push(flavorInfo);
-            sessionFlavorsMap.set(sessionId, existing);
-          });
-        }
-      }
-
-      const normalized: SessionItem[] =
-        rows.map((item) => ({
-          id: item.id,
-          user_id: userId,
-          started_at: item.started_at,
-          location_text: item.location_text,
-          location_place_id: item.location_place_id ?? null,
-          location_name: item.location_name ?? null,
-          location_address: item.location_address ?? null,
-          location_lat: item.location_lat ?? null,
-          location_lng: item.location_lng ?? null,
-          location_distance_km: item.location_distance_km ?? null,
-          satisfaction: item.satisfaction,
-          notes: item.notes,
-          session_flavors: sessionFlavorsMap.get(item.id) ?? []
-        })) ?? [];
+      const normalized: SessionItem[] = rows.map((item) => ({
+        id: item.id,
+        user_id: userId,
+        started_at: item.started_at,
+        location_text: item.location_text,
+        location_place_id: item.location_place_id ?? null,
+        location_name: item.location_name ?? null,
+        location_address: item.location_address ?? null,
+        location_lat: item.location_lat ?? null,
+        location_lng: item.location_lng ?? null,
+        location_distance_km: item.location_distance_km ?? null,
+        satisfaction: item.satisfaction,
+        notes: item.notes,
+        session_flavors: sessionFlavorsMap.get(item.id) ?? []
+      }));
 
       setSessions(normalized);
     } catch (err) {

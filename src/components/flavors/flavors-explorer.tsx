@@ -17,6 +17,7 @@ import { ArrowUp, ChevronDown, LayoutGrid, List, RotateCcw, X } from "lucide-rea
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
 import { LazyImage } from "@/components/ui/lazy-image";
+import { JP_QUERY_MAP } from "@/lib/flavor-constants";
 
 type SortOption = "name" | "brand" | "popular";
 type ViewMode = "grid" | "list";
@@ -64,73 +65,6 @@ const writeCachedFlavors = (userId: string | null, items: FlavorWithBrand[]) => 
   }
 };
 
-const JP_QUERY_MAP: Array<{ jp: string; en: string }> = [
-  { jp: "たんじあ", en: "tangiers" },
-  { jp: "タンジア", en: "tangiers" },
-  { jp: "とりふぇくた", en: "trifecta" },
-  { jp: "トリフェクタ", en: "trifecta" },
-  { jp: "ふまり", en: "fumari" },
-  { jp: "フマリ", en: "fumari" },
-  { jp: "あるふぁーへる", en: "al fakher" },
-  { jp: "アルファーヘル", en: "al fakher" },
-  { jp: "あずあ", en: "azure" },
-  { jp: "アズア", en: "azure" },
-  { jp: "せるべとり", en: "serbetli" },
-  { jp: "セルベトリ", en: "serbetli" },
-  { jp: "ふーかいん", en: "hookain" },
-  { jp: "フーカイン", en: "hookain" },
-  { jp: "すたーばず", en: "starbuzz" },
-  { jp: "スターバズ", en: "starbuzz" },
-  { jp: "あだりや", en: "adalya" },
-  { jp: "アダリヤ", en: "adalya" },
-  { jp: "あぐりー", en: "ugly" },
-  { jp: "アグリー", en: "ugly" },
-  { jp: "くっきーず", en: "cookies" },
-  { jp: "クッキーズ", en: "cookies" },
-  { jp: "えたーなるすもーく", en: "eternal smoke" },
-  { jp: "エターナルスモーク", en: "eternal smoke" },
-  { jp: "みんと", en: "mint" },
-  { jp: "ミント", en: "mint" },
-  { jp: "れもん", en: "lemon" },
-  { jp: "レモン", en: "lemon" },
-  { jp: "おれんじ", en: "orange" },
-  { jp: "オレンジ", en: "orange" },
-  { jp: "あっぷる", en: "apple" },
-  { jp: "アップル", en: "apple" },
-  { jp: "だぶるあっぷる", en: "two apples" },
-  { jp: "ダブルアップル", en: "two apples" },
-  { jp: "ぐれーぷ", en: "grape" },
-  { jp: "グレープ", en: "grape" },
-  { jp: "ぶどう", en: "grape" },
-  { jp: "ぶるーべりー", en: "blueberry" },
-  { jp: "ブルーベリー", en: "blueberry" },
-  { jp: "ちぇりー", en: "cherry" },
-  { jp: "チェリー", en: "cherry" },
-  { jp: "すいか", en: "watermelon" },
-  { jp: "スイカ", en: "watermelon" },
-  { jp: "めろん", en: "melon" },
-  { jp: "メロン", en: "melon" },
-  { jp: "ぴーち", en: "peach" },
-  { jp: "ピーチ", en: "peach" },
-  { jp: "ぱいなっぷる", en: "pineapple" },
-  { jp: "パイナップル", en: "pineapple" },
-  { jp: "ばなな", en: "banana" },
-  { jp: "バナナ", en: "banana" },
-  { jp: "ばにら", en: "vanilla" },
-  { jp: "バニラ", en: "vanilla" },
-  { jp: "ちょこ", en: "chocolate" },
-  { jp: "チョコ", en: "chocolate" },
-  { jp: "しとらす", en: "citrus" },
-  { jp: "シトラス", en: "citrus" },
-  { jp: "らいむ", en: "lime" },
-  { jp: "ライム", en: "lime" },
-  { jp: "ここなっつ", en: "coconut" },
-  { jp: "ココナッツ", en: "coconut" },
-  { jp: "すぱいす", en: "spice" },
-  { jp: "スパイス", en: "spice" },
-  { jp: "でざーと", en: "dessert" },
-  { jp: "デザート", en: "dessert" }
-];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "name", label: "名前順" },

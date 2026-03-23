@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { Session } from "@/lib/types";
-import type { SessionItem, SessionFlavorInfo } from "@/components/sessions/types";
+import type { SessionItem } from "@/components/sessions/types";
+import { fetchSessionFlavorsMap } from "@/lib/session-service";
 import { SessionOverviewCard } from "@/components/sessions/session-overview-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,64 +42,27 @@ export function SessionsDashboard() {
         .eq("user_id", userId)
         .order("started_at", { ascending: false });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       const rows: Session[] = Array.isArray(data) ? ((data as unknown) as Session[]) : [];
       const sessionIds = rows.map((row) => row.id);
+      const sessionFlavorsMap = await fetchSessionFlavorsMap(supabase, sessionIds);
 
-      let sessionFlavorsMap = new Map<number, SessionFlavorInfo[]>();
-
-      if (sessionIds.length > 0) {
-        const { data: sfData, error: sfError } = await supabase
-          .from("session_flavors")
-          .select("id, session_id, flavor_id, custom_flavor_name, custom_brand_name, ratio_percent, grams, layer_order, flavors(name, image_path, brands(name))")
-          .in("session_id", sessionIds)
-          .order("layer_order", { ascending: true });
-
-        if (sfError) {
-          console.warn("session_flavors fetch error", sfError);
-        } else if (sfData) {
-          sfData.forEach((sf) => {
-            const sessionId = sf.session_id;
-            const existing = sessionFlavorsMap.get(sessionId) ?? [];
-            const flavorInfo: SessionFlavorInfo = {
-              id: sf.id,
-              flavorId: sf.flavor_id,
-              flavorName: sf.flavors?.name ?? sf.custom_flavor_name ?? "不明なフレーバー",
-              brandName: sf.flavors?.brands?.name ?? sf.custom_brand_name ?? null,
-              imageUrl: sf.flavors?.image_path
-                ? supabase.storage.from("flavor-images").getPublicUrl(sf.flavors.image_path).data.publicUrl
-                : null,
-              grams: sf.grams ?? null,
-              ratioPercent: sf.ratio_percent ?? null,
-              customFlavorName: sf.custom_flavor_name,
-              customBrandName: sf.custom_brand_name,
-              layerOrder: sf.layer_order
-            };
-            existing.push(flavorInfo);
-            sessionFlavorsMap.set(sessionId, existing);
-          });
-        }
-      }
-
-      const normalized: SessionItem[] =
-        rows.map((item) => ({
-          id: item.id,
-          user_id: userId,
-          started_at: item.started_at,
-          location_text: item.location_text,
-          location_place_id: item.location_place_id ?? null,
-          location_name: item.location_name ?? null,
-          location_address: item.location_address ?? null,
-          location_lat: item.location_lat ?? null,
-          location_lng: item.location_lng ?? null,
-          location_distance_km: item.location_distance_km ?? null,
-          satisfaction: item.satisfaction,
-          notes: item.notes,
-          session_flavors: sessionFlavorsMap.get(item.id) ?? []
-        })) ?? [];
+      const normalized: SessionItem[] = rows.map((item) => ({
+        id: item.id,
+        user_id: userId,
+        started_at: item.started_at,
+        location_text: item.location_text,
+        location_place_id: item.location_place_id ?? null,
+        location_name: item.location_name ?? null,
+        location_address: item.location_address ?? null,
+        location_lat: item.location_lat ?? null,
+        location_lng: item.location_lng ?? null,
+        location_distance_km: item.location_distance_km ?? null,
+        satisfaction: item.satisfaction,
+        notes: item.notes,
+        session_flavors: sessionFlavorsMap.get(item.id) ?? []
+      }));
 
       setSessions(normalized);
     } catch (err) {

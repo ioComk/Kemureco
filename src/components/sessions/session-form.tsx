@@ -15,6 +15,7 @@ import { Droplets, Plus, ThumbsUp, Trash2, Sparkles, Package } from "lucide-reac
 import { useAuth } from "@/components/auth/auth-provider";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { LocationPlacesCombobox, type PlaceValue } from "@/components/sessions/location-places-combobox";
+import { JP_QUERY_MAP } from "@/lib/flavor-constants";
 
 type FlavorOption = Flavor & { brand?: { id: number; name: string } | null };
 
@@ -32,86 +33,6 @@ type ComponentState = {
   customName: string;
   customBrand: string;
 };
-
-const JP_QUERY_MAP: Array<{ jp: string; en: string }> = [
-  // フレーバー
-  { jp: "みんと", en: "mint" },
-  { jp: "ミント", en: "mint" },
-  { jp: "れもん", en: "lemon" },
-  { jp: "レモン", en: "lemon" },
-  { jp: "おれんじ", en: "orange" },
-  { jp: "オレンジ", en: "orange" },
-  { jp: "あっぷる", en: "apple" },
-  { jp: "アップル", en: "apple" },
-  { jp: "りんご", en: "apple" },
-  { jp: "だぶるあっぷる", en: "two apples" },
-  { jp: "ダブルアップル", en: "two apples" },
-  { jp: "ぐれーぷ", en: "grape" },
-  { jp: "グレープ", en: "grape" },
-  { jp: "ぶどう", en: "grape" },
-  { jp: "ぶるーべりー", en: "blueberry" },
-  { jp: "ブルーベリー", en: "blueberry" },
-  { jp: "ちぇりー", en: "cherry" },
-  { jp: "チェリー", en: "cherry" },
-  { jp: "すいか", en: "watermelon" },
-  { jp: "スイカ", en: "watermelon" },
-  { jp: "めろん", en: "melon" },
-  { jp: "メロン", en: "melon" },
-  { jp: "ぴーち", en: "peach" },
-  { jp: "ピーチ", en: "peach" },
-  { jp: "ぱいなっぷる", en: "pineapple" },
-  { jp: "パイナップル", en: "pineapple" },
-  { jp: "ばにら", en: "vanilla" },
-  { jp: "バニラ", en: "vanilla" },
-  { jp: "ちょこ", en: "chocolate" },
-  { jp: "チョコ", en: "chocolate" },
-  { jp: "しとらす", en: "citrus" },
-  { jp: "シトラス", en: "citrus" },
-  { jp: "らいむ", en: "lime" },
-  { jp: "ライム", en: "lime" },
-  { jp: "ここなっつ", en: "coconut" },
-  { jp: "ココナッツ", en: "coconut" },
-  { jp: "すぱいす", en: "spice" },
-  { jp: "スパイス", en: "spice" },
-  { jp: "でざーと", en: "dessert" },
-  { jp: "デザート", en: "dessert" },
-  // ブランド名
-  { jp: "あるふぁーへる", en: "al fakher" },
-  { jp: "アルファーヘル", en: "al fakher" },
-  { jp: "アルファヘル", en: "al fakher" },
-  { jp: "すたーばず", en: "starbuzz" },
-  { jp: "スターバズ", en: "starbuzz" },
-  { jp: "ふみゃり", en: "fumari" },
-  { jp: "フミャリ", en: "fumari" },
-  { jp: "ふまり", en: "fumari" },
-  { jp: "フマリ", en: "fumari" },
-  { jp: "そしある", en: "social smoke" },
-  { jp: "ソシアル", en: "social smoke" },
-  { jp: "ソーシャル", en: "social smoke" },
-  { jp: "たんじあーず", en: "tangiers" },
-  { jp: "タンジアーズ", en: "tangiers" },
-  { jp: "なはら", en: "nakhla" },
-  { jp: "ナハラ", en: "nakhla" },
-  { jp: "ナクラ", en: "nakhla" },
-  { jp: "ロミオワイジュリエット", en: "romeo y julieta" },
-  { jp: "ロミオ", en: "romeo" },
-  { jp: "あずーる", en: "azure" },
-  { jp: "アズール", en: "azure" },
-  { jp: "へいぜ", en: "haze" },
-  { jp: "ヘイズ", en: "haze" },
-  { jp: "あどりあ", en: "adalya" },
-  { jp: "アドリア", en: "adalya" },
-  { jp: "アダリヤ", en: "adalya" },
-  { jp: "さつぃーる", en: "serbetli" },
-  { jp: "サツィール", en: "serbetli" },
-  { jp: "セルベトリ", en: "serbetli" },
-  { jp: "せべろ", en: "sebero" },
-  { jp: "セベロ", en: "sebero" },
-  { jp: "だーくさいど", en: "darkside" },
-  { jp: "ダークサイド", en: "darkside" },
-  { jp: "ブラッククラウド", en: "black cloud" },
-  { jp: "ぶらっくくらうど", en: "black cloud" }
-];
 
 type SessionInsert = Database["public"]["Tables"]["sessions"]["Insert"];
 type SessionFlavorInsert = Database["public"]["Tables"]["session_flavors"]["Insert"];
