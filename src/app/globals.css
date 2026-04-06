@@ -114,3 +114,16 @@ html[data-scroll-animate="true"] .scroll-fade.is-visible {
     transition: none;
   }
 }
+
+/* iOS Safari: font-size < 16px triggers auto-zoom on input focus.
+   Fix: keep font-size at 16px and scale down visually (14/16 = 0.875)
+   so the input appears as text-sm while preventing the zoom. */
+@supports (-webkit-touch-callout: none) {
+  .ios-input-fix {
+    font-size: 16px !important;
+    transform: scale(0.875) !important;
+    transform-origin: left center !important;
+    width: calc(100% / 0.875) !important;
+    margin-right: calc(100% * (1 - 1 / 0.875)) !important;
+  }
+}
