@@ -202,7 +202,6 @@ export function AuthScreen({ onSignedIn }: AuthScreenProps = {}) {
       }
     });
     setIsGoogleSigningIn(false);
-    console.log(redirectTo);
 
     if (error) {
       setFormError(error.message);
