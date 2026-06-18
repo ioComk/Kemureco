@@ -499,3 +499,18 @@ Kemureco is a web platform for shisha users, focused on accurate session/flavor 
 - タグはフレーバー説明から推測（トロピカル / ベリー / ミント / デザート / ハーブ等）
 - Supabase CLI v2.72.7 に更新してStorage API互換性問題を解決
 - マイグレーション適用後、`http://localhost:3000` でHTTP 200確認
+
+#### Flavor Database Expansion (Feb 2026)
+- Added 222 new flavors from major hookah brands to the database
+- **Newly populated brands:**
+  - Trifecta (32 flavors)
+  - Tangiers (35 flavors)
+  - Fumari (38 flavors)
+  - Azure (31 flavors)
+  - Starbuzz (41 flavors)
+  - Ugly (20 flavors)
+  - Eternal Smoke (25 flavors)
+- **Total flavors increased:** 328 → 550
+- Generated seed SQL with flavor names and auto-tagged based on flavor profiles
+- Tags include: fruit types (apple, mango, berry, etc.), characteristics (sweet, fresh, cooling), and categories (tropical, citrus, mint, etc.)
+- SQL file saved at `supabase/seed-flavors.sql`
